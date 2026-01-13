@@ -17,21 +17,49 @@
   the iteration process.
 -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python ≥3.10 (per constitution)  
+**Primary Framework**: LangGraph ≥1.0.0 (per constitution)  
+**Additional Dependencies**: [e.g., langchain, anthropic, openai or NEEDS CLARIFICATION]  
+**Storage**: LangGraph checkpointing (per constitution - no direct ORM)  
+**Testing**: pytest (per constitution)  
+**Target Platform**: LangGraph Server via `langgraph dev`
+**Project Type**: LangGraph Agent (single graph in `src/agent/graph.py`)  
+**Performance Goals**: [e.g., <2s node execution, <5s full graph or NEEDS CLARIFICATION]  
+**Constraints**: Async-first (per constitution), minimal external deps  
+**Scale/Scope**: [e.g., number of nodes, max state size, concurrent executions or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+### Principle I: Graph-Centric Architecture
+- [ ] Feature designed as LangGraph nodes/edges in `src/agent/graph.py`
+- [ ] All nodes follow async signature: `async def node_name(state: State, runtime: Runtime[Context]) -> Dict[str, Any]`
+- [ ] State transitions explicit via `.add_edge()` or conditional edges
+- [ ] Graph structure visualizable in LangGraph Studio
+
+### Principle II: Type Safety & Schema Validation
+- [ ] `State` dataclass updated with new fields (if needed)
+- [ ] `Context` TypedDict updated with runtime params (if needed)
+- [ ] All node inputs/outputs typed correctly
+- [ ] Pydantic models for external data validation (if applicable)
+
+### Principle III: Test-First Development
+- [ ] Unit tests planned for each node in `tests/unit_tests/`
+- [ ] Integration tests planned for graph execution in `tests/integration_tests/`
+- [ ] Test-first workflow confirmed: Write test → Fail → Implement → Pass
+
+### Principle IV: Observability & Debugging
+- [ ] LangSmith tracing enabled (LANGSMITH_API_KEY in .env)
+- [ ] Logging added at node boundaries
+- [ ] State transitions logged
+- [ ] Testing plan includes LangGraph Studio verification
+
+### Principle V: Modular & Extensible Design
+- [ ] Nodes are small and single-responsibility
+- [ ] Reusable logic extracted to helper functions
+- [ ] Configuration parameters use Context, not hardcoded
+- [ ] Subgraphs used for complex multi-step operations (if needed)
 
 ## Project Structure
 
@@ -56,17 +84,21 @@ specs/[###-feature]/
 -->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
+# LangGraph Project Structure (DEFAULT for Langchain-Benjamin)
+langgraph-app/
+├── src/
+│   └── agent/
+│       ├── graph.py          # Main graph definition
+│       ├── nodes/            # Node implementations (if extracted)
+│       ├── utils/            # Helper functions
+│       └── __init__.py
+├── tests/
+│   ├── unit_tests/          # Node-level tests
+│   ├── integration_tests/   # Full graph tests
+│   └── conftest.py          # Pytest fixtures
+├── pyproject.toml
+├── langgraph.json
+└── README.md
 
 # [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
 backend/

@@ -1,14 +1,19 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: INITIAL → 1.0.0
-- Modified principles: N/A (initial version)
-- Added sections: All core principles, Technology Stack, Development Workflow, Governance
-- Removed sections: N/A
+- Version change: 1.0.0 → 1.0.1
+- Modified principles: None
+- Added sections: None
+- Removed sections: None
 - Templates requiring updates:
-  ✅ plan-template.md - Aligned with constitution principles
-  ✅ spec-template.md - Aligned with user story requirements
-  ✅ tasks-template.md - Aligned with test-first approach
+  ✅ plan-template.md - UPDATED with LangGraph-specific Constitution Check gates, project structure, and technical context
+  ✅ spec-template.md - No changes needed (already aligned)
+  ✅ tasks-template.md - UPDATED with LangGraph path conventions and foundational tasks
 - Follow-up TODOs: None
+- Validation notes:
+  * Constitution Check section now includes all 5 principles as checkboxes
+  * Project structure replaced generic src/models with LangGraph src/agent/graph.py
+  * Path conventions updated to match langgraph-app/ directory structure
+  * Foundational tasks now reference State/Context/LangSmith setup
 -->
 
 # Langchain-Benjamin Constitution
@@ -146,4 +151,4 @@ This constitution is a living document. Amendments require:
 - Violations (e.g., adding non-graph logic) MUST be justified in "Complexity Tracking" table
 - Use `.specify/memory/constitution.md` as single source of truth for development standards
 
-**Version**: 1.0.0 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-01-13
+**Version**: 1.0.1 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-01-13

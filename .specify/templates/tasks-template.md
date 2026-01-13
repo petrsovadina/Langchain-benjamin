@@ -20,10 +20,11 @@ description: "Task list template for feature implementation"
 
 ## Path Conventions
 
-- **Single project**: `src/`, `tests/` at repository root
-- **Web app**: `backend/src/`, `frontend/src/`
-- **Mobile**: `api/src/`, `ios/src/` or `android/src/`
-- Paths shown below assume single project - adjust based on plan.md structure
+- **LangGraph project**: `langgraph-app/src/agent/`, `langgraph-app/tests/`
+- **Main graph**: `langgraph-app/src/agent/graph.py`
+- **Node functions**: In `graph.py` or extracted to `src/agent/nodes/`
+- **Tests**: `langgraph-app/tests/unit_tests/` for nodes, `langgraph-app/tests/integration_tests/` for graphs
+- All paths relative to repository root `/Users/petrsovadina/Desktop/Develope/personal/Langchain-benjamin`
 
 <!-- 
   ============================================================================
@@ -60,14 +61,14 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-Examples of foundational tasks (adjust based on your project):
+LangGraph-specific foundational tasks:
 
-- [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
-- [ ] T006 [P] Setup API routing and middleware structure
-- [ ] T007 Create base models/entities that all stories depend on
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+- [ ] T004 Update `State` dataclass in `langgraph-app/src/agent/graph.py` with required fields
+- [ ] T005 [P] Update `Context` TypedDict with runtime configuration parameters
+- [ ] T006 [P] Configure LangSmith tracing (add LANGSMITH_API_KEY to .env)
+- [ ] T007 Setup logging infrastructure for node transitions
+- [ ] T008 [P] Add pytest fixtures in `langgraph-app/tests/conftest.py` for graph testing
+- [ ] T009 Create helper utilities in `langgraph-app/src/agent/utils/` (if needed)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
