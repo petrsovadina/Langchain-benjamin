@@ -1,4 +1,4 @@
-.PHONY: all format lint test tests test_watch integration_tests docker_tests help extended_tests
+.PHONY: all format lint test tests test_watch integration_tests docker_tests help extended_tests speckit_new speckit_plan speckit_check
 
 # Default target executed when no arguments are given to make.
 all: help
@@ -53,15 +53,98 @@ spell_fix:
 	codespell --toml pyproject.toml -w
 
 ######################
+# SPECKIT WORKFLOW
+######################
+
+# Create new feature branch and spec
+speckit_new:
+	@if [ -z "$(FEATURE)" ]; then \
+		echo "Usage: make speckit_new FEATURE='Your feature description'"; \
+		echo "Options:"; \
+		echo "  NAME='short-name'  - Custom short name (optional)"; \
+		echo "  NUM=5              - Specific feature number (optional)"; \
+		exit 1; \
+	fi
+	@ARGS="$(FEATURE)"; \
+	[ -n "$(NAME)" ] && ARGS="$$ARGS --short-name $(NAME)"; \
+	[ -n "$(NUM)" ] && ARGS="$$ARGS --number $(NUM)"; \
+	../.specify/scripts/bash/create-new-feature.sh $$ARGS
+
+# Setup implementation plan
+speckit_plan:
+	@../.specify/scripts/bash/setup-plan.sh
+
+# Check prerequisites for development
+speckit_check:
+	@../.specify/scripts/bash/check-prerequisites.sh
+
+# Update agent context
+speckit_update:
+	@../.specify/scripts/bash/update-agent-context.sh
+
+# Show SpecKit help
+speckit_help:
+	@echo '======================================'
+	@echo 'SpecKit - Feature Development Workflow'
+	@echo '======================================'
+	@echo ''
+	@echo 'Create new feature:'
+	@echo '  make speckit_new FEATURE="Your feature description"'
+	@echo '  make speckit_new FEATURE="OAuth integration" NAME="oauth"'
+	@echo '  make speckit_new FEATURE="User auth" NUM=10'
+	@echo ''
+	@echo 'Setup implementation plan:'
+	@echo '  make speckit_plan'
+	@echo ''
+	@echo 'Check prerequisites:'
+	@echo '  make speckit_check'
+	@echo ''
+	@echo 'Update agent context:'
+	@echo '  make speckit_update'
+	@echo ''
+	@echo 'Full workflow:'
+	@echo '  1. make speckit_new FEATURE="..."'
+	@echo '  2. Claude Code: /speckit.specify'
+	@echo '  3. Claude Code: /speckit.analyze'
+	@echo '  4. make speckit_plan'
+	@echo '  5. Claude Code: /speckit.plan'
+	@echo '  6. Claude Code: /speckit.tasks'
+	@echo '  7. Claude Code: /speckit.implement'
+	@echo ''
+	@echo 'Documentation:'
+	@echo '  ../.specify/README.md'
+	@echo '  ../.specify/memory/constitution.md'
+	@echo ''
+
+######################
 # HELP
 ######################
 
 help:
-	@echo '----'
-	@echo 'format                       - run code formatters'
-	@echo 'lint                         - run linters'
-	@echo 'test                         - run unit tests'
-	@echo 'tests                        - run unit tests'
-	@echo 'test TEST_FILE=<test_file>   - run all tests in file'
-	@echo 'test_watch                   - run unit tests in watch mode'
+	@echo '===================================='
+	@echo 'Czech MedAI (Benjamin) - Development'
+	@echo '===================================='
+	@echo ''
+	@echo 'Code Quality:'
+	@echo '  make format              - run code formatters'
+	@echo '  make lint                - run linters (ruff + mypy)'
+	@echo '  make spell_check         - check spelling'
+	@echo ''
+	@echo 'Testing:'
+	@echo '  make test                - run unit tests'
+	@echo '  make integration_tests   - run integration tests'
+	@echo '  make test_watch          - run tests in watch mode'
+	@echo '  make test TEST_FILE=path - run specific test file'
+	@echo ''
+	@echo 'SpecKit Workflow:'
+	@echo '  make speckit_help        - show SpecKit commands'
+	@echo '  make speckit_new         - create new feature'
+	@echo '  make speckit_plan        - setup implementation plan'
+	@echo '  make speckit_check       - check prerequisites'
+	@echo ''
+	@echo 'Documentation:'
+	@echo '  CLAUDE.md                - Guide for Claude Code'
+	@echo '  .specify/README.md       - SpecKit documentation'
+	@echo '  .specify/memory/constitution.md - Project Constitution'
+	@echo ''
 
