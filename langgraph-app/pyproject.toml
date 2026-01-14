@@ -11,11 +11,19 @@ requires-python = ">=3.10"
 dependencies = [
     "langgraph>=1.0.0",
     "python-dotenv>=1.0.1",
+    # MCP Infrastructure dependencies
+    "aiohttp>=3.9.0",
+    "tenacity>=8.2.0",
+    "pydantic>=2.5.0",
 ]
 
 
 [project.optional-dependencies]
-dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
+dev = [
+    "mypy>=1.11.1",
+    "ruff>=0.6.1",
+    "aioresponses>=0.7.6",  # HTTP mocking for MCP client tests
+]
 
 [build-system]
 requires = ["setuptools>=73.0.0", "wheel"]
