@@ -17,15 +17,15 @@
   the iteration process.
 -->
 
-**Language/Version**: Python ≥3.10 (per constitution)  
-**Primary Framework**: LangGraph ≥1.0.0 (per constitution)  
-**Additional Dependencies**: [e.g., langchain, anthropic, openai or NEEDS CLARIFICATION]  
-**Storage**: LangGraph checkpointing (per constitution - no direct ORM)  
-**Testing**: pytest (per constitution)  
+**Language/Version**: Python ≥3.10 (per constitution)
+**Primary Framework**: LangGraph ≥1.0.0 (per constitution)
+**Additional Dependencies**: [e.g., langchain, anthropic, openai or NEEDS CLARIFICATION]
+**Storage**: LangGraph checkpointing (per constitution - no direct ORM)
+**Testing**: pytest (per constitution)
 **Target Platform**: LangGraph Server via `langgraph dev`
-**Project Type**: LangGraph Agent (single graph in `src/agent/graph.py`)  
-**Performance Goals**: [e.g., <2s node execution, <5s full graph or NEEDS CLARIFICATION]  
-**Constraints**: Async-first (per constitution), minimal external deps  
+**Project Type**: LangGraph Agent (single graph in `src/agent/graph.py`)
+**Performance Goals**: [e.g., <2s node execution, <5s full graph or NEEDS CLARIFICATION]
+**Constraints**: Async-first (per constitution), minimal external deps
 **Scale/Scope**: [e.g., number of nodes, max state size, concurrent executions or NEEDS CLARIFICATION]
 
 ## Constitution Check
