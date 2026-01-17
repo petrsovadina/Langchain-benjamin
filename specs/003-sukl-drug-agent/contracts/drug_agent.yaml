@@ -1,0 +1,122 @@
+# Drug Agent Node Contract
+# Feature: 003-sukl-drug-agent
+# Date: 2026-01-17
+
+node:
+  name: drug_agent_node
+  description: "Process drug-related queries using SÚKL MCP database"
+  async: true
+
+signature:
+  input:
+    - name: state
+      type: State
+      description: "Current agent state with messages and optional drug_query"
+    - name: runtime
+      type: Runtime[Context]
+      description: "Runtime context with sukl_mcp_client"
+  output:
+    type: Dict[str, Any]
+    fields:
+      - name: messages
+        type: list[AnyMessage]
+        description: "Updated messages with assistant response"
+      - name: retrieved_docs
+        type: list[Document]
+        description: "Retrieved drug documents with citations"
+      - name: next
+        type: str
+        description: "Next node to execute (default: __end__)"
+
+state_requirements:
+  reads:
+    - messages  # Last user message for query extraction
+    - drug_query  # Optional explicit drug query
+  writes:
+    - messages  # Adds assistant response
+    - retrieved_docs  # Adds drug documents
+
+context_requirements:
+  required:
+    - sukl_mcp_client: SUKLMCPClient
+  optional:
+    - mode: Literal["quick", "deep"]  # Affects result depth
+
+behavior:
+  query_extraction:
+    priority:
+      1: state.drug_query  # Explicit query takes precedence
+      2: parse_from_messages  # Fallback to last user message
+
+  query_classification:
+    method: rule_based
+    types:
+      - search: "Vyhledávání léku podle názvu"
+      - details: "Detailní informace o léku"
+      - reimbursement: "Informace o úhradě"
+      - availability: "Kontrola dostupnosti"
+      - atc: "Vyhledávání podle ATC kódu"
+      - ingredient: "Vyhledávání podle účinné látky"
+
+  tool_mapping:
+    search: search_medicine
+    details: get_medicine_details
+    reimbursement: get_reimbursement
+    availability: check_availability
+    atc: get_atc_info
+    ingredient: search_by_ingredient
+
+  response_format:
+    documents:
+      - source: sukl
+      - include_citation: true
+      - citation_format: "[SÚKL: {registration_number}]"
+
+    assistant_message:
+      language: czech
+      include_summary: true
+      include_source_reference: true
+
+error_handling:
+  MCPConnectionError:
+    message_cs: "Nelze se připojit k databázi SÚKL. Zkuste to prosím později."
+    returns_docs: false
+  MCPTimeoutError:
+    message_cs: "Dotaz trval příliš dlouho. Zkuste zúžit vyhledávání."
+    returns_docs: false
+  MCPServerError:
+    message_cs: "Služba SÚKL je dočasně nedostupná."
+    returns_docs: false
+  NoResultsError:
+    message_cs: "Žádný lék odpovídající dotazu nebyl nalezen."
+    returns_docs: []
+
+performance:
+  timeout_ms: 30000
+  retry_enabled: true
+  retry_config: from_context
+  max_results_default: 10
+  max_results_limit: 100
+
+observability:
+  logging:
+    entry: "[drug_agent_node] Processing query: {query_text}"
+    exit: "[drug_agent_node] Completed. Found {count} results."
+    error: "[drug_agent_node] Error: {error_type} - {message}"
+  tracing:
+    langsmith: enabled
+    span_name: "drug_agent_node"
+    attributes:
+      - query_type
+      - tool_used
+      - result_count
+      - latency_ms
+
+testing:
+  unit_tests:
+    location: tests/unit_tests/nodes/test_drug_agent.py
+    mock_strategy: aioresponses
+    coverage_target: 90%
+  integration_tests:
+    location: tests/integration_tests/test_drug_agent_flow.py
+    requires: mock_sukl_server
