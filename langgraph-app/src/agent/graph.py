@@ -15,6 +15,9 @@ from dotenv import load_dotenv
 # Type imports for MCP clients (avoid circular imports)
 if TYPE_CHECKING:
     from agent.mcp import BioMCPClient, SUKLMCPClient
+
+# Runtime import for State dataclass (required for LangGraph type resolution)
+from agent.models.drug_models import DrugQuery
 from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph import StateGraph
@@ -93,10 +96,13 @@ class State:
                   Uses add_messages reducer for automatic appending.
         next: Name of next node to execute (routing control).
         retrieved_docs: Documents retrieved by agents with citations.
+        drug_query: Optional drug query for SÚKL agent (Feature 003).
     """
     messages: Annotated[list[AnyMessage], add_messages]
     next: str = "__end__"
     retrieved_docs: list[Document] = field(default_factory=list)
+    # Feature 003: SÚKL Drug Agent
+    drug_query: Optional[DrugQuery] = None
 
     def __post_init__(self) -> None:
         """Initialize mutable defaults.

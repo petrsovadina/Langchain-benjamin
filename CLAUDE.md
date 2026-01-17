@@ -551,3 +551,10 @@ ENABLE_MCP_FALLBACK=true
 **Aktuální větev**: 001-langgraph-foundation
 **Main větev**: main
 **Status projektu**: Foundation fáze - specifikace hotové, implementace probíhá
+
+## Active Technologies
+- Python ≥3.10 (per constitution) (003-sukl-drug-agent)
+- LangGraph checkpointing (per constitution - no direct ORM) (003-sukl-drug-agent)
+
+## Recent Changes
+- 003-sukl-drug-agent: Added Python ≥3.10 (per constitution)
