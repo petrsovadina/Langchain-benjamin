@@ -185,10 +185,10 @@
 
 **Purpose**: End-to-end testování celého flow
 
-- [ ] T048 [P] Create integration test file `langgraph-app/tests/integration_tests/test_drug_agent_flow.py`
-- [ ] T049 [P] Integration test for search → details flow in `test_drug_agent_flow.py`
-- [ ] T050 Integration test for error handling (timeout, connection error) in `test_drug_agent_flow.py`
-- [ ] T051 Integration test for full graph execution with drug_agent_node
+- [x] T048 [P] Create integration test file `langgraph-app/tests/integration_tests/test_drug_agent_flow.py`
+- [x] T049 [P] Integration test for search → details flow in `test_drug_agent_flow.py`
+- [x] T050 Integration test for error handling (timeout, connection error) in `test_drug_agent_flow.py`
+- [x] T051 Integration test for full graph execution with drug_agent_node
 
 ---
 
@@ -202,7 +202,7 @@
 - [x] T055 [P] Run `mypy --strict` on all new files
 - [x] T056 [P] Run `ruff` linting on all new files
 - [x] T057 Verify LangGraph Studio visualization
-- [x] T058 Run full test suite (150 tests passing, 59% coverage - integration tests needed for 90%)
+- [x] T058 Run full test suite (164 tests passing, 80% coverage on nodes/models)
 
 ---
 
