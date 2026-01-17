@@ -16,7 +16,7 @@ Provides 8 tools:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 from datetime import datetime
 
 import aiohttp
@@ -200,7 +200,8 @@ class SUKLMCPClient(IMCPClient):
 
         # Execute with retry if strategy provided
         if self.retry_strategy:
-            return await self.retry_strategy.execute_with_retry(_execute, config)
+            result = await self.retry_strategy.execute_with_retry(_execute, config)
+            return cast(MCPResponse, result)
         else:
             return await _execute()
 

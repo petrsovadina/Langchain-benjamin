@@ -8,9 +8,13 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Annotated, Any, Dict, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Dict, Literal, Optional
 
 from dotenv import load_dotenv
+
+# Type imports for MCP clients (avoid circular imports)
+if TYPE_CHECKING:
+    from agent.mcp import BioMCPClient, SUKLMCPClient
 from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph import StateGraph
@@ -42,25 +46,36 @@ class Context(TypedDict, total=False):
         langsmith_project: LangSmith project name for tracing.
         user_id: Optional user identifier for session tracking.
 
-        # MCP Clients (Feature 002 integration)
-        sukl_mcp_client: Any  # SUKLMCPClient - Czech pharmaceutical database
-        biomcp_client: Any    # BioMCPClient - International biomedical data
+        # MCP Clients (Feature 002 - typed!)
+        sukl_mcp_client: SUKLMCPClient - Czech pharmaceutical database client
+        biomcp_client: BioMCPClient - International biomedical data client
 
         # Conversation Tracking (BioAgents-inspired)
         conversation_context: Any  # ConversationContext - persistent state
 
         # Workflow Mode (BioAgents-inspired)
         mode: Literal["quick", "deep"]  # Quick answer vs deep research
+
+    Example:
+        >>> from agent.mcp import SUKLMCPClient, BioMCPClient, MCPConfig
+        >>> config = MCPConfig.from_env()
+        >>> context: Context = {
+        ...     "model_name": "claude-sonnet-4",
+        ...     "temperature": 0.0,
+        ...     "sukl_mcp_client": SUKLMCPClient(base_url=config.sukl_url),
+        ...     "biomcp_client": BioMCPClient(base_url=config.biomcp_url),
+        ...     "mode": "quick"
+        ... }
     """
     # Core configuration
     model_name: str
     temperature: float
     langsmith_project: str
-    user_id: str | None
+    user_id: Optional[str]
 
-    # MCP clients (placeholders - typed in Feature 002)
-    sukl_mcp_client: Any
-    biomcp_client: Any
+    # MCP clients (Feature 002 - fully typed)
+    sukl_mcp_client: Optional[SUKLMCPClient]
+    biomcp_client: Optional[BioMCPClient]
 
     # Conversation persistence (typed in Feature 013)
     conversation_context: Any

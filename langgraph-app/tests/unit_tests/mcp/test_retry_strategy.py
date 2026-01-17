@@ -340,7 +340,7 @@ class TestTenacityRetryStrategyEdgeCases:
         result = await strategy.execute_with_retry(complex_operation, config)
 
         assert result == expected_result
-        assert result is not expected_result  # Should be same value
+        assert result is expected_result  # Same object reference preserved
 
     @pytest.mark.asyncio
     async def test_operation_with_side_effects(self):

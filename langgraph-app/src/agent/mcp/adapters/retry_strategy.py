@@ -97,8 +97,9 @@ class TenacityRetryStrategy(IRetryStrategy):
             return await retryable_operation()
         except RetryError as e:
             # Tenacity wraps exception, unwrap for clean error
-            if e.last_attempt.exception() is not None:
-                raise e.last_attempt.exception() from e
+            original_exc = e.last_attempt.exception()
+            if original_exc is not None:
+                raise original_exc from e
             raise
 
     def _build_wait_strategy(
