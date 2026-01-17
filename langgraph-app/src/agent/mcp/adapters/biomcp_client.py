@@ -211,7 +211,10 @@ class BioMCPClient(IMCPClient):
 
         # Execute with retry if strategy provided
         if self.retry_strategy:
-            return await self.retry_strategy.execute_with_retry(_execute, config)
+            result: MCPResponse = await self.retry_strategy.execute_with_retry(
+                _execute, config
+            )
+            return result
         else:
             return await _execute()
 
@@ -368,7 +371,9 @@ class BioMCPClient(IMCPClient):
             return None
 
         # Return full_text if available, otherwise URL
-        return response.data.get("full_text") or response.data.get("url")
+        data = response.data if isinstance(response.data, dict) else {}
+        full_text: Optional[str] = data.get("full_text") or data.get("url")
+        return full_text
 
     async def search_trials(self, query: str) -> List[ClinicalTrial]:
         """Search clinical trials.
