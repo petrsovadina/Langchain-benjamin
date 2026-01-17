@@ -201,7 +201,7 @@
 - [x] T054 Update `langgraph-app/src/agent/__init__.py` with new exports
 - [x] T055 [P] Run `mypy --strict` on all new files
 - [x] T056 [P] Run `ruff` linting on all new files
-- [ ] T057 Verify LangGraph Studio visualization
+- [x] T057 Verify LangGraph Studio visualization
 - [x] T058 Run full test suite (150 tests passing, 59% coverage - integration tests needed for 90%)
 
 ---
