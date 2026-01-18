@@ -8,13 +8,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Annotated, Any, Dict, Literal, Optional
+from typing import Annotated, Any, Dict, Literal, Optional
 
 from dotenv import load_dotenv
-
-# Type imports for MCP clients (avoid circular imports)
-if TYPE_CHECKING:
-    from agent.mcp import BioMCPClient, SUKLMCPClient
 
 # Runtime import for State dataclass (required for LangGraph type resolution)
 from agent.models.drug_models import DrugQuery
@@ -52,7 +48,7 @@ class Context(TypedDict, total=False):
         langsmith_project: LangSmith project name for tracing.
         user_id: Optional user identifier for session tracking.
 
-        # MCP Clients (Feature 002 - typed!)
+        # MCP Clients (Feature 002)
         sukl_mcp_client: SUKLMCPClient - Czech pharmaceutical database client
         biomcp_client: BioMCPClient - International biomedical data client
 
@@ -79,9 +75,10 @@ class Context(TypedDict, total=False):
     langsmith_project: str
     user_id: Optional[str]
 
-    # MCP clients (Feature 002 - fully typed)
-    sukl_mcp_client: Optional[SUKLMCPClient]
-    biomcp_client: Optional[BioMCPClient]
+    # MCP clients (Feature 002 - use Any to avoid Pydantic schema issues)
+    # Actual types: SUKLMCPClient, BioMCPClient (from agent.mcp)
+    sukl_mcp_client: Any
+    biomcp_client: Any
 
     # Conversation persistence (typed in Feature 013)
     conversation_context: Any
