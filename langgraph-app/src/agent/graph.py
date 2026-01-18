@@ -25,6 +25,9 @@ from langgraph.graph.message import add_messages
 from langgraph.runtime import Runtime
 from typing_extensions import TypedDict
 
+# Import drug_agent_node (Feature 003)
+from agent.nodes import drug_agent_node
+
 # Load environment variables (LangSmith tracing)
 load_dotenv()
 
@@ -155,11 +158,71 @@ async def placeholder_node(
     }
 
 
-# Build and compile graph
+# Drug-related keywords for routing (Czech + English)
+DRUG_KEYWORDS = {
+    # Czech
+    "lék", "léky", "léčivo", "léčiva", "prášky", "tablety", "pilulky",
+    "složení", "účinná látka", "indikace", "kontraindikace", "dávkování",
+    "úhrada", "cena", "doplatek", "dostupnost", "alternativa",
+    "súkl", "atc", "registrační",
+    # English fallback
+    "drug", "medicine", "medication", "pill", "tablet",
+    "ingredient", "dosage", "reimbursement", "availability",
+}
+
+
+def route_query(state: State) -> Literal["drug_agent", "placeholder"]:
+    """Route query to appropriate agent based on content.
+
+    Simple keyword-based routing for MVP. Will be replaced by
+    Feature 007-supervisor-orchestration with LLM-based intent classification.
+
+    Args:
+        state: Current agent state with messages.
+
+    Returns:
+        Node name to route to: "drug_agent" or "placeholder".
+    """
+    # Check if explicit drug_query is set
+    if state.drug_query is not None:
+        return "drug_agent"
+
+    # Check last user message for drug-related keywords
+    if state.messages:
+        last_message = state.messages[-1]
+        content = (
+            last_message.get("content", "")
+            if isinstance(last_message, dict)
+            else getattr(last_message, "content", "")
+        )
+        content_lower = content.lower() if content else ""
+
+        # Check for drug keywords
+        for keyword in DRUG_KEYWORDS:
+            if keyword in content_lower:
+                return "drug_agent"
+
+    # Default to placeholder for non-drug queries
+    return "placeholder"
+
+
+# Build and compile graph with routing
 graph = (
     StateGraph(State, context_schema=Context)
+    # Add nodes
     .add_node("placeholder", placeholder_node)
-    .add_edge("__start__", "placeholder")
+    .add_node("drug_agent", drug_agent_node)
+    # Route from start based on query content
+    .add_conditional_edges(
+        "__start__",
+        route_query,
+        {
+            "drug_agent": "drug_agent",
+            "placeholder": "placeholder",
+        }
+    )
+    # Both nodes end the graph
     .add_edge("placeholder", "__end__")
-    .compile(name="Czech MedAI Foundation")
+    .add_edge("drug_agent", "__end__")
+    .compile(name="Czech MedAI")
 )
