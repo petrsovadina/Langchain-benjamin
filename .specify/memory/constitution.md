@@ -1,20 +1,22 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: N/A (restoration from v1.0.1)
-- Action: File restored from archive - template was incorrectly in main location
-- Modified principles: None
+- Version change: 1.0.1 → 1.0.2 (PATCH)
+- Bump rationale: Added pragmatic workaround pattern for Pydantic schema generation in Context TypedDict
+- Modified principles:
+  * Principle II (Type Safety): Added exception clause for LangGraph Context schema compatibility
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates:
-  ✅ plan-template.md - Verified aligned (generic template, Constitution Check reference present)
-  ✅ spec-template.md - Verified aligned (technology-agnostic, no constitution conflicts)
-  ✅ tasks-template.md - Verified aligned (TDD workflow reference, phase structure intact)
+  ✅ plan-template.md - Verified aligned (Constitution Check reference unchanged)
+  ✅ spec-template.md - Verified aligned (no impact on spec structure)
+  ✅ tasks-template.md - Verified aligned (TDD workflow intact)
 - Follow-up TODOs: None
-- Validation notes:
-  * All 5 principles intact and unchanged
-  * Constitution Check section pattern preserved in plan-template.md
-  * Test-first workflow reference in tasks-template.md aligns with Principle III
-  * Last Amended date updated to reflect restoration
+- Change context:
+  * Recent integration (Feature 003) revealed Pydantic schema generation failure when Context TypedDict
+    used strict types for MCP clients (SUKLMCPClient, BioMCPClient) under TYPE_CHECKING
+  * Workaround: Use `Any` type annotation with documentation comment explaining actual type
+  * Commits: d83323f (Pydantic fix), b364c5c (routing integration)
+  * This is a pragmatic exception, not a weakening of type safety principle
 -->
 
 # Langchain-Benjamin Constitution
@@ -43,7 +45,12 @@ SYNC IMPACT REPORT:
 - Input/output of nodes MUST return `Dict[str, Any]` matching State fields
 - Use Pydantic models for external data validation where appropriate
 
-**Rationale**: Type safety prevents runtime errors, enables IDE autocomplete, and makes state evolution trackable. LangGraph requires strict typing for state management.
+**Exception**: When TypedDict types cause Pydantic schema generation failures (e.g., in LangGraph Context):
+- Use `Any` type annotation with documentation comment explaining actual type
+- Example: `sukl_mcp_client: Any  # Actual type: SUKLMCPClient (from agent.mcp)`
+- This preserves runtime type checking while allowing LangGraph Studio schema introspection
+
+**Rationale**: Type safety prevents runtime errors, enables IDE autocomplete, and makes state evolution trackable. LangGraph requires strict typing for state management, but Pydantic schema generation has limitations with complex forward-referenced types.
 
 ### III. Test-First Development (NON-NEGOTIABLE)
 
@@ -152,4 +159,4 @@ This constitution is a living document. Amendments require:
 - Violations (e.g., adding non-graph logic) MUST be justified in "Complexity Tracking" table
 - Use `.specify/memory/constitution.md` as single source of truth for development standards
 
-**Version**: 1.0.1 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-01-17
+**Version**: 1.0.2 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-01-20
