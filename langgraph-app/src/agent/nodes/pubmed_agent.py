@@ -209,6 +209,39 @@ def format_citation(article: PubMedArticle, citation_num: int) -> CitationRefere
     )
 
 
+def _build_references_section(articles: List[PubMedArticle]) -> str:
+    """Build References section with numbered citations.
+
+    Creates formatted References section for response message with:
+    - Sequential numbering [1], [2], [3], ...
+    - Full bibliographic citations
+    - Clickable PubMed URLs
+
+    Args:
+        articles: List of PubMed articles to cite.
+
+    Returns:
+        Formatted References section as string.
+
+    Example:
+        >>> articles = [article1, article2]
+        >>> refs = _build_references_section(articles)
+        >>> assert "## References" in refs
+        >>> assert "[1]" in refs
+        >>> assert "https://pubmed.ncbi.nlm.nih.gov/" in refs
+    """
+    if not articles:
+        return ""
+
+    refs = ["## References\n"]
+    for i, article in enumerate(articles, 1):
+        citation = format_citation(article, i)
+        # Format: [N] Full citation
+        refs.append(f"[{i}] {citation.full_citation}\n")
+
+    return "\n".join(refs)
+
+
 async def _search_pubmed_articles(
     query: ResearchQuery, biomcp_client: Any, max_results: int = 5
 ) -> List[PubMedArticle]:
@@ -415,15 +448,21 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str
 
         print(f"[pubmed_agent] Found {len(documents)} articles")
 
-        # Create response message
+        # Create response message with inline citations and References section
         summary = f"Nalezeno {len(documents)} relevantních článků z PubMed:\n\n"
         for i, article in enumerate(articles, 1):
-            summary += f"{i}. {article.title}\n"
+            # Include inline citation [N] after title
+            summary += f"{i}. {article.title} [{i}]\n"
             if article.authors:
                 summary += f"   Autoři: {', '.join(article.authors[:3])}{'...' if len(article.authors) > 3 else ''}\n"
             if article.journal:
                 summary += f"   Časopis: {article.journal}\n"
             summary += f"   PMID: {article.pmid}\n\n"
+
+        # Add References section with full citations
+        references = _build_references_section(articles)
+        if references:
+            summary += f"\n{references}"
 
         return {
             "retrieved_docs": documents,
