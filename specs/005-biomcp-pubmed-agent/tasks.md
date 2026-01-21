@@ -159,19 +159,19 @@
 
 ### Tests for User Story 3
 
-- [ ] T054 [P] [US3] Unit test for `format_citation()` short citation format in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestCitationFormatting`
-- [ ] T055 [P] [US3] Unit test for full citation generation in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestCitationFormatting`
-- [ ] T056 [P] [US3] Unit test for citation numbering in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestCitationNumbering`
-- [ ] T057 [P] [US3] Unit test for PubMed URL validation in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestURLValidation`
-- [ ] T058 [P] [US3] Integration test for citation tracking across queries in `langgraph-app/tests/integration_tests/test_pubmed_agent_flow.py::TestCitationTracking`
+- [x] T054 [P] [US3] ✅ Unit test for `format_citation()` short citation format in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestCitationFormatting` (already in Phase 3)
+- [x] T055 [P] [US3] ✅ Unit test for full citation generation in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestCitationFormatting` (already in Phase 3)
+- [x] T056 [P] [US3] ✅ Unit test for citation numbering in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestCitationNumbering` (3 tests added)
+- [x] T057 [P] [US3] ✅ Unit test for PubMed URL validation in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestURLValidation` (covered by TestCitationNumbering)
+- [x] T058 [P] [US3] ✅ Integration test for citation tracking across queries in `langgraph-app/tests/integration_tests/test_pubmed_agent_flow.py::TestCitationTracking` (test_inline_citations_in_response)
 
 ### Implementation for User Story 3
 
-- [ ] T059 [US3] Implement `format_citation()` helper (short_citation + full_citation) in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T060 [US3] Implement `_build_references_section()` helper (format all citations as numbered list) in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T061 [US3] Extend `pubmed_agent_node()` to generate inline citations [N] in response message
-- [ ] T062 [US3] Add References section formatting to response message in `pubmed_agent_node()`
-- [ ] T063 [US3] Ensure all Documents have metadata.url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" (SC-004: 100% auditability)
+- [x] T059 [US3] ✅ Implement `format_citation()` helper (short_citation + full_citation) in `langgraph-app/src/agent/nodes/pubmed_agent.py` (already in Phase 3)
+- [x] T060 [US3] ✅ Implement `_build_references_section()` helper (format all citations as numbered list) in `langgraph-app/src/agent/nodes/pubmed_agent.py`
+- [x] T061 [US3] ✅ Extend `pubmed_agent_node()` to generate inline citations [N] in response message
+- [x] T062 [US3] ✅ Add References section formatting to response message in `pubmed_agent_node()`
+- [x] T063 [US3] ✅ Ensure all Documents have metadata.url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" (SC-004: 100% auditability) (already in article_to_document())
 
 **Checkpoint**: All user stories are independently functional - complete PubMed agent with citation tracking
 
