@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.agent.graph import State, Context, graph
-from src.agent.models.drug_models import (
+from agent.graph import State, Context, graph
+from agent.models.drug_models import (
     DrugQuery,
     DrugResult,
     DrugDetails,
@@ -16,13 +16,13 @@ from src.agent.models.drug_models import (
     ReimbursementCategory,
     AvailabilityInfo,
 )
-from src.agent.models.research_models import (
+from agent.models.research_models import (
     ResearchQuery,
     PubMedArticle,
     TranslatedArticle,
     CitationReference,
 )
-from src.agent.mcp import MCPResponse
+from agent.mcp import MCPResponse
 
 
 @pytest.fixture(scope="session")

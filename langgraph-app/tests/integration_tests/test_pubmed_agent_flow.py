@@ -8,10 +8,10 @@ TDD Workflow: These tests should FAIL before implementation.
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.agent.graph import State, Context
-from src.agent.nodes.pubmed_agent import pubmed_agent_node
-from src.agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
-from src.agent.models.research_models import ResearchQuery
+from agent.graph import State, Context
+from agent.nodes.pubmed_agent import pubmed_agent_node
+from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
+from agent.models.research_models import ResearchQuery
 
 
 class TestFullTranslationFlow:
@@ -161,7 +161,7 @@ class TestFullTranslationFlow:
         - Czech abstract translation works
         """
         # Arrange
-        from src.agent.mcp import MCPResponse
+        from agent.mcp import MCPResponse
 
         mock_client = MagicMock()
         mock_client.call_tool = AsyncMock()
@@ -349,7 +349,7 @@ class TestFullTranslationFlow:
         mock_client.call_tool = AsyncMock()
 
         # Simulate BioMCP failure
-        from src.agent.mcp import MCPResponse
+        from agent.mcp import MCPResponse
 
         mock_client.call_tool.return_value = MCPResponse(
             success=False, error="Connection refused: BioMCP server not responding"
