@@ -133,19 +133,19 @@
 
 ### Tests for User Story 2
 
-- [ ] T044 [P] [US2] Unit test for PMID pattern detection in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestPMIDLookup`
-- [ ] T045 [P] [US2] Unit test for `article_getter` tool call in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestArticleGetter`
-- [ ] T046 [P] [US2] Unit test for PMC full-text link detection in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestPMCAccess`
-- [ ] T047 [P] [US2] Unit test for paywall indication in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestPaywallHandling`
-- [ ] T048 [P] [US2] Integration test for PMID lookup flow in `langgraph-app/tests/integration_tests/test_pubmed_agent_flow.py::TestPMIDFlow`
+- [x] T044 [P] [US2] Unit test for PMID pattern detection in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestPMIDLookup` (4 tests, all passing ✓)
+- [x] T045 [P] [US2] Unit test for `article_getter` tool call in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestArticleGetter` (2 tests, all passing ✓)
+- [x] T046 [P] [US2] Unit test for PMC full-text link detection in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestPMCAccess` (2 tests, all passing ✓)
+- [x] T047 [P] [US2] Unit test for paywall indication in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestPaywallHandling` (2 tests, all passing ✓)
+- [x] T048 [P] [US2] Integration test for PMID lookup flow in `langgraph-app/tests/integration_tests/test_pubmed_agent_flow.py::TestPMIDFlow` (test_pmid_lookup_with_pmc_availability)
 
 ### Implementation for User Story 2
 
-- [ ] T049 [US2] Extend `classify_research_query()` with PMID regex pattern detection in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T050 [US2] Implement `_get_article_by_pmid()` helper (BioMCP article_getter call) in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T051 [US2] Implement `_check_pmc_availability()` helper (PMC free full-text detection) in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T052 [US2] Extend `pubmed_agent_node()` to handle query_type="pmid_lookup" in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T053 [US2] Add PubMed/PMC URL formatting in `article_to_document()` metadata
+- [x] T049 [US2] Extend `classify_research_query()` with PMID regex pattern detection in `langgraph-app/src/agent/nodes/pubmed_agent.py` (already done in Phase 3, bugfix: exact 8-digit match)
+- [x] T050 [US2] Implement `_get_article_by_pmid()` helper (BioMCP article_getter call) in `langgraph-app/src/agent/nodes/pubmed_agent.py` (already done in Phase 3)
+- [x] T051 [US2] ~~Implement `_check_pmc_availability()` helper~~ (NOT NEEDED - PMC info included in article_getter response)
+- [x] T052 [US2] Extend `pubmed_agent_node()` to handle query_type="pmid_lookup" in `langgraph-app/src/agent/nodes/pubmed_agent.py` (already done in Phase 3)
+- [x] T053 [US2] Add PubMed/PMC URL formatting in `article_to_document()` metadata (pmc_url property in PubMedArticle model)
 
 **Checkpoint**: User Stories 1 AND 2 are independently functional - physicians can both search and lookup specific articles
 
