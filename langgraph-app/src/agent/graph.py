@@ -25,6 +25,10 @@ from typing_extensions import TypedDict
 # Import drug_agent_node (Feature 003)
 from agent.nodes import drug_agent_node
 
+# Import translation and pubmed_agent nodes (Feature 005)
+from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
+from agent.nodes.pubmed_agent import pubmed_agent_node
+
 # Load environment variables (LangSmith tracing)
 load_dotenv()
 
@@ -171,8 +175,21 @@ DRUG_KEYWORDS = {
     "ingredient", "dosage", "reimbursement", "availability",
 }
 
+# Research-related keywords for routing (Czech + English)
+RESEARCH_KEYWORDS = {
+    # Czech
+    "studie", "výzkum", "pubmed", "článek", "články", "literatura",
+    "pmid", "výzkumný", "klinická studie", "klinický výzkum",
+    "randomizovaná studie", "meta-analýza", "přehled", "review",
+    "evidence", "důkazy", "publikace",
+    # English fallback
+    "study", "research", "article", "literature", "paper",
+    "clinical trial", "meta-analysis", "systematic review",
+    "evidence", "publication",
+}
 
-def route_query(state: State) -> Literal["drug_agent", "placeholder"]:
+
+def route_query(state: State) -> Literal["drug_agent", "translate_cz_to_en", "placeholder"]:
     """Route query to appropriate agent based on content.
 
     Simple keyword-based routing for MVP. Will be replaced by
@@ -182,13 +199,17 @@ def route_query(state: State) -> Literal["drug_agent", "placeholder"]:
         state: Current agent state with messages.
 
     Returns:
-        Node name to route to: "drug_agent" or "placeholder".
+        Node name to route to: "drug_agent", "translate_cz_to_en", or "placeholder".
     """
     # Check if explicit drug_query is set
     if state.drug_query is not None:
         return "drug_agent"
 
-    # Check last user message for drug-related keywords
+    # Check if explicit research_query is set
+    if state.research_query is not None:
+        return "translate_cz_to_en"
+
+    # Check last user message for keywords
     if state.messages:
         last_message = state.messages[-1]
         content = (
@@ -198,12 +219,17 @@ def route_query(state: State) -> Literal["drug_agent", "placeholder"]:
         )
         content_lower = content.lower() if content else ""
 
+        # Check for research keywords (higher priority - more specific)
+        for keyword in RESEARCH_KEYWORDS:
+            if keyword in content_lower:
+                return "translate_cz_to_en"
+
         # Check for drug keywords
         for keyword in DRUG_KEYWORDS:
             if keyword in content_lower:
                 return "drug_agent"
 
-    # Default to placeholder for non-drug queries
+    # Default to placeholder for non-specific queries
     return "placeholder"
 
 
@@ -213,17 +239,27 @@ graph = (
     # Add nodes
     .add_node("placeholder", placeholder_node)
     .add_node("drug_agent", drug_agent_node)
+    # Feature 005: PubMed research workflow (Sandwich Pattern: CZ→EN→PubMed→EN→CZ)
+    .add_node("translate_cz_to_en", translate_cz_to_en_node)
+    .add_node("pubmed_agent", pubmed_agent_node)
+    .add_node("translate_en_to_cz", translate_en_to_cz_node)
     # Route from start based on query content
     .add_conditional_edges(
         "__start__",
         route_query,
         {
             "drug_agent": "drug_agent",
+            "translate_cz_to_en": "translate_cz_to_en",
             "placeholder": "placeholder",
         }
     )
-    # Both nodes end the graph
-    .add_edge("placeholder", "__end__")
+    # Drug agent ends immediately
     .add_edge("drug_agent", "__end__")
+    # PubMed research workflow: CZ→EN→PubMed→EN→CZ (Sandwich Pattern)
+    .add_edge("translate_cz_to_en", "pubmed_agent")
+    .add_edge("pubmed_agent", "translate_en_to_cz")
+    .add_edge("translate_en_to_cz", "__end__")
+    # Placeholder ends immediately
+    .add_edge("placeholder", "__end__")
     .compile(name="Czech MedAI")
 )

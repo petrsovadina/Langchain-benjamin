@@ -15,6 +15,10 @@ dependencies = [
     "aiohttp>=3.9.0",
     "tenacity>=8.2.0",
     "pydantic>=2.5.0",
+    # Feature 005: PubMed agent dependencies
+    "langchain-anthropic>=0.3.0",
+    "langchain-core>=0.3.0",
+    "biomcp-python>=0.1.0",
 ]
 
 
