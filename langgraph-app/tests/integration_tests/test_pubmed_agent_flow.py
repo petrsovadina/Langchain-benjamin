@@ -151,6 +151,88 @@ class TestFullTranslationFlow:
         assert result["retrieved_docs"][0].metadata["pmid"] == "12345678"
 
     @pytest.mark.asyncio
+    async def test_pmid_lookup_with_pmc_availability(self, mock_runtime):
+        """Test PMID lookup with PMC full-text detection (Phase 4 - T048).
+
+        Verifies complete flow for PMID lookup including PMC availability check:
+        - CZ → EN translation preserves PMID
+        - article_getter retrieves complete metadata
+        - PMC availability is detected and included
+        - Czech abstract translation works
+        """
+        # Arrange
+        from src.agent.mcp import MCPResponse
+
+        mock_client = MagicMock()
+        mock_client.call_tool = AsyncMock()
+
+        # Mock article_getter with PMC article
+        mock_client.call_tool.return_value = MCPResponse(
+            success=True,
+            data={
+                "pmid": "12345678",
+                "title": "Metformin in Type 2 Diabetes",
+                "abstract": "Background: Metformin is first-line therapy for type 2 diabetes...",
+                "authors": ["Smith, John A.", "Doe, Jane B."],
+                "publication_date": "2024-06-15",
+                "journal": "New England Journal of Medicine",
+                "doi": "10.1056/NEJMoa2024001",
+                "pmc_id": "PMC11234567",  # Free full-text available
+            },
+        )
+
+        mock_runtime.context["biomcp_client"] = mock_client
+
+        state = State(
+            messages=[{"role": "user", "content": "Zobraz PMID:12345678"}],
+            next="",
+            retrieved_docs=[],
+        )
+
+        # Act - Full workflow
+        # Step 1: CZ→EN translation
+        state_after_cz_to_en = await translate_cz_to_en_node(state, mock_runtime)
+        research_query = state_after_cz_to_en["research_query"]
+
+        assert research_query.query_type == "pmid_lookup"
+        assert research_query.query_text == "12345678"
+
+        # Step 2: PubMed article lookup
+        state_with_query = State(
+            messages=state.messages,
+            next="",
+            retrieved_docs=[],
+            research_query=research_query,
+        )
+        state_after_pubmed = await pubmed_agent_node(state_with_query, mock_runtime)
+
+        # Step 3: EN→CZ abstract translation
+        state_with_docs = State(
+            messages=state.messages,
+            next="",
+            retrieved_docs=state_after_pubmed["retrieved_docs"],
+        )
+        final_state = await translate_en_to_cz_node(state_with_docs, mock_runtime)
+
+        # Assert: Complete article with PMC availability
+        assert final_state.get("retrieved_docs") is not None
+        assert len(final_state["retrieved_docs"]) == 1
+
+        doc = final_state["retrieved_docs"][0]
+        assert doc.metadata["pmid"] == "12345678"
+        assert doc.metadata["title"] == "Metformin in Type 2 Diabetes"
+        assert doc.metadata["source"] == "PubMed"
+
+        # PMC availability should be detected
+        assert "pmc_id" in doc.metadata
+        assert doc.metadata["pmc_id"] == "PMC11234567"
+        assert "pmc_url" in doc.metadata
+        assert "ncbi.nlm.nih.gov/pmc" in doc.metadata["pmc_url"]
+
+        # Czech abstract should be present
+        assert "Abstract (CZ):" in doc.page_content or "Abstrakt (CZ):" in doc.page_content
+
+    @pytest.mark.asyncio
     async def test_citation_tracking_across_queries(self, mock_biomcp_client, mock_runtime):
         """Test citation numbering across multiple queries.
 

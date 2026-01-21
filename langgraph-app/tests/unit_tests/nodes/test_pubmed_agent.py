@@ -292,3 +292,205 @@ class TestCitationFormatting:
         assert citation.url == article.pubmed_url
         assert citation.url.startswith("https://pubmed.ncbi.nlm.nih.gov/")
         assert citation.url.endswith("/")
+
+
+class TestPMIDLookup:
+    """Test PMID pattern detection and extraction (Phase 4 - T044)."""
+
+    def test_pmid_pattern_with_colon(self):
+        """Test PMID pattern detection with colon separator.
+
+        Pattern: "PMID:12345678" should extract pmid and set query_type="pmid_lookup"
+        """
+        query = classify_research_query("Ukaž mi článek PMID:12345678")
+        assert query is not None
+        assert query.query_type == "pmid_lookup"
+        assert query.query_text == "12345678"
+
+    def test_pmid_pattern_without_colon(self):
+        """Test PMID pattern detection without colon.
+
+        Pattern: "PMID 12345678" should also be detected
+        """
+        query = classify_research_query("Najdi PMID 87654321")
+        assert query is not None
+        assert query.query_type == "pmid_lookup"
+        assert query.query_text == "87654321"
+
+    def test_pmid_pattern_case_insensitive(self):
+        """Test PMID pattern is case-insensitive.
+
+        Both "pmid", "PMID", "Pmid" should work
+        """
+        query = classify_research_query("Zobraz pmid:11223344")
+        assert query is not None
+        assert query.query_type == "pmid_lookup"
+        assert query.query_text == "11223344"
+
+    def test_pmid_pattern_requires_8_digits(self):
+        """Test PMID pattern requires exactly 8 digits.
+
+        7 or 9 digits should not match (PubMed PMIDs are 8 digits)
+        """
+        # 7 digits - should not match
+        query = classify_research_query("PMID:1234567")
+        assert query is None or query.query_type != "pmid_lookup"
+
+        # 9 digits - should not match
+        query = classify_research_query("PMID:123456789")
+        assert query is None or query.query_type != "pmid_lookup"
+
+
+class TestArticleGetter:
+    """Test article_getter tool integration (Phase 4 - T045)."""
+
+    @pytest.mark.asyncio
+    async def test_get_article_by_pmid_success(self, mock_runtime):
+        """Test successful article retrieval by PMID.
+
+        Verifies _get_article_by_pmid() helper calls BioMCP article_getter
+        and returns PubMedArticle object.
+        """
+        # Arrange
+        from src.agent.nodes.pubmed_agent import _get_article_by_pmid
+        from src.agent.mcp import MCPResponse
+
+        # Create fresh mock client without side_effect
+        mock_client = MagicMock()
+        mock_client.call_tool = AsyncMock()
+
+        # Mock article_getter response
+        mock_client.call_tool.return_value = MCPResponse(
+            success=True,
+            data={
+                "pmid": "12345678",
+                "title": "Test Article",
+                "abstract": "Background: Test abstract.",
+                "authors": ["Smith, John", "Doe, Jane"],
+                "publication_date": "2024-06-15",
+                "journal": "NEJM",
+                "doi": "10.1056/test",
+            },
+        )
+
+        # Act
+        article = await _get_article_by_pmid("12345678", mock_client)
+
+        # Assert
+        assert article is not None
+        assert article.pmid == "12345678"
+        assert article.title == "Test Article"
+        assert article.abstract == "Background: Test abstract."
+        # Verify article_getter was called with correct PMID
+        mock_client.call_tool.assert_called_once_with(
+            tool_name="article_getter", parameters={"pmid": "12345678"}
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_article_by_pmid_not_found(self, mock_runtime):
+        """Test handling when article not found by PMID.
+
+        Should return None gracefully without raising exception.
+        """
+        # Arrange
+        from src.agent.nodes.pubmed_agent import _get_article_by_pmid
+        from src.agent.mcp import MCPResponse
+
+        mock_client = MagicMock()
+        mock_client.call_tool = AsyncMock()
+        mock_client.call_tool.return_value = MCPResponse(
+            success=False, error="Article not found: PMID 99999999"
+        )
+
+        # Act
+        article = await _get_article_by_pmid("99999999", mock_client)
+
+        # Assert
+        assert article is None
+
+
+class TestPMCAccess:
+    """Test PMC full-text link detection (Phase 4 - T046)."""
+
+    def test_pmc_url_present_in_metadata(self, sample_pubmed_articles):
+        """Test that PMC URL is included when pmc_id is available.
+
+        Articles with pmc_id should have pmc_url in metadata.
+        """
+        # Find article with PMC ID
+        article_with_pmc = next(
+            (a for a in sample_pubmed_articles if a.pmc_id), None
+        )
+        assert article_with_pmc is not None
+
+        czech_abstract = "Test abstrakt v češtině"
+        doc = article_to_document(article_with_pmc, czech_abstract)
+
+        # Check PMC metadata
+        assert "pmc_id" in doc.metadata
+        assert doc.metadata["pmc_id"] == article_with_pmc.pmc_id
+        assert "pmc_url" in doc.metadata
+        assert doc.metadata["pmc_url"] == article_with_pmc.pmc_url
+        assert "ncbi.nlm.nih.gov/pmc" in doc.metadata["pmc_url"]
+
+    def test_pmc_url_absent_when_no_pmc_id(self):
+        """Test that pmc_url is omitted when pmc_id is None.
+
+        Not all articles have PMC full-text available.
+        """
+        article = PubMedArticle(
+            pmid="12345678",
+            title="Test Article",
+            abstract="Background: Test.",
+            authors=["Smith, John"],
+            pmc_id=None,  # No PMC ID
+        )
+
+        czech_abstract = "Test abstrakt"
+        doc = article_to_document(article, czech_abstract)
+
+        # PMC fields should not be in metadata
+        assert "pmc_id" not in doc.metadata or doc.metadata.get("pmc_id") is None
+        assert "pmc_url" not in doc.metadata
+
+
+class TestPaywallHandling:
+    """Test paywall indication in responses (Phase 4 - T047)."""
+
+    @pytest.mark.asyncio
+    async def test_pubmed_url_always_present(self, sample_pubmed_articles):
+        """Test that PubMed URL is always present for article access.
+
+        Even paywalled articles should have pubmed_url for reference.
+        """
+        for article in sample_pubmed_articles:
+            czech_abstract = "Test abstrakt"
+            doc = article_to_document(article, czech_abstract)
+
+            assert "url" in doc.metadata
+            assert doc.metadata["url"] == article.pubmed_url
+            assert "pubmed.ncbi.nlm.nih.gov" in doc.metadata["url"]
+
+    def test_free_fulltext_indication_via_pmc(self, sample_pubmed_articles):
+        """Test that PMC availability indicates free full-text access.
+
+        Articles with pmc_id are freely accessible, paywalled ones are not.
+        """
+        # Find one article with PMC and one without
+        article_with_pmc = next(
+            (a for a in sample_pubmed_articles if a.pmc_id), None
+        )
+        article_without_pmc = next(
+            (a for a in sample_pubmed_articles if not a.pmc_id), None
+        )
+
+        assert article_with_pmc is not None
+        assert article_without_pmc is not None
+
+        # Article with PMC should have pmc_url (free access)
+        doc_free = article_to_document(article_with_pmc, "Test")
+        assert "pmc_url" in doc_free.metadata
+
+        # Article without PMC should not have pmc_url (potentially paywalled)
+        doc_paywalled = article_to_document(article_without_pmc, "Test")
+        assert "pmc_url" not in doc_paywalled.metadata or doc_paywalled.metadata.get("pmc_url") is None

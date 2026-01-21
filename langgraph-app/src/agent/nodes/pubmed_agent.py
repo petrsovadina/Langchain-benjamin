@@ -72,7 +72,8 @@ def classify_research_query(message: str) -> Optional[ResearchQuery]:
     message_lower = message.lower()
 
     # Check for PMID pattern first (highest priority)
-    pmid_pattern = r"PMID:?\s*(\d{8})"
+    # Pattern matches exactly 8 digits (not 7, not 9)
+    pmid_pattern = r"PMID:?\s*(\d{8})(?!\d)"
     pmid_match = re.search(pmid_pattern, message, re.IGNORECASE)
 
     if pmid_match:
