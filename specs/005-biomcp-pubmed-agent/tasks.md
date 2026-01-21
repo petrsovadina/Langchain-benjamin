@@ -86,40 +86,40 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T021 [P] [US1] Unit test for `translate_cz_to_en_node()` basic translation in `langgraph-app/tests/unit_tests/nodes/test_translation.py::TestCzToEnTranslation`
-- [ ] T022 [P] [US1] Unit test for medical term preservation in `langgraph-app/tests/unit_tests/nodes/test_translation.py::TestMedicalTermPreservation`
-- [ ] T023 [P] [US1] Unit test for abbreviation expansion in `langgraph-app/tests/unit_tests/nodes/test_translation.py::TestAbbreviationExpansion`
-- [ ] T024 [P] [US1] Unit test for empty messages error in `langgraph-app/tests/unit_tests/nodes/test_translation.py::TestTranslationErrors`
-- [ ] T025 [P] [US1] Unit test for PubMed search in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestPubMedSearch`
-- [ ] T026 [P] [US1] Unit test for no results handling in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestNoResults`
-- [ ] T027 [P] [US1] Unit test for BioMCP timeout fallback in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestErrorHandling`
-- [ ] T028 [P] [US1] Integration test for full CZ→EN→PubMed→EN→CZ flow in `langgraph-app/tests/integration_tests/test_pubmed_agent_flow.py::TestFullTranslationFlow`
+- [x] T021 [P] [US1] Unit test for `translate_cz_to_en_node()` basic translation in `langgraph-app/tests/unit_tests/nodes/test_translation.py::TestCzToEnTranslation`
+- [x] T022 [P] [US1] Unit test for medical term preservation in `langgraph-app/tests/unit_tests/nodes/test_translation.py::TestMedicalTermPreservation`
+- [x] T023 [P] [US1] Unit test for abbreviation expansion in `langgraph-app/tests/unit_tests/nodes/test_translation.py::TestAbbreviationExpansion`
+- [x] T024 [P] [US1] Unit test for empty messages error in `langgraph-app/tests/unit_tests/nodes/test_translation.py::TestTranslationErrors`
+- [x] T025 [P] [US1] Unit test for PubMed search in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestPubMedSearch`
+- [x] T026 [P] [US1] Unit test for no results handling in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestNoResults`
+- [x] T027 [P] [US1] Unit test for BioMCP timeout fallback in `langgraph-app/tests/unit_tests/nodes/test_pubmed_agent.py::TestErrorHandling`
+- [x] T028 [P] [US1] Integration test for full CZ→EN→PubMed→EN→CZ flow in `langgraph-app/tests/integration_tests/test_pubmed_agent_flow.py::TestFullTranslationFlow`
 
 ### Implementation for User Story 1
 
 #### Translation Nodes
 
-- [ ] T029 [P] [US1] Implement `translate_cz_to_en_node()` async function in `langgraph-app/src/agent/nodes/translation.py`
-- [ ] T030 [P] [US1] Implement `translate_en_to_cz_node()` async function in `langgraph-app/src/agent/nodes/translation.py`
+- [x] T029 [P] [US1] Implement `translate_cz_to_en_node()` async function in `langgraph-app/src/agent/nodes/translation.py`
+- [x] T030 [P] [US1] Implement `translate_en_to_cz_node()` async function in `langgraph-app/src/agent/nodes/translation.py`
 
 #### PubMed Agent Node
 
-- [ ] T031 [US1] Implement `classify_research_query()` helper (keyword detection) in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T032 [US1] Implement `_search_pubmed_articles()` helper (BioMCP article_searcher call) in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T033 [US1] Implement `article_to_document()` transformer in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T034 [US1] Implement main `pubmed_agent_node()` async function with search flow in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T035 [US1] Add logging at node entry/exit for all 3 nodes (translate_cz_to_en, pubmed_agent, translate_en_to_cz)
+- [x] T031 [US1] Implement `classify_research_query()` helper (keyword detection) in `langgraph-app/src/agent/nodes/pubmed_agent.py`
+- [x] T032 [US1] Implement `_search_pubmed_articles()` helper (BioMCP article_searcher call) in `langgraph-app/src/agent/nodes/pubmed_agent.py`
+- [x] T033 [US1] Implement `article_to_document()` transformer in `langgraph-app/src/agent/nodes/pubmed_agent.py`
+- [x] T034 [US1] Implement main `pubmed_agent_node()` async function with search flow in `langgraph-app/src/agent/nodes/pubmed_agent.py`
+- [x] T035 [US1] Add logging at node entry/exit for all 3 nodes (translate_cz_to_en, pubmed_agent, translate_en_to_cz)
 
 #### Graph Integration
 
-- [ ] T036 [US1] Add `RESEARCH_KEYWORDS` set to `langgraph-app/src/agent/graph.py`
-- [ ] T037 [US1] Extend `route_query()` function with research keyword detection in `langgraph-app/src/agent/graph.py`
-- [ ] T038 [US1] Add `translate_cz_to_en_node` to graph in `langgraph-app/src/agent/graph.py`
-- [ ] T039 [US1] Add `pubmed_agent_node` to graph in `langgraph-app/src/agent/graph.py`
-- [ ] T040 [US1] Add `translate_en_to_cz_node` to graph in `langgraph-app/src/agent/graph.py`
-- [ ] T041 [US1] Add routing edges: route_query → pubmed_agent → translate_cz_to_en → translate_en_to_cz → __end__
-- [ ] T042 [US1] Export nodes via `langgraph-app/src/agent/nodes/__init__.py`
-- [ ] T043 [US1] Export models via `langgraph-app/src/agent/models/__init__.py`
+- [x] T036 [US1] Add `RESEARCH_KEYWORDS` set to `langgraph-app/src/agent/graph.py`
+- [x] T037 [US1] Extend `route_query()` function with research keyword detection in `langgraph-app/src/agent/graph.py`
+- [x] T038 [US1] Add `translate_cz_to_en_node` to graph in `langgraph-app/src/agent/graph.py`
+- [x] T039 [US1] Add `pubmed_agent_node` to graph in `langgraph-app/src/agent/graph.py`
+- [x] T040 [US1] Add `translate_en_to_cz_node` to graph in `langgraph-app/src/agent/graph.py`
+- [x] T041 [US1] Add routing edges: route_query → pubmed_agent → translate_cz_to_en → translate_en_to_cz → __end__
+- [x] T042 [US1] Export nodes via `langgraph-app/src/agent/nodes/__init__.py`
+- [x] T043 [US1] Export models via `langgraph-app/src/agent/models/__init__.py`
 
 **Checkpoint**: User Story 1 (MVP) is fully functional and testable - physicians can search PubMed with Czech queries
 
