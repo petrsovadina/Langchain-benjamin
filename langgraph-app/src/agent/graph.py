@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 # Runtime import for State dataclass (required for LangGraph type resolution)
 from agent.models.drug_models import DrugQuery
+from agent.models.research_models import ResearchQuery
 from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph import StateGraph
@@ -97,12 +98,15 @@ class State:
         next: Name of next node to execute (routing control).
         retrieved_docs: Documents retrieved by agents with citations.
         drug_query: Optional drug query for SÚKL agent (Feature 003).
+        research_query: Optional research query for PubMed agent (Feature 005).
     """
     messages: Annotated[list[AnyMessage], add_messages]
     next: str = "__end__"
     retrieved_docs: list[Document] = field(default_factory=list)
     # Feature 003: SÚKL Drug Agent
     drug_query: Optional[DrugQuery] = None
+    # Feature 005: BioMCP PubMed Agent
+    research_query: Optional[ResearchQuery] = None
 
     def __post_init__(self) -> None:
         """Initialize mutable defaults.

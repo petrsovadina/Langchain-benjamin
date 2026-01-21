@@ -28,11 +28,11 @@
 
 **Purpose**: Install BioMCP and create directory structure
 
-- [ ] T001 Install BioMCP Python package: `uv pip install biomcp-python` in `langgraph-app/`
-- [ ] T002 Start BioMCP Docker server: `docker run -d -p 8080:8080 --name biomcp genomoncology/biomcp:latest`
-- [ ] T003 Verify BioMCP health: `curl http://localhost:8080/health`
-- [ ] T004 [P] Add `BIOMCP_URL=http://localhost:8080` to `langgraph-app/.env`
-- [ ] T005 [P] Create `langgraph-app/src/agent/utils/` directory (if not exists)
+- [x] T001 Install BioMCP Python package: `uv pip install biomcp-python` in `langgraph-app/`
+- [x] T002 Start BioMCP Docker server: `docker run -d -p 8080:8080 --name biomcp genomoncology/biomcp:latest` (used local server: `biomcp run --port 8080`)
+- [x] T003 Verify BioMCP health: `curl http://localhost:8080/health`
+- [x] T004 [P] Add `BIOMCP_URL=http://localhost:8080` to `langgraph-app/.env`
+- [x] T005 [P] Create `langgraph-app/src/agent/utils/` directory (if not exists)
 
 ---
 
@@ -44,33 +44,33 @@
 
 ### Pydantic Models
 
-- [ ] T006 [P] Create `ResearchQuery` Pydantic model in `langgraph-app/src/agent/models/research_models.py`
-- [ ] T007 [P] Create `PubMedArticle` Pydantic model in `langgraph-app/src/agent/models/research_models.py`
-- [ ] T008 [P] Create `TranslatedArticle` Pydantic model (inherits PubMedArticle) in `langgraph-app/src/agent/models/research_models.py`
-- [ ] T009 [P] Create `CitationReference` Pydantic model in `langgraph-app/src/agent/models/research_models.py`
+- [x] T006 [P] Create `ResearchQuery` Pydantic model in `langgraph-app/src/agent/models/research_models.py`
+- [x] T007 [P] Create `PubMedArticle` Pydantic model in `langgraph-app/src/agent/models/research_models.py`
+- [x] T008 [P] Create `TranslatedArticle` Pydantic model (inherits PubMedArticle) in `langgraph-app/src/agent/models/research_models.py`
+- [x] T009 [P] Create `CitationReference` Pydantic model in `langgraph-app/src/agent/models/research_models.py`
 
 ### State Extension
 
-- [ ] T010 Update `State` dataclass in `langgraph-app/src/agent/graph.py` - add `research_query: Optional[ResearchQuery]` field
-- [ ] T011 Add import for `ResearchQuery` from `agent.models.research_models` in `langgraph-app/src/agent/graph.py`
+- [x] T010 Update `State` dataclass in `langgraph-app/src/agent/graph.py` - add `research_query: Optional[ResearchQuery]` field
+- [x] T011 Add import for `ResearchQuery` from `agent.models.research_models` in `langgraph-app/src/agent/graph.py`
 
 ### Translation Prompts
 
-- [ ] T012 [P] Create `CZ_TO_EN_PROMPT` template in `langgraph-app/src/agent/utils/translation_prompts.py`
-- [ ] T013 [P] Create `EN_TO_CZ_PROMPT` template in `langgraph-app/src/agent/utils/translation_prompts.py`
+- [x] T012 [P] Create `CZ_TO_EN_PROMPT` template in `langgraph-app/src/agent/utils/translation_prompts.py`
+- [x] T013 [P] Create `EN_TO_CZ_PROMPT` template in `langgraph-app/src/agent/utils/translation_prompts.py`
 
 ### Test Fixtures
 
-- [ ] T014 [P] Add `mock_biomcp_article` fixture in `langgraph-app/tests/conftest.py`
-- [ ] T015 [P] Add `mock_biomcp_client` fixture in `langgraph-app/tests/conftest.py`
-- [ ] T016 [P] Add `sample_research_query` fixture in `langgraph-app/tests/conftest.py`
-- [ ] T017 [P] Add `sample_pubmed_articles` fixture (5 articles) in `langgraph-app/tests/conftest.py`
+- [x] T014 [P] Add `mock_biomcp_article` fixture in `langgraph-app/tests/conftest.py`
+- [x] T015 [P] Add `mock_biomcp_client` fixture in `langgraph-app/tests/conftest.py`
+- [x] T016 [P] Add `sample_research_query` fixture in `langgraph-app/tests/conftest.py`
+- [x] T017 [P] Add `sample_pubmed_articles` fixture (5 articles) in `langgraph-app/tests/conftest.py`
 
 ### Helper Functions (Stubs for TDD)
 
-- [ ] T018 Create query classifier stub `classify_research_query()` in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T019 Create document transformer stub `article_to_document()` in `langgraph-app/src/agent/nodes/pubmed_agent.py`
-- [ ] T020 Create citation formatter stub `format_citation()` in `langgraph-app/src/agent/nodes/pubmed_agent.py`
+- [x] T018 Create query classifier stub `classify_research_query()` in `langgraph-app/src/agent/nodes/pubmed_agent.py`
+- [x] T019 Create document transformer stub `article_to_document()` in `langgraph-app/src/agent/nodes/pubmed_agent.py`
+- [x] T020 Create citation formatter stub `format_citation()` in `langgraph-app/src/agent/nodes/pubmed_agent.py`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
