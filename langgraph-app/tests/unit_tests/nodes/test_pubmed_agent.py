@@ -454,6 +454,50 @@ class TestPMCAccess:
         assert "pmc_url" not in doc.metadata
 
 
+class TestCitationNumbering:
+    """Test citation numbering across multiple articles (Phase 5 - T056)."""
+
+    def test_sequential_citation_numbers(self, sample_pubmed_articles):
+        """Test that citations are numbered sequentially [1], [2], [3].
+
+        Each article should receive a unique sequential citation number.
+        """
+        citations = []
+        for i, article in enumerate(sample_pubmed_articles[:3], 1):
+            citation = format_citation(article, i)
+            citations.append(citation)
+
+        # Check sequential numbering
+        assert citations[0].citation_num == 1
+        assert citations[1].citation_num == 2
+        assert citations[2].citation_num == 3
+
+    def test_citation_numbering_starts_at_one(self, sample_pubmed_articles):
+        """Test that citation numbering starts at 1, not 0."""
+        article = sample_pubmed_articles[0]
+        citation = format_citation(article, 1)
+
+        assert citation.citation_num == 1
+        assert citation.citation_num > 0
+
+    def test_citation_number_in_short_format(self, sample_pubmed_articles):
+        """Test that citation number can be used for inline references.
+
+        Short citation + citation_num enables "[1] Smith et al. (2024)" format.
+        """
+        article = sample_pubmed_articles[0]
+        citation = format_citation(article, 2)
+
+        # Should be able to format as "[2] Smith et al. (2024)"
+        inline_ref = f"[{citation.citation_num}]"
+        assert inline_ref == "[2]"
+
+        # Full inline citation
+        full_inline = f"[{citation.citation_num}] {citation.short_citation}"
+        assert full_inline.startswith("[2]")
+        assert "et al." in full_inline
+
+
 class TestPaywallHandling:
     """Test paywall indication in responses (Phase 4 - T047)."""
 
