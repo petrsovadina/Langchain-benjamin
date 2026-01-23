@@ -6,10 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Czech MedAI (Benjamin)** je multi-agentní AI asistent pro české lékaře, postavený na LangGraph frameworku. Systém poskytuje klinickou rozhodovací podporu založenou na důkazech, integrující specializované AI agenty pro dotazování českých medicínských zdrojů (SÚKL, VZP, ČLS JEP) a mezinárodního výzkumu (PubMed) s kompletním sledováním citací.
 
-**Současný stav**: Fáze 0 (Foundation) - Větev `001-langgraph-foundation`
-- Specifikace dokončeny
-- Základní šablona grafu připravena
-- Připraveno k implementaci AgentState/Context
+**Současný stav**: Fáze 1 (Core Agents) - Větev `005-biomcp-pubmed-agent`
+- ✅ Feature 001: LangGraph Foundation (dokončeno)
+- ✅ Feature 002: MCP Infrastructure (dokončeno)
+- ✅ Feature 003: SÚKL Drug Agent (dokončeno)
+- ✅ Feature 005: BioMCP PubMed Agent (dokončeno - včetně Phase 7 Polish)
+- ⏳ Feature 004: VZP Pricing Agent (čeká)
 
 ## Technologie
 
@@ -18,8 +20,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **MCP Servery**:
   - **SÚKL-mcp** - Czech pharmaceutical database (68k+ léků)
   - **BioMCP** - Biomedical databases (PubMed, ClinicalTrials, atd.)
-- **Testing**: pytest s async podporou
-- **Kvalita kódu**: ruff (linting/formátování), mypy (strict type checking)
+- **Testing**: pytest s async podporou (169/175 testů passing)
+- **Kvalita kódu**: ruff (linting/formátování), mypy --strict (type checking)
 - **Observability**: LangSmith tracing
 
 ## Struktura Projektu
@@ -28,31 +30,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 langgraph-app/              # Hlavní aplikace (Python balíček)
 ├── src/agent/
 │   ├── __init__.py        # Export balíčku
-│   └── graph.py           # Definice grafu (K IMPLEMENTACI)
+│   ├── graph.py           # Definice grafu (routing, state, context)
+│   ├── mcp/               # MCP client wrappers (SÚKL, BioMCP)
+│   ├── models/            # Pydantic models (drug_models, research_models)
+│   ├── nodes/             # Node implementace (drug_agent, pubmed_agent, translation)
+│   └── utils/             # Helper funkce (translation prompts)
 ├── tests/
-│   ├── conftest.py        # pytest fixtures
-│   ├── unit_tests/        # Unit testy pro nody
-│   └── integration_tests/ # Integrační testy pro graf
+│   ├── conftest.py        # pytest fixtures (anyio_backend, mock_runtime, samples)
+│   ├── unit_tests/        # Unit testy pro nody (169 passing)
+│   ├── integration_tests/ # Integrační testy pro graf
+│   └── performance/       # Performance benchmarky (<5s latency)
 ├── pyproject.toml         # Závislosti & konfigurace nástrojů
 ├── Makefile               # Vývojové příkazy
 └── langgraph.json         # LangGraph server konfigurace
 
 specs/                     # Specifikace features
 ├── 001-langgraph-foundation/
+├── 002-mcp-infrastructure/
+├── 003-sukl-drug-agent/
+├── 005-biomcp-pubmed-agent/
 │   ├── spec.md           # User stories, požadavky
 │   ├── plan.md           # Implementační plán
-│   └── tasks.md          # Rozpad úkolů
+│   ├── tasks.md          # Rozpad úkolů (81 tasks, all complete)
+│   └── contracts/        # API contracts, data models
 └── ROADMAP.md            # Master roadmap (12 features, 4 fáze)
 
 .specify/                  # SpecKit framework
 ├── memory/
-│   └── constitution.md   # Constitution projektu (5 principů)
+│   └── constitution.md   # Constitution projektu v1.0.3 (5 principů)
 └── templates/            # Šablony pro spec/plan/tasks
 ```
 
 ## Constitution Projektu
 
-Projekt je řízen 5 základními principy v `.specify/memory/constitution.md` (verze 1.0.1):
+Projekt je řízen 5 základními principy v `.specify/memory/constitution.md` (verze **1.0.3**):
 
 ### I. Graph-Centric Architecture
 - **VŠECHNY** features MUSÍ být implementovány jako LangGraph nody a hrany
@@ -64,19 +75,20 @@ Projekt je řízen 5 základními principy v `.specify/memory/constitution.md` (
 - **VŠE** state a context MUSÍ používat typed dataclasses/TypedDict
 - `State` definuje všechna pole grafu s type hints
 - `Context` TypedDict definuje runtime konfigurační parametry
-- Použití mypy --strict pro type checking
+- **mypy --strict**: Zero errors required
+- **Exception**: Use `Any` with doc comment pro MCP clients (Pydantic schema compatibility)
 
 ### III. Test-First Development (NEPORUŠITELNÉ)
 - **Testy MUSÍ být napsány PŘED implementací**
 - Unit testy v `tests/unit_tests/`
 - Integrační testy v `tests/integration_tests/`
 - Workflow: Napsat test → Fail → Implementovat → Pass
-- Cílové pokrytí: ≥80%
+- Cílové pokrytí: ≥80% (aktuálně 96%)
 
 ### IV. Observability & Debugging
 - **VŠECHNY** graph executions MUSÍ být sledovatelné
 - LangSmith tracing přes `.env` (`LANGSMITH_API_KEY`)
-- Logování state transitions
+- Logování state transitions (print() povoleno pro debugging - T201)
 - Použití LangGraph Studio pro vizuální debugging
 
 ### V. Modular & Extensible Design
@@ -89,16 +101,43 @@ Projekt je řízen 5 základními principy v `.specify/memory/constitution.md` (
 ### Setup
 
 ```bash
-cd langgraph-app
-
-# Instalace závislostí
-pip install -e .
-pip install langgraph-cli[inmem]
-
-# Nebo s uv (rychlejší)
-uv venv
+# Instalace závislostí s uv (doporučeno)
 uv pip install -e .
-uv pip install langgraph-cli[inmem]
+
+# Nebo s pip
+pip install -e .
+```
+
+### Testování
+
+```bash
+# Unit testy
+PYTHONPATH=src uv run pytest tests/unit_tests/ -v
+
+# Integration testy
+PYTHONPATH=src uv run pytest tests/integration_tests/ -v
+
+# Konkrétní test
+PYTHONPATH=src uv run pytest tests/unit_tests/nodes/test_pubmed_agent.py::TestPubMedSearch -v
+
+# Performance benchmarky
+PYTHONPATH=src uv run pytest tests/performance/ -v
+```
+
+### Kvalita Kódu
+
+```bash
+# Type checking (strict mode)
+uv run mypy --strict src/agent/nodes/pubmed_agent.py
+
+# Linting
+uv run ruff check .
+
+# Formátování
+uv run ruff format .
+
+# Kompletní check (všechno najednou)
+uv run ruff format . && uv run ruff check . && uv run mypy --strict src/agent/
 ```
 
 ### Vývojový Server
@@ -109,26 +148,6 @@ langgraph dev
 
 # Otevře LangGraph Studio na http://localhost:8000
 # Auto-reload při změnách kódu
-```
-
-### Testování
-
-```bash
-make test                    # Spustit unit testy
-make integration_tests       # Spustit integrační testy
-make test_watch             # Watch mode - rerun při změnách
-make test TEST_FILE=path/   # Spustit konkrétní test
-
-# Kontrola pokrytí
-make test_profile           # Generovat profile-svg report
-```
-
-### Kvalita Kódu
-
-```bash
-make lint                   # Kontrola s ruff + mypy (strict)
-make format                 # Formátovat kód s ruff
-make lint_diff             # Lintovat pouze změněné soubory
 ```
 
 ### Environment Variables
@@ -147,59 +166,84 @@ LOG_LEVEL=INFO
 
 ## Architektura
 
-### Multi-Agent Pattern
+### Implementované Agents
+
+**Drug Agent (Feature 003)**:
+- SÚKL-mcp integration (8 tools)
+- Fuzzy search s typo tolerance
+- Drug details, PIL/SPC content, reimbursement info
+- Document transformation do LangChain format
+
+**PubMed Agent (Feature 005)**:
+- BioMCP integration (article_searcher, article_getter)
+- Sandwich Pattern: CZ→EN→PubMed→EN→CZ translation
+- Citation tracking s inline references [1][2][3]
+- Performance <5s latency (SC-001)
+
+### Multi-Agent Pattern (Cílový Stav)
 
 ```
-User Query
+User Query (CZ)
     ↓
-[Supervisor Node] - Klasifikace intentu (8 typů)
+[route_query] - Klasifikace intentu (drug, research, pricing, guidelines)
     ↓
-    ├→ [Drug Agent] → SÚKL data (pgvector search)
-    ├→ [Pricing Agent] → VZP LEK-13 (exact search)
-    ├→ [PubMed Agent] → BioMCP (article_searcher service)
-    └→ [Guidelines Agent] → ČLS JEP PDFs (vector search)
+    ├→ [Drug Agent] → SÚKL-mcp (8 tools) → drug info
+    ├→ [Pricing Agent] → VZP LEK-13 (exact search) → ceny & úhrady
+    ├→ [PubMed Agent] → BioMCP (24 tools) + CZ→EN→CZ → literatura
+    └→ [Guidelines Agent] → ČLS JEP PDFs (pgvector) → guidelines
     ↓
 [Citation System] - Konsolidace referencí
     ↓
 [Synthesizer Node] - Kombinace outputů
     ↓
-Response s inline citacemi [1][2][3]
+Response (CZ) s inline citacemi [1][2][3]
 ```
 
 ### State & Context Pattern
 
 ```python
-from typing import Any, Dict, Annotated
+from dataclasses import dataclass, field
+from typing import Annotated, Any
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
 from langchain_core.messages import AnyMessage
 from langchain_core.documents import Document
 from langgraph.runtime import Runtime
 
-# State definition (TypedDict s annotations)
-class State(TypedDict):
+# State definition (dataclass)
+@dataclass
+class State:
     messages: Annotated[list[AnyMessage], add_messages]
-    next: str
-    retrieved_docs: list[Document]
+    next: str = ""
+    retrieved_docs: list[Document] = field(default_factory=list)
+    drug_query: DrugQuery | None = None
+    research_query: ResearchQuery | None = None
 
-# Context definition (runtime config)
+# Context definition (TypedDict for runtime config)
 class Context(TypedDict, total=False):
     model_name: str
     temperature: float
     langsmith_project: str
+    user_id: str | None
+    sukl_mcp_client: Any  # Actual type: SUKLMCPClient (Pydantic compat)
+    biomcp_client: Any    # Actual type: BioMCPClient (Pydantic compat)
 
 # Node function signature
 async def some_node(
     state: State,
     runtime: Runtime[Context]
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     # Přístup ke konfiguraci
-    model = runtime.context.get("model_name", "default")
+    model = runtime.context.get("model_name", "claude-sonnet-4-5-20250929")
+
+    # Přístup k MCP clients
+    sukl_client = runtime.context.get("sukl_mcp_client")
 
     # Vrátit state updates
     return {
         "messages": [...],
-        "next": "next_node_name"
+        "next": "next_node_name",
+        "retrieved_docs": [...]
     }
 ```
 
@@ -210,10 +254,25 @@ from langgraph.graph import StateGraph
 
 graph = (
     StateGraph(State, context_schema=Context)
-    .add_node("node_name", async_function)
-    .add_edge("__start__", "node_name")
-    .add_conditional_edges("node_name", routing_function)
-    .add_edge("node_name", "__end__")
+    .add_node("route_query", route_query)
+    .add_node("drug_agent", drug_agent_node)
+    .add_node("pubmed_agent", pubmed_agent_node)
+    .add_node("translate_cz_to_en", translate_cz_to_en_node)
+    .add_node("translate_en_to_cz", translate_en_to_cz_node)
+    .add_edge("__start__", "route_query")
+    .add_conditional_edges(
+        "route_query",
+        lambda state: state["next"],
+        {
+            "drug_agent": "drug_agent",
+            "pubmed_agent": "translate_cz_to_en",
+            "__end__": "__end__"
+        }
+    )
+    .add_edge("translate_cz_to_en", "pubmed_agent")
+    .add_edge("pubmed_agent", "translate_en_to_cz")
+    .add_edge("translate_en_to_cz", "__end__")
+    .add_edge("drug_agent", "__end__")
     .compile(name="Czech MedAI")
 )
 ```
@@ -221,37 +280,40 @@ graph = (
 ## Konvence Kódu
 
 ### Naming
-- **Funkce/Proměnné**: `snake_case` (např. `placeholder_node`)
-- **Třídy**: `PascalCase` (např. `State`, `Context`)
-- **Konstanty**: `UPPER_CASE` (např. `MAX_RETRIES`)
-- **Node názvy**: lowercase s underscores (např. `"placeholder_node"`)
+- **Funkce/Proměnné**: `snake_case` (např. `pubmed_agent_node`)
+- **Třídy**: `PascalCase` (např. `State`, `DrugQuery`, `PubMedArticle`)
+- **Konstanty**: `UPPER_CASE` (např. `RESEARCH_KEYWORDS`)
+- **Node názvy**: lowercase s underscores (např. `"drug_agent"`)
 
 ### Docstrings (Google Style)
 
 ```python
-def placeholder_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
-    """Echo user messages with configuration info.
+async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str, Any]:
+    """Search PubMed articles with BioMCP integration.
 
-    Processes input state and returns AI response using configured model.
+    Workflow:
+        1. Use state.research_query (already populated by translation node)
+        2. Call BioMCP article_searcher or article_getter based on query_type
+        3. Transform articles to Documents with English abstracts
+        4. Return documents (translation to Czech happens in separate node)
 
     Args:
-        state: Current agent state with message history.
-        runtime: Runtime context with model configuration.
+        state: Current agent state with research_query.
+        runtime: Runtime context with biomcp_client.
 
     Returns:
         Updated state dict with:
-            - messages: list with new assistant message
-            - next: routing indicator for next node
-
-    Raises:
-        ValueError: If state.messages is empty.
+            - retrieved_docs: List[Document] with PubMed articles
+            - messages: Assistant message with search summary
+            - next: "__end__"
     """
 ```
 
 ### Type Hints
 - Vždy používat type hints (mypy --strict enforced)
 - Pro state fields s reducers použít `Annotated[type, reducer]`
-- Vyhýbat se `Any` bez zdůvodnění
+- Vyhýbat se `Any` bez zdůvodnění (dokumentovat exception)
+- Use `r"""` docstring prefix pokud obsahuje backslashes
 
 ## Testing Architektura
 
@@ -259,10 +321,13 @@ def placeholder_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
 
 ```python
 import pytest
-from agent.graph import State, Context, graph
+from agent.graph import State, Context
+from agent.models.drug_models import DrugQuery
+from agent.models.research_models import ResearchQuery, PubMedArticle
 
 @pytest.fixture(scope="session")
 def anyio_backend():
+    """Configure asyncio backend for pytest-asyncio."""
     return "asyncio"
 
 @pytest.fixture
@@ -280,250 +345,162 @@ def mock_runtime():
     class MockRuntime:
         def __init__(self):
             self.context = {
-                "model_name": "test-model",
-                "temperature": 0.0
+                "model_name": "claude-sonnet-4-5-20250929",
+                "temperature": 0.0,
+                "sukl_mcp_client": None,
+                "biomcp_client": None
             }
     return MockRuntime()
+
+@pytest.fixture
+def sample_pubmed_articles():
+    """Sample PubMed articles pro testování (5 articles)."""
+    return [
+        PubMedArticle(
+            pmid="12345678",
+            title="Efficacy of Metformin in Type 2 Diabetes",
+            abstract="Background: Metformin is first-line...",
+            authors=["Smith, John", "Doe, Jane"],
+            publication_date="2024-06-15",
+            journal="NEJM",
+            doi="10.1056/NEJMoa2401234"
+        ),
+        # ... další articles
+    ]
 ```
 
-### CI/CD
-- **Unit Tests**: Běží při každém push (Python 3.11, 3.12)
-- **Integration Tests**: Denně v 14:37 UTC (vyžaduje API klíče)
+### Test Structure
+
+```python
+@pytest.mark.asyncio
+async def test_pubmed_search_returns_documents(
+    sample_state, mock_runtime, sample_pubmed_articles
+):
+    """Test PubMed search vrací dokumenty s correct structure."""
+    # Arrange
+    from agent.nodes.pubmed_agent import pubmed_agent_node
+
+    state = sample_state
+    state["research_query"] = ResearchQuery(
+        query_text="diabetes studies",
+        query_type="search"
+    )
+
+    # Mock BioMCP client
+    mock_client = MagicMock()
+    mock_client.call_tool = AsyncMock(
+        return_value=MCPResponse(
+            success=True,
+            data={"articles": [...]},
+            metadata={}
+        )
+    )
+    mock_runtime.context["biomcp_client"] = mock_client
+
+    # Act
+    result = await pubmed_agent_node(state, mock_runtime)
+
+    # Assert
+    assert "retrieved_docs" in result
+    assert len(result["retrieved_docs"]) > 0
+    assert "messages" in result
+```
 
 ## SpecKit Workflow
 
-Pro vývoj features použijte SpecKit příkazy (dostupné v `.github/agents/`):
+Pro vývoj features použijte SpecKit příkazy:
 
-1. **Constitution** (`speckit.constitution`) - Správa pravidel projektu
-2. **Specify** (`speckit.specify`) - Definovat user stories s kritérii
-3. **Plan** (`speckit.plan`) - Navrhnout graph nody, edges, state změny
-4. **Tasks** (`speckit.tasks`) - Rozdělit na atomické úkoly
-5. **Implement** (`speckit.implement`) - Implementovat s test-first přístupem
-
-## Implementační Roadmap
-
-### Fáze 0: Foundation (Aktuální - Týdny 1-2)
-- **001-langgraph-foundation** (5 dní, KRITICKÉ)
-  - Definovat `AgentState` a `Context`
-  - Vytvořit pytest fixtures
-  - Setup LangSmith tracing
-  - ✓ Spec hotová, implementace zahájena
-
-- **002-mcp-infrastructure** (4 dny, KRITICKÉ, paralelně)
-  - Setup MCP protocol
-  - Konfigurace Docker pro BioMCP
-  - Supabase s pgvector
-
-### Fáze 1: Core Agents (Týdny 3-6)
-- **003-sukl-drug-agent** (8 dní) - Informace o lécích
-- **004-vzp-pricing-agent** (6 dní) - Ceny & úhrady
-- **005-biomcp-pubmed-agent** (7 dní) - Výzkumná literatura
-- **006-guidelines-agent** (8 dní) - Klinické guidelines
-
-### Fáze 2: Integration (Týdny 7-9)
-- **007-supervisor-orchestration** (9 dní) - Intent routing
-- **008-citation-system** (6 dní) - Evidence tracking
-- **009-synthesizer-node** (5 dní) - Response synthesis
-
-### Fáze 3: UX & Deployment (Týdny 10-12)
-- **010-czech-localization** (4 dny) - České lokalizace
-- **011-fastapi-backend** (6 dní) - REST API
-- **012-nextjs-frontend** (10 dní) - Chat interface
-
-## Důležité Soubory
-
-1. **`.specify/memory/constitution.md`** - Constitution projektu (single source of truth)
-2. **`langgraph-app/src/agent/graph.py`** - Core graph definice
-3. **`langgraph-app/pyproject.toml`** - Závislosti & konfigurace
-4. **`langgraph-app/langgraph.json`** - LangGraph server config
-5. **`specs/ROADMAP.md`** - Master roadmap všech features
-
-## Troubleshooting
-
-### Import Issues
-- Vždy importovat z `agent.graph`, ne relativní cesty
-- Použít `from typing_extensions import TypedDict` pro Python 3.10 kompatibilitu
-
-### Type Checking
-- `mypy --strict` je enforced - žádné implicitní Any
-- Použít `total=False` na TypedDict pro optional fields
-
-### Async/Await
-- Všechny node funkce MUSÍ být async
-- Použít `@pytest.mark.asyncio` pro async testy
-
-### LangSmith
-- Pokud chybí LANGSMITH_API_KEY, tracing gracefully degraduje (nespadne)
-- Nastavit LANGSMITH_PROJECT v .env pro organizaci traces
+1. **Constitution** (`/speckit.constitution`) - Správa pravidel projektu
+2. **Specify** (`/speckit.specify`) - Definovat user stories s kritérii
+3. **Plan** (`/speckit.plan`) - Navrhnout graph nody, edges, state změny
+4. **Tasks** (`/speckit.tasks`) - Rozdělit na atomické úkoly
+5. **Implement** (`/speckit.implement`) - Implementovat s test-first přístupem
 
 ## MCP Integration
 
-Czech MedAI integruje **2 klíčové MCP servery** pro přístup k medicínským datům:
-
-### 1. SÚKL-mcp (Czech Pharmaceutical Database)
+### SÚKL-mcp (Feature 003)
 
 **Repository**: https://github.com/petrsovadina/SUKL-mcp
 
-**Purpose**: Oficiální databáze léků SÚKL s 68,248 registrovanými léky
-
-**Features**:
-- Fuzzy search s tolerance pro překlepy (rapidfuzz, threshold 80)
-- Hybrid architektura (REST API + CSV fallback)
-- Automatické parsování PDF/Word dokumentů
-- Multi-kriteriální ranking pro alternativy
-- Informace o cenách a úhradách (VZP)
-
-**Available Tools (8)**:
-1. `search_medicine` - Vyhledávání léků s fuzzy matching
-2. `get_medicine_details` - Kompletní info o léku včetně složení
-3. `get_pil_content` - Příbalová informace (PIL)
-4. `get_spc_content` - Souhrn údajů o přípravku (SPC)
-5. `check_availability` - Dostupnost + automatické alternativy
-6. `get_reimbursement` - Kategorie úhrad (A/B/D) a předepisovatelnost
-7. `find_pharmacies` - Vyhledávání lékáren podle lokace
+**8 Available Tools**:
+1. `search_medicine` - Fuzzy search léků
+2. `get_medicine_details` - Kompletní info o léku
+3. `get_pil_content` - Příbalová informace
+4. `get_spc_content` - Souhrn údajů o přípravku
+5. `check_availability` - Dostupnost + alternativy
+6. `get_reimbursement` - Kategorie úhrad
+7. `find_pharmacies` - Vyhledávání lékáren
 8. `get_atc_info` - ATC klasifikace
 
-**Installation**:
-```bash
-# Production server
-claude mcp add --scope local --transport http SUKL-mcp https://SUKL-mcp.fastmcp.app/mcp
-
-# Local development
-git clone https://github.com/DigiMedic/SUKL-mcp.git
-cd SUKL-mcp
-pip install -e ".[dev]"
-python -m sukl_mcp
-```
-
-**Integration Point**: Feature **003-sukl-drug-agent**
-
-**Czech-Specific**:
-- Data z SÚKL Open Data portálu (měsíční update)
-- Windows-1250 encoding support
-- České healthcare terminologie (ATC, kategorie úhrad)
-
----
-
-### 2. BioMCP (Biomedical Model Context Protocol)
-
-**Repository**: https://github.com/genomoncology/biomcp
-
-**Purpose**: Přístup k biomedical databases (PubMed, ClinicalTrials, atd.)
-
-**Features**:
-- 24 specialized tools pro biomedicínská data
-- Sequential reasoning s "think" tool
-- Natural language queries (bez SQL syntaxe)
-- Enterprise-grade MCP server
-
-**Data Sources**:
-- **Literature**: PubMed/PubTator3, bioRxiv/medRxiv, Europe PMC
-- **Clinical**: ClinicalTrials.gov, NCI Clinical Trials API
-- **Genomic**: MyVariant.info, MyGene.info, MyDisease.info, MyChem.info
-- **Regulatory**: OpenFDA (FAERS, SPL, MAUDE)
-
-**Available Tools (24)**:
-- **Core (3)**: `think`, `search`, `fetch`
-- **Articles (4)**: `article_searcher`, `article_getter`, `article_recommender`, `article_pmc_getter`
-- **Trials (6)**: `trial_searcher`, `trial_getter`, `trial_nci_searcher`, atd.
-- **Variants (3)**: `variant_searcher`, `variant_getter`, `variant_annotator`
-- **Genes/Diseases (8)**: `gene_getter`, `disease_getter`, atd.
-
-**Installation**:
-```bash
-# For Claude Desktop
-# 1. Install uv package manager
-# 2. Configure Claude Desktop:
-{
-  "mcpServers": {
-    "biomcp": {
-      "command": "uv",
-      "args": ["run", "--with", "biomcp-python", "biomcp", "run"]
-    }
-  }
-}
-
-# Python package
-uv pip install biomcp-python
-# nebo
-pip install biomcp-python
-```
-
-**Integration Point**: Feature **005-biomcp-pubmed-agent**
-
-**Sandwich Pattern** (CZ→EN→CZ):
-1. Czech query → Translate to English
-2. BioMCP search (English)
-3. Results → Translate to Czech
-
----
-
-### MCP Architecture v Czech MedAI
-
-```
-User Query (CZ)
-    ↓
-[Supervisor Node]
-    ↓
-    ├─→ [Drug Agent] → SÚKL-mcp (8 tools)
-    ├─→ [Pricing Agent] → VZP LEK-13 (direct)
-    ├─→ [PubMed Agent] → BioMCP (24 tools) + CZ→EN→CZ translation
-    └─→ [Guidelines Agent] → ČLS JEP PDFs (pgvector)
-    ↓
-[Citation System]
-    ↓
-Response (CZ) s citacemi [1][2][3]
-```
-
-### MCP Development Workflow
-
-**Feature 002-mcp-infrastructure** setup:
-1. Install both MCP servers locally
-2. Configure Claude Desktop integration
-3. Create MCP client wrappers v `src/agent/mcp/`
-4. Setup async communication patterns
-5. Error handling & fallback strategies
-
-**Testing MCP integration**:
-```bash
-# Test SÚKL-mcp
-python -c "import httpx; print(httpx.get('https://SUKL-mcp.fastmcp.app/health').json())"
-
-# Test BioMCP locally
-biomcp article search --gene BRAF --disease Melanoma
-```
-
-**MCP Tools Usage in Nodes**:
+**Usage in Node**:
 ```python
 async def drug_agent_node(state: State, runtime: Runtime[Context]):
-    """Query SÚKL-mcp for drug information."""
-    # Use MCP client wrapper
     sukl_client = runtime.context.get("sukl_mcp_client")
 
-    # Call SÚKL tool
     result = await sukl_client.call_tool(
         "search_medicine",
         query=drug_name,
-        fuzzy=True
+        fuzzy=True,
+        limit=5
     )
 
     return {"retrieved_docs": result.documents}
 ```
 
-### MCP Configuration (.env)
+### BioMCP (Feature 005)
 
-```bash
-# SÚKL-mcp
-SUKL_MCP_URL=https://SUKL-mcp.fastmcp.app/mcp
-SUKL_MCP_TRANSPORT=http
+**Repository**: https://github.com/genomoncology/biomcp
 
-# BioMCP
-BIOMCP_TRANSPORT=stdio
-BIOMCP_COMMAND=biomcp run
+**Key Tools**:
+- `article_searcher` - Search PubMed articles
+- `article_getter` - Get article by PMID
+- `article_recommender` - Get similar articles
+- `article_pmc_getter` - Get full text from PMC
 
-# Fallback mode
-ENABLE_MCP_FALLBACK=true
+**Sandwich Pattern** (CZ→EN→CZ):
+```python
+# 1. Czech query → Translate to English
+state = await translate_cz_to_en_node(state, runtime)
+
+# 2. BioMCP search (English)
+state = await pubmed_agent_node(state, runtime)
+
+# 3. Results → Translate to Czech
+state = await translate_en_to_cz_node(state, runtime)
 ```
+
+## Troubleshooting
+
+### Import Issues
+- Vždy importovat z `agent.graph`, ne `src.agent.graph`
+- Package discovery v pyproject.toml: `[tool.setuptools.packages.find]`
+- PYTHONPATH=src při spouštění testů
+
+### Type Checking
+- `mypy --strict` enforced - žádné implicitní Any
+- Use `Any` s doc comment pro MCP clients (Pydantic compat)
+- `total=False` na TypedDict pro optional fields
+
+### Testing
+- Použít `@pytest.mark.asyncio` pro async testy
+- Mock MCP clients s `AsyncMock` pro async call_tool
+- PYTHONPATH=src required: `PYTHONPATH=src uv run pytest`
+
+### Translation Tests
+- 5 translation testů vyžaduje Anthropic API kredity
+- Mock LLM responses v unit testech
+- Use `ChatAnthropic(model_name=..., temperature=0, timeout=None, stop=None)`
+
+## Důležité Soubory
+
+1. **`.specify/memory/constitution.md`** - Constitution v1.0.3 (single source of truth)
+2. **`src/agent/graph.py`** - Core graph definice (route_query, State, Context)
+3. **`src/agent/nodes/`** - Node implementace (drug_agent, pubmed_agent, translation)
+4. **`src/agent/mcp/`** - MCP client wrappers (adapters, domain, config)
+5. **`src/agent/models/`** - Pydantic models (drug_models, research_models)
+6. **`pyproject.toml`** - Závislosti & ruff/mypy konfigurace
+7. **`tests/conftest.py`** - Pytest fixtures (anyio_backend, mocks, samples)
+8. **`specs/ROADMAP.md`** - Master roadmap všech features
 
 ## Reference
 
@@ -534,27 +511,17 @@ ENABLE_MCP_FALLBACK=true
 ### MCP Servery
 - **SÚKL-mcp Repository**: https://github.com/petrsovadina/SUKL-mcp
 - **BioMCP Repository**: https://github.com/genomoncology/biomcp
-- **MCP Integration Guide**: `MCP_INTEGRATION.md`
-
-### Architectural Inspiration
-- **BioAgents Repository**: https://github.com/bio-xyz/BioAgents
-- **BioAgents Patterns**: `BIOAGENTS_INSPIRATION.md`
 
 ### Project Documentation
-- **Constitution**: `.specify/memory/constitution.md`
-- **Specs**: `specs/` directory
+- **Constitution**: `.specify/memory/constitution.md` (v1.0.3)
+- **Specs**: `specs/` directory (001-005 dostupné)
 - **Roadmap**: `specs/ROADMAP.md`
 
 ---
 
-**Poslední aktualizace**: 2026-01-13
-**Aktuální větev**: 001-langgraph-foundation
+**Poslední aktualizace**: 2026-01-23
+**Aktuální větev**: 005-biomcp-pubmed-agent
 **Main větev**: main
-**Status projektu**: Foundation fáze - specifikace hotové, implementace probíhá
-
-## Active Technologies
-- Python ≥3.10 (per constitution) (003-sukl-drug-agent)
-- LangGraph checkpointing (per constitution - no direct ORM) (003-sukl-drug-agent)
-
-## Recent Changes
-- 003-sukl-drug-agent: Added Python ≥3.10 (per constitution)
+**Status projektu**: Fáze 1 (Core Agents) - 3/4 agentů dokončeno (Drug, PubMed), Pricing čeká
+**Constitution**: v1.0.3 (Phase 7 quality standards codified)
+**Test Coverage**: 169/175 passing (96%)

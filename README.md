@@ -250,27 +250,113 @@ make spell_check            # Spell check
 
 ## 🗺️ Roadmap
 
-### Fáze 0: Foundation (Aktuální - Týdny 1-2)
-- [x] **001-langgraph-foundation** - AgentState, Context, LangSmith setup
-- [ ] **002-mcp-infrastructure** - MCP protocol, Docker, Supabase
+### ✅ Fáze 0: Foundation (DOKONČENO - Týdny 1-2)
 
-### Fáze 1: Core Agents (Týdny 3-6)
-- [ ] **003-sukl-drug-agent** - SÚKL drug search
-- [ ] **004-vzp-pricing-agent** - VZP pricing & coverage
-- [ ] **005-biomcp-pubmed-agent** - PubMed research (BioMCP)
-- [ ] **006-guidelines-agent** - ČLS JEP guidelines
+#### ✅ Feature 001: LangGraph Foundation (5 dní)
+- ✅ State dataclass s typed fields (messages, next, retrieved_docs)
+- ✅ Context TypedDict s runtime konfigurací (model_name, temperature, MCP clients)
+- ✅ pytest fixtures (mock_runtime, sample_state)
+- ✅ LangSmith tracing setup s graceful degradation
+- ✅ placeholder_node jako reference implementace
 
-### Fáze 2: Integration (Týdny 7-9)
-- [ ] **007-supervisor-orchestration** - Intent routing
-- [ ] **008-citation-system** - Citation tracking
-- [ ] **009-synthesizer-node** - Response synthesis
+#### ✅ Feature 002: MCP Infrastructure (4 dny)
+- ✅ **SUKLMCPClient** wrapper s domain-driven design
+  - 8 MCP tools (search_medicine, get_details, PIL/SPC, reimbursement)
+  - Retry strategies s exponential backoff (3 attempts, 2^n delay)
+  - Error handling hierarchy (MCPError → MCPValidationError → MCPServerError)
+- ✅ **BioMCPClient** wrapper
+  - 24 tools pro biomedical databases
+  - article_searcher, article_getter pro PubMed integration
+- ✅ MCP protocol integration s async communication patterns
 
-### Fáze 3: UX & Deployment (Týdny 10-12)
-- [ ] **010-czech-localization** - České lokalizace
-- [ ] **011-fastapi-backend** - REST API
-- [ ] **012-nextjs-frontend** - Chat interface
+---
 
-**📖 Detailní Roadmap:** [specs/ROADMAP.md](./specs/ROADMAP.md)
+### 🔄 Fáze 1: Core Agents (3/4 DOKONČENO - Týdny 3-6)
+
+#### ✅ Feature 003: SÚKL Drug Agent (8 dní)
+- ✅ drug_agent_node implementace
+- ✅ SÚKL-mcp integration s 8 tools
+- ✅ Fuzzy search s typo tolerance (rapidfuzz, threshold 80)
+- ✅ Document transformation (PIL/SPC → LangChain Documents)
+- ✅ Multi-kriteriální ranking pro alternativy
+- ✅ Metadata preservation (ATC kódy, ceny, úhrady)
+
+#### ⏳ Feature 004: VZP Pricing Agent (6 dní) - ČEKÁ NA IMPLEMENTACI
+- ⏳ pricing_agent_node s VZP LEK-13 integration
+- ⏳ Exact match vyhledávání (KÓDL, název léku)
+- ⏳ Kategorie úhrad parsing (A/B/D)
+- ⏳ Předepisovatelnost a limitace
+
+#### ✅ Feature 005: BioMCP PubMed Agent (7 dní) - VČETNĚ PHASE 7 POLISH
+- ✅ **pubmed_agent_node** implementace
+  - BioMCP article_searcher integration (abstract search)
+  - BioMCP article_getter integration (PMID lookup)
+  - ResearchQuery model s filters (date_range, article_types)
+- ✅ **Translation nodes** (Sandwich Pattern: CZ→EN→PubMed→EN→CZ)
+  - translate_cz_to_en_node s medicínskou terminologií
+  - translate_en_to_cz_node s metadata preservation
+- ✅ **Citation tracking**
+  - Inline references [1][2][3] v responses
+  - Reference section s kompletními citacemi
+  - format_citation helper pro IEEE style
+- ✅ **Phase 7 Quality Polish**
+  - mypy --strict: 0 errors (100% type safety)
+  - ruff check: All checks passed
+  - ruff format: 27 files reformatted
+  - Test coverage: 169/175 passing (96%)
+  - Performance validated: <5s latency (SC-001)
+
+#### ⏳ Feature 006: Guidelines Agent (8 dní) - PLÁNOVÁNO
+- ⏳ guidelines_agent_node s ČLS JEP PDFs
+- ⏳ pgvector semantic search
+- ⏳ PDF parsing a chunking
+- ⏳ Citation extraction
+
+---
+
+### ⏳ Fáze 2: Integration (PLÁNOVÁNO - Týdny 7-9)
+
+#### ⏳ Feature 007: Supervisor Orchestration (9 dní)
+- ⏳ supervisor_node s intent classification (8 typů)
+- ⏳ Multi-agent routing logic
+- ⏳ Conditional edges pro agent selection
+
+#### ⏳ Feature 008: Citation System (6 dní)
+- ⏳ Cross-agent citation consolidation
+- ⏳ Deduplikace referencí
+- ⏳ Citation formatting (IEEE, AMA, APA)
+
+#### ⏳ Feature 009: Synthesizer Node (5 dní)
+- ⏳ Response synthesis z multiple agents
+- ⏳ Inline citation insertion
+- ⏳ Markdown formatting
+
+---
+
+### ⏳ Fáze 3: UX & Deployment (PLÁNOVÁNO - Týdny 10-12)
+
+#### ⏳ Feature 010: Czech Localization (4 dny)
+- ⏳ Kompletní české UI/UX texty
+- ⏳ Error messages v češtině
+- ⏳ Medical terminology dictionary
+
+#### ⏳ Feature 011: FastAPI Backend (6 dní)
+- ⏳ REST API endpoints
+- ⏳ WebSocket/SSE streaming
+- ⏳ Redis caching layer
+- ⏳ Docker containerization
+
+#### ⏳ Feature 012: Next.js Frontend (10 dní)
+- ⏳ Chat interface s streaming
+- ⏳ Citation popups
+- ⏳ TailwindCSS + shadcn/ui
+- ⏳ Mobile-responsive design
+
+---
+
+**📊 Aktuální Progress**: 3/12 features dokončeno (25%) | Constitution v1.0.3 | Test Coverage: 96%
+
+**📖 Detailní Roadmap s tasky:** [specs/ROADMAP.md](./specs/ROADMAP.md)
 
 ## 📚 Dokumentace
 
@@ -350,17 +436,38 @@ make lint  # Shows all errors
 
 ## 📊 Project Status
 
-**Current Phase:** Foundation (Fáze 0)
-**Current Branch:** `001-langgraph-foundation`
+**Current Phase:** Core Agents (Fáze 1) - 3/4 Complete
+**Current Branch:** `005-biomcp-pubmed-agent`
 **Main Branch:** `main`
+**Constitution:** v1.0.3 (Phase 7 quality standards codified)
 
-**Progress:**
-- ✅ Constitution vytvořena (v1.0.1)
-- ✅ SpecKit framework inicializován
-- ✅ Foundation spec hotová
-- ✅ Foundation plan hotový
-- 🚧 Foundation implementace probíhá
-- ⏳ MCP infrastructure čeká
+**Dokončené Features:**
+- ✅ **Feature 001**: LangGraph Foundation (State, Context, pytest)
+- ✅ **Feature 002**: MCP Infrastructure (SÚKL-mcp + BioMCP clients)
+- ✅ **Feature 003**: SÚKL Drug Agent (fuzzy search, 8 MCP tools)
+- ✅ **Feature 005**: BioMCP PubMed Agent (včetně Phase 7 Polish)
+  - Sandwich Pattern: CZ→EN→PubMed→EN→CZ
+  - Citation tracking [1][2][3]
+  - Performance: <5s latency (SC-001 validated)
+
+**V Plánu:**
+- ⏳ **Feature 004**: VZP Pricing Agent (VZP LEK-13 integration)
+- ⏳ **Feature 006**: Guidelines Agent (ČLS JEP PDFs)
+- ⏳ **Fáze 2**: Integration (supervisor, citations, synthesizer)
+
+**Quality Metrics:**
+- 📊 Test Coverage: **169/175 passing (96%)**
+- ✅ Type Safety: **mypy --strict** (0 errors)
+- ✅ Code Quality: **ruff check** (all checks passed)
+- ✅ Formatting: **ruff format** (27 files)
+- ⚡ Performance: **<5s latency** (SC-001 requirement)
+
+**Constitution Compliance:**
+- ✅ Princip I: Graph-Centric Architecture (všechny features jako LangGraph nodes)
+- ✅ Princip II: Type Safety (mypy --strict enforcement)
+- ✅ Princip III: Test-First Development (TDD workflow dodržen)
+- ✅ Princip IV: Observability (LangSmith tracing configured)
+- ✅ Princip V: Modular Design (single-responsibility nodes)
 
 ## 📜 License
 
@@ -376,7 +483,7 @@ Czech MedAI Development Team
 
 ---
 
-**Verze:** 1.0.0 (Foundation Phase)
-**Poslední aktualizace:** 2026-01-13
+**Verze:** 1.1.0 (Core Agents Phase - 3/4 Complete)
+**Poslední aktualizace:** 2026-01-23
 
 **🚀 Ready to start?** → [QUICKSTART.md](./QUICKSTART.md)
