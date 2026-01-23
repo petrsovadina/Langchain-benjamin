@@ -5,24 +5,27 @@ Tests PubMed search, document transformation, error handling, and PMID lookup.
 TDD Workflow: These tests are written FIRST and should FAIL before implementation.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.agent.graph import State, Context
-from src.agent.nodes.pubmed_agent import (
-    pubmed_agent_node,
-    classify_research_query,
+import pytest
+
+from agent.graph import State
+from agent.models.research_models import PubMedArticle, ResearchQuery
+from agent.nodes.pubmed_agent import (
     article_to_document,
+    classify_research_query,
     format_citation,
+    pubmed_agent_node,
 )
-from src.agent.models.research_models import ResearchQuery, PubMedArticle
 
 
 class TestPubMedSearch:
     """Test PubMed search functionality."""
 
     @pytest.mark.asyncio
-    async def test_pubmed_search_returns_documents(self, mock_biomcp_client, mock_runtime):
+    async def test_pubmed_search_returns_documents(
+        self, mock_biomcp_client, mock_runtime
+    ):
         """Test that PubMed search returns Documents in state.
 
         Verifies that pubmed_agent_node calls BioMCP and returns
@@ -33,7 +36,10 @@ class TestPubMedSearch:
 
         state = State(
             messages=[
-                {"role": "user", "content": "Jaké jsou nejnovější studie o diabetu typu 2?"}
+                {
+                    "role": "user",
+                    "content": "Jaké jsou nejnovější studie o diabetu typu 2?",
+                }
             ],
             next="",
             retrieved_docs=[],
@@ -70,7 +76,7 @@ class TestNoResults:
         mock_client.call_tool = AsyncMock()
 
         # Return empty results
-        from src.agent.mcp import MCPResponse
+        from agent.mcp import MCPResponse
 
         mock_client.call_tool.return_value = MCPResponse(
             success=True, data={"articles": [], "total_results": 0}
@@ -119,7 +125,7 @@ class TestErrorHandling:
         mock_client.call_tool = AsyncMock()
 
         # Simulate timeout
-        from src.agent.mcp import MCPResponse
+        from agent.mcp import MCPResponse
 
         mock_client.call_tool.return_value = MCPResponse(
             success=False, error="Connection timeout after 10s"
@@ -213,14 +219,18 @@ class TestDocumentTransformation:
         - metadata: source, pmid, url, authors, journal, etc.
         """
         article = sample_pubmed_articles[0]
-        czech_abstract = "Úvod: Metformin je lék první volby pro léčbu diabetes mellitus typu 2..."
+        czech_abstract = (
+            "Úvod: Metformin je lék první volby pro léčbu diabetes mellitus typu 2..."
+        )
 
         doc = article_to_document(article, czech_abstract)
 
         # Check page_content format
         assert "Title:" in doc.page_content
         assert article.title in doc.page_content
-        assert "Abstract (CZ):" in doc.page_content or "Abstrakt (CZ):" in doc.page_content
+        assert (
+            "Abstract (CZ):" in doc.page_content or "Abstrakt (CZ):" in doc.page_content
+        )
         assert czech_abstract in doc.page_content
 
         # Check metadata
@@ -264,7 +274,10 @@ class TestCitationFormatting:
         assert "et al." in citation.short_citation
         assert "2024" in citation.short_citation
         # First author last name should be present
-        assert "Smith" in citation.short_citation or article.authors[0].split(",")[0] in citation.short_citation
+        assert (
+            "Smith" in citation.short_citation
+            or article.authors[0].split(",")[0] in citation.short_citation
+        )
 
     def test_citation_full_format(self, sample_pubmed_articles):
         """Test full citation format generation.
@@ -352,8 +365,8 @@ class TestArticleGetter:
         and returns PubMedArticle object.
         """
         # Arrange
-        from src.agent.nodes.pubmed_agent import _get_article_by_pmid
-        from src.agent.mcp import MCPResponse
+        from agent.mcp import MCPResponse
+        from agent.nodes.pubmed_agent import _get_article_by_pmid
 
         # Create fresh mock client without side_effect
         mock_client = MagicMock()
@@ -393,8 +406,8 @@ class TestArticleGetter:
         Should return None gracefully without raising exception.
         """
         # Arrange
-        from src.agent.nodes.pubmed_agent import _get_article_by_pmid
-        from src.agent.mcp import MCPResponse
+        from agent.mcp import MCPResponse
+        from agent.nodes.pubmed_agent import _get_article_by_pmid
 
         mock_client = MagicMock()
         mock_client.call_tool = AsyncMock()
@@ -418,9 +431,7 @@ class TestPMCAccess:
         Articles with pmc_id should have pmc_url in metadata.
         """
         # Find article with PMC ID
-        article_with_pmc = next(
-            (a for a in sample_pubmed_articles if a.pmc_id), None
-        )
+        article_with_pmc = next((a for a in sample_pubmed_articles if a.pmc_id), None)
         assert article_with_pmc is not None
 
         czech_abstract = "Test abstrakt v češtině"
@@ -521,9 +532,7 @@ class TestPaywallHandling:
         Articles with pmc_id are freely accessible, paywalled ones are not.
         """
         # Find one article with PMC and one without
-        article_with_pmc = next(
-            (a for a in sample_pubmed_articles if a.pmc_id), None
-        )
+        article_with_pmc = next((a for a in sample_pubmed_articles if a.pmc_id), None)
         article_without_pmc = next(
             (a for a in sample_pubmed_articles if not a.pmc_id), None
         )
@@ -537,4 +546,7 @@ class TestPaywallHandling:
 
         # Article without PMC should not have pmc_url (potentially paywalled)
         doc_paywalled = article_to_document(article_without_pmc, "Test")
-        assert "pmc_url" not in doc_paywalled.metadata or doc_paywalled.metadata.get("pmc_url") is None
+        assert (
+            "pmc_url" not in doc_paywalled.metadata
+            or doc_paywalled.metadata.get("pmc_url") is None
+        )

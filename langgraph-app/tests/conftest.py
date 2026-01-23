@@ -1,28 +1,22 @@
 """Pytest fixtures for Czech MedAI foundation tests."""
 
-from datetime import datetime, timezone
 from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from agent.graph import State, Context, graph
+from agent.graph import State, graph
+from agent.mcp import MCPResponse
 from agent.models.drug_models import (
+    DrugDetails,
     DrugQuery,
     DrugResult,
-    DrugDetails,
     QueryType,
-    ReimbursementInfo,
-    ReimbursementCategory,
-    AvailabilityInfo,
 )
 from agent.models.research_models import (
-    ResearchQuery,
     PubMedArticle,
-    TranslatedArticle,
-    CitationReference,
+    ResearchQuery,
 )
-from agent.mcp import MCPResponse
 
 
 @pytest.fixture(scope="session")
@@ -41,7 +35,7 @@ def sample_state():
     return State(
         messages=[{"role": "user", "content": "test message"}],
         next="placeholder",
-        retrieved_docs=[]
+        retrieved_docs=[],
     )
 
 
@@ -52,6 +46,7 @@ def mock_runtime():
     Returns:
         MockRuntime: Runtime-like object with all Context fields.
     """
+
     class MockRuntime:
         def __init__(self):
             self.context = {
@@ -60,16 +55,13 @@ def mock_runtime():
                 "temperature": 0.0,
                 "langsmith_project": "test-project",
                 "user_id": None,
-
                 # MCP clients (None in foundation - implemented in Feature 002)
                 "sukl_mcp_client": None,
                 "biomcp_client": None,
-
                 # Conversation persistence (None - implemented in Feature 013)
                 "conversation_context": None,
-
                 # Workflow mode (default: quick)
-                "mode": "quick"
+                "mode": "quick",
             }
 
     return MockRuntime()

@@ -16,25 +16,20 @@ Provides 8 tools:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, cast
 from datetime import datetime
+from typing import Any, Dict, List, cast
 
 import aiohttp
 from pydantic import BaseModel, ValidationError
 
-from ..domain.entities import (
-    MCPHealthStatus,
-    MCPResponse,
-    MCPToolMetadata,
-    RetryConfig
-)
-from ..domain.ports import IMCPClient, IRetryStrategy
+from ..domain.entities import MCPHealthStatus, MCPResponse, MCPToolMetadata, RetryConfig
 from ..domain.exceptions import (
     MCPConnectionError,
+    MCPServerError,
     MCPTimeoutError,
     MCPValidationError,
-    MCPServerError
 )
+from ..domain.ports import IMCPClient, IRetryStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +37,11 @@ logger = logging.getLogger(__name__)
 # Pydantic models for SÚKL responses
 class DrugSearchResult(BaseModel):
     """Schema for search_drugs response."""
+
     name: str
     atc_code: str
     registration_number: str
-    manufacturer: Optional[str] = None
+    manufacturer: str | None = None
 
 
 class SUKLMCPClient(IMCPClient):
@@ -72,8 +68,8 @@ class SUKLMCPClient(IMCPClient):
         self,
         base_url: str = "http://localhost:3000",
         timeout: float = 30.0,
-        retry_strategy: Optional[IRetryStrategy] = None,
-        default_retry_config: Optional[RetryConfig] = None
+        retry_strategy: IRetryStrategy | None = None,
+        default_retry_config: RetryConfig | None = None,
     ):
         """Initialize SUKLMCPClient.
 
@@ -87,7 +83,7 @@ class SUKLMCPClient(IMCPClient):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.retry_strategy = retry_strategy
         self.default_retry_config = default_retry_config or RetryConfig()
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
 
         logger.info(f"[SUKLMCPClient] Initialized with base_url={base_url}")
 
@@ -106,7 +102,7 @@ class SUKLMCPClient(IMCPClient):
         self,
         tool_name: str,
         parameters: Dict[str, Any],
-        retry_config: Optional[RetryConfig] = None
+        retry_config: RetryConfig | None = None,
     ) -> MCPResponse:
         """Call SÚKL MCP tool with parameters.
 
@@ -133,9 +129,7 @@ class SUKLMCPClient(IMCPClient):
             start_time = datetime.now()
 
             try:
-                logger.debug(
-                    f"[SUKLMCPClient] Calling {tool_name} with {parameters}"
-                )
+                logger.debug(f"[SUKLMCPClient] Calling {tool_name} with {parameters}")
 
                 async with session.post(url, json=parameters) as response:
                     latency_ms = int(
@@ -147,7 +141,7 @@ class SUKLMCPClient(IMCPClient):
                         error_text = await response.text()
                         raise MCPServerError(
                             f"SÚKL server error: {response.status} - {error_text}",
-                            status_code=response.status
+                            status_code=response.status,
                         )
 
                     # Handle rate limiting (429)
@@ -155,7 +149,7 @@ class SUKLMCPClient(IMCPClient):
                         retry_after = response.headers.get("Retry-After", "60")
                         raise MCPTimeoutError(
                             f"Rate limited, retry after {retry_after}s",
-                            server_url=self.base_url
+                            server_url=self.base_url,
                         )
 
                     # Handle client errors (4xx)
@@ -164,7 +158,7 @@ class SUKLMCPClient(IMCPClient):
                         return MCPResponse(
                             success=False,
                             error=f"HTTP {response.status}: {error_text}",
-                            metadata={"latency_ms": latency_ms}
+                            metadata={"latency_ms": latency_ms},
                         )
 
                     # Success - parse JSON response
@@ -176,26 +170,25 @@ class SUKLMCPClient(IMCPClient):
                         metadata={
                             "latency_ms": latency_ms,
                             "server_url": self.base_url,
-                            "tool_name": tool_name
-                        }
+                            "tool_name": tool_name,
+                        },
                     )
 
             except aiohttp.ClientConnectorError as e:
                 raise MCPConnectionError(
                     f"Cannot connect to SÚKL server at {self.base_url}",
-                    server_url=self.base_url
+                    server_url=self.base_url,
                 ) from e
 
             except aiohttp.ServerTimeoutError as e:
                 raise MCPTimeoutError(
                     f"SÚKL request timeout after {self.timeout.total}s",
-                    server_url=self.base_url
+                    server_url=self.base_url,
                 ) from e
 
             except ValidationError as e:
                 raise MCPValidationError(
-                    "Invalid SÚKL response schema",
-                    validation_errors=e.errors()
+                    "Invalid SÚKL response schema", validation_errors=e.errors()
                 ) from e
 
         # Execute with retry if strategy provided
@@ -222,42 +215,34 @@ class SUKLMCPClient(IMCPClient):
             start_time = datetime.now()
 
             async with session.get(
-                f"{self.base_url}/health",
-                timeout=aiohttp.ClientTimeout(total=timeout)
+                f"{self.base_url}/health", timeout=aiohttp.ClientTimeout(total=timeout)
             ) as response:
-                latency_ms = int(
-                    (datetime.now() - start_time).total_seconds() * 1000
-                )
+                latency_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
                 if response.status == 200:
                     data = await response.json()
                     return MCPHealthStatus(
                         status="healthy",
                         latency_ms=latency_ms,
-                        tools_count=data.get("tools_count", 8)
+                        tools_count=data.get("tools_count", 8),
                     )
                 else:
                     error_text = await response.text()
                     return MCPHealthStatus(
                         status="unhealthy",
                         latency_ms=latency_ms,
-                        error=f"HTTP {response.status}: {error_text}"
+                        error=f"HTTP {response.status}: {error_text}",
                     )
 
         except aiohttp.ClientConnectorError:
-            return MCPHealthStatus(
-                status="unavailable",
-                error="Connection refused"
-            )
+            return MCPHealthStatus(status="unavailable", error="Connection refused")
         except aiohttp.ServerTimeoutError:
             return MCPHealthStatus(
-                status="timeout",
-                error=f"Health check timeout after {timeout}s"
+                status="timeout", error=f"Health check timeout after {timeout}s"
             )
         except Exception as e:
             return MCPHealthStatus(
-                status="unavailable",
-                error=f"Unexpected error: {str(e)}"
+                status="unavailable", error=f"Unexpected error: {str(e)}"
             )
 
     async def list_tools(self) -> List[MCPToolMetadata]:
@@ -274,49 +259,49 @@ class SUKLMCPClient(IMCPClient):
                 name="search_drugs",
                 description="Search drugs by name or keyword",
                 parameters={"query": "string"},
-                returns={"drugs": "list[DrugSearchResult]"}
+                returns={"drugs": "list[DrugSearchResult]"},
             ),
             MCPToolMetadata(
                 name="get_drug_details",
                 description="Get detailed drug information",
                 parameters={"registration_number": "string"},
-                returns={"drug": "DrugDetails"}
+                returns={"drug": "DrugDetails"},
             ),
             MCPToolMetadata(
                 name="search_by_atc",
                 description="Search drugs by ATC code",
                 parameters={"atc_code": "string"},
-                returns={"drugs": "list[DrugSearchResult]"}
+                returns={"drugs": "list[DrugSearchResult]"},
             ),
             MCPToolMetadata(
                 name="get_interactions",
                 description="Get drug interactions",
                 parameters={"drug_id": "string"},
-                returns={"interactions": "list[Interaction]"}
+                returns={"interactions": "list[Interaction]"},
             ),
             MCPToolMetadata(
                 name="search_side_effects",
                 description="Search drug side effects",
                 parameters={"drug_id": "string"},
-                returns={"side_effects": "list[SideEffect]"}
+                returns={"side_effects": "list[SideEffect]"},
             ),
             MCPToolMetadata(
                 name="get_pricing_info",
                 description="Get drug pricing information",
                 parameters={"registration_number": "string"},
-                returns={"pricing": "PricingInfo"}
+                returns={"pricing": "PricingInfo"},
             ),
             MCPToolMetadata(
                 name="search_by_ingredient",
                 description="Search drugs by active ingredient",
                 parameters={"ingredient": "string"},
-                returns={"drugs": "list[DrugSearchResult]"}
+                returns={"drugs": "list[DrugSearchResult]"},
             ),
             MCPToolMetadata(
                 name="validate_prescription",
                 description="Validate prescription data",
                 parameters={"prescription": "dict"},
-                returns={"valid": "bool", "errors": "list[str]"}
+                returns={"valid": "bool", "errors": "list[str]"},
             ),
         ]
 
@@ -348,12 +333,8 @@ class SUKLMCPClient(IMCPClient):
 
         # Validate with Pydantic
         try:
-            return [
-                DrugSearchResult(**drug)
-                for drug in response.data.get("drugs", [])
-            ]
+            return [DrugSearchResult(**drug) for drug in response.data.get("drugs", [])]
         except ValidationError as e:
             raise MCPValidationError(
-                "Invalid drug search response",
-                validation_errors=e.errors()
+                "Invalid drug search response", validation_errors=e.errors()
             ) from e

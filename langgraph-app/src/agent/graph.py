@@ -8,13 +8,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Annotated, Any, Dict, Literal, Optional
+from typing import Annotated, Any, Dict, Literal
 
 from dotenv import load_dotenv
-
-# Runtime import for State dataclass (required for LangGraph type resolution)
-from agent.models.drug_models import DrugQuery
-from agent.models.research_models import ResearchQuery
 from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph import StateGraph
@@ -22,12 +18,16 @@ from langgraph.graph.message import add_messages
 from langgraph.runtime import Runtime
 from typing_extensions import TypedDict
 
+# Runtime import for State dataclass (required for LangGraph type resolution)
+from agent.models.drug_models import DrugQuery
+from agent.models.research_models import ResearchQuery
+
 # Import drug_agent_node (Feature 003)
 from agent.nodes import drug_agent_node
+from agent.nodes.pubmed_agent import pubmed_agent_node
 
 # Import translation and pubmed_agent nodes (Feature 005)
 from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
-from agent.nodes.pubmed_agent import pubmed_agent_node
 
 # Load environment variables (LangSmith tracing)
 load_dotenv()
@@ -41,7 +41,9 @@ try:
     else:
         print("[LangSmith] No API key found - tracing disabled (graceful degradation)")
 except Exception as e:
-    print(f"[LangSmith] Tracing initialization warning: {e} - continuing without tracing")
+    print(
+        f"[LangSmith] Tracing initialization warning: {e} - continuing without tracing"
+    )
 
 
 class Context(TypedDict, total=False):
@@ -74,11 +76,12 @@ class Context(TypedDict, total=False):
         ...     "mode": "quick"
         ... }
     """
+
     # Core configuration
     model_name: str
     temperature: float
     langsmith_project: str
-    user_id: Optional[str]
+    user_id: str | None
 
     # MCP clients (Feature 002 - use Any to avoid Pydantic schema issues)
     # Actual types: SUKLMCPClient, BioMCPClient (from agent.mcp)
@@ -104,13 +107,14 @@ class State:
         drug_query: Optional drug query for SÚKL agent (Feature 003).
         research_query: Optional research query for PubMed agent (Feature 005).
     """
+
     messages: Annotated[list[AnyMessage], add_messages]
     next: str = "__end__"
     retrieved_docs: list[Document] = field(default_factory=list)
     # Feature 003: SÚKL Drug Agent
-    drug_query: Optional[DrugQuery] = None
+    drug_query: DrugQuery | None = None
     # Feature 005: BioMCP PubMed Agent
-    research_query: Optional[ResearchQuery] = None
+    research_query: ResearchQuery | None = None
 
     def __post_init__(self) -> None:
         """Initialize mutable defaults.
@@ -121,10 +125,7 @@ class State:
         pass
 
 
-async def placeholder_node(
-    state: State,
-    runtime: Runtime[Context]
-) -> Dict[str, Any]:
+async def placeholder_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     """Echo user messages with configuration info.
 
     Processes input state and returns AI response using configured model.
@@ -152,44 +153,90 @@ async def placeholder_node(
     last_message = state.messages[-1] if state.messages else None
     if last_message:
         # Handle both dict and Message object formats
-        content = last_message.get("content") if isinstance(last_message, dict) else last_message.content
+        content = (
+            last_message.get("content")
+            if isinstance(last_message, dict)
+            else last_message.content
+        )
         response = f"Echo: {content}"
     else:
         response = "No input"
 
-    return {
-        "messages": [{"role": "assistant", "content": response}],
-        "next": "__end__"
-    }
+    return {"messages": [{"role": "assistant", "content": response}], "next": "__end__"}
 
 
 # Drug-related keywords for routing (Czech + English)
 DRUG_KEYWORDS = {
     # Czech
-    "lék", "léky", "léčivo", "léčiva", "prášky", "tablety", "pilulky",
-    "složení", "účinná látka", "indikace", "kontraindikace", "dávkování",
-    "úhrada", "cena", "doplatek", "dostupnost", "alternativa",
-    "súkl", "atc", "registrační",
+    "lék",
+    "léky",
+    "léčivo",
+    "léčiva",
+    "prášky",
+    "tablety",
+    "pilulky",
+    "složení",
+    "účinná látka",
+    "indikace",
+    "kontraindikace",
+    "dávkování",
+    "úhrada",
+    "cena",
+    "doplatek",
+    "dostupnost",
+    "alternativa",
+    "súkl",
+    "atc",
+    "registrační",
     # English fallback
-    "drug", "medicine", "medication", "pill", "tablet",
-    "ingredient", "dosage", "reimbursement", "availability",
+    "drug",
+    "medicine",
+    "medication",
+    "pill",
+    "tablet",
+    "ingredient",
+    "dosage",
+    "reimbursement",
+    "availability",
 }
 
 # Research-related keywords for routing (Czech + English)
 RESEARCH_KEYWORDS = {
     # Czech
-    "studie", "výzkum", "pubmed", "článek", "články", "literatura",
-    "pmid", "výzkumný", "klinická studie", "klinický výzkum",
-    "randomizovaná studie", "meta-analýza", "přehled", "review",
-    "evidence", "důkazy", "publikace",
+    "studie",
+    "výzkum",
+    "pubmed",
+    "článek",
+    "články",
+    "literatura",
+    "pmid",
+    "výzkumný",
+    "klinická studie",
+    "klinický výzkum",
+    "randomizovaná studie",
+    "meta-analýza",
+    "přehled",
+    "review",
+    "evidence",
+    "důkazy",
+    "publikace",
     # English fallback
-    "study", "research", "article", "literature", "paper",
-    "clinical trial", "meta-analysis", "systematic review",
-    "evidence", "publication",
+    "study",
+    "research",
+    "article",
+    "literature",
+    "paper",
+    "clinical trial",
+    "meta-analysis",
+    "systematic review",
+    "evidence",
+    "publication",
 }
 
 
-def route_query(state: State) -> Literal["drug_agent", "translate_cz_to_en", "placeholder"]:
+def route_query(
+    state: State,
+) -> Literal["drug_agent", "translate_cz_to_en", "placeholder"]:
     """Route query to appropriate agent based on content.
 
     Simple keyword-based routing for MVP. Will be replaced by
@@ -251,7 +298,7 @@ graph = (
             "drug_agent": "drug_agent",
             "translate_cz_to_en": "translate_cz_to_en",
             "placeholder": "placeholder",
-        }
+        },
     )
     # Drug agent ends immediately
     .add_edge("drug_agent", "__end__")

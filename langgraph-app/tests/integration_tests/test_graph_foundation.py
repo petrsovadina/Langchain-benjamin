@@ -16,13 +16,8 @@ async def test_graph_invocation_returns_state(test_graph):
     Then returns state with user + AI messages.
     """
     # Arrange
-    input_state = {
-        "messages": [{"role": "user", "content": "test"}]
-    }
-    context = {
-        "model_name": "test-model",
-        "temperature": 0.0
-    }
+    input_state = {"messages": [{"role": "user", "content": "test"}]}
+    context = {"model_name": "test-model", "temperature": 0.0}
 
     # Act
     result = await test_graph.ainvoke(input_state, config={"configurable": context})
@@ -62,13 +57,8 @@ async def test_graph_handles_empty_messages(test_graph):
     Then returns "No input" response.
     """
     # Arrange
-    input_state = {
-        "messages": []
-    }
-    context = {
-        "model_name": "test-model",
-        "temperature": 0.0
-    }
+    input_state = {"messages": []}
+    context = {"model_name": "test-model", "temperature": 0.0}
 
     # Act
     result = await test_graph.ainvoke(input_state, config={"configurable": context})
@@ -90,13 +80,8 @@ async def test_graph_execution_performance(test_graph):
     import time
 
     # Arrange
-    input_state = {
-        "messages": [{"role": "user", "content": "performance test"}]
-    }
-    context = {
-        "model_name": "test-model",
-        "temperature": 0.0
-    }
+    input_state = {"messages": [{"role": "user", "content": "performance test"}]}
+    context = {"model_name": "test-model", "temperature": 0.0}
 
     # Act
     start = time.time()

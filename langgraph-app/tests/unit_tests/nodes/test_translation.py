@@ -6,11 +6,11 @@ abbreviation expansion, and error handling.
 TDD Workflow: These tests are written FIRST and should FAIL before implementation.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 
-from src.agent.graph import State, Context
-from src.agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
+import pytest
+
+from agent.graph import State
+from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
 
 
 class TestCzToEnTranslation:
@@ -26,7 +26,10 @@ class TestCzToEnTranslation:
         # Arrange
         state = State(
             messages=[
-                {"role": "user", "content": "Jaké jsou nejnovější studie o diabetu typu 2?"}
+                {
+                    "role": "user",
+                    "content": "Jaké jsou nejnovější studie o diabetu typu 2?",
+                }
             ],
             next="",
             retrieved_docs=[],
@@ -69,7 +72,10 @@ class TestMedicalTermPreservation:
         # Assert
         english_query = result["research_query"].query_text
         assert "diabetes mellitus" in english_query.lower()
-        assert "hypertensio" in english_query.lower() or "hypertension" in english_query.lower()
+        assert (
+            "hypertensio" in english_query.lower()
+            or "hypertension" in english_query.lower()
+        )
 
 
 class TestAbbreviationExpansion:
@@ -84,9 +90,7 @@ class TestAbbreviationExpansion:
         """
         # Arrange
         state = State(
-            messages=[
-                {"role": "user", "content": "Léčba DM2 u pacientů s ICHS"}
-            ],
+            messages=[{"role": "user", "content": "Léčba DM2 u pacientů s ICHS"}],
             next="",
             retrieved_docs=[],
         )
@@ -136,7 +140,9 @@ class TestEnToCzTranslation:
     """Test English → Czech translation for PubMed abstracts."""
 
     @pytest.mark.asyncio
-    async def test_translate_en_to_cz_multiple_docs(self, sample_pubmed_articles, mock_runtime):
+    async def test_translate_en_to_cz_multiple_docs(
+        self, sample_pubmed_articles, mock_runtime
+    ):
         """Test translation of multiple English abstracts to Czech.
 
         Verifies that all retrieved_docs are translated with Czech abstracts
@@ -174,7 +180,10 @@ class TestEnToCzTranslation:
         assert len(result["retrieved_docs"]) == 3
         # Check that page_content now contains Czech abstracts
         for doc in result["retrieved_docs"]:
-            assert "Abstract (CZ):" in doc.page_content or "Abstrakt (CZ):" in doc.page_content
+            assert (
+                "Abstract (CZ):" in doc.page_content
+                or "Abstrakt (CZ):" in doc.page_content
+            )
             # Metadata should be preserved
             assert doc.metadata["source"] == "PubMed"
             assert "pmid" in doc.metadata
@@ -219,7 +228,10 @@ class TestMetadataPreservation:
         # All metadata should be preserved
         assert translated_doc.metadata["source"] == "PubMed"
         assert translated_doc.metadata["pmid"] == "12345678"
-        assert translated_doc.metadata["url"] == "https://pubmed.ncbi.nlm.nih.gov/12345678/"
+        assert (
+            translated_doc.metadata["url"]
+            == "https://pubmed.ncbi.nlm.nih.gov/12345678/"
+        )
         assert translated_doc.metadata["authors"] == "Smith, John"
         assert translated_doc.metadata["journal"] == "NEJM"
         assert translated_doc.metadata["doi"] == "10.1056/test"

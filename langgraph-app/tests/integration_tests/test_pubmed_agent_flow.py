@@ -5,20 +5,22 @@ Tests complete CZ→EN→PubMed→EN→CZ translation workflow with BioMCP integ
 TDD Workflow: These tests should FAIL before implementation.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from agent.graph import State, Context
+import pytest
+
+from agent.graph import State
 from agent.nodes.pubmed_agent import pubmed_agent_node
 from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
-from agent.models.research_models import ResearchQuery
 
 
 class TestFullTranslationFlow:
     """Test complete Czech → English → PubMed → English → Czech flow."""
 
     @pytest.mark.asyncio
-    async def test_full_cz_en_cz_translation_flow(self, mock_biomcp_client, mock_runtime):
+    async def test_full_cz_en_cz_translation_flow(
+        self, mock_biomcp_client, mock_runtime
+    ):
         """Test end-to-end flow: CZ query → EN translation → PubMed search → CZ abstracts.
 
         This is the primary integration test for User Story 1 (P1).
@@ -30,14 +32,19 @@ class TestFullTranslationFlow:
         # Step 1: Start with Czech query
         initial_state = State(
             messages=[
-                {"role": "user", "content": "Jaké jsou nejnovější studie o diabetu typu 2?"}
+                {
+                    "role": "user",
+                    "content": "Jaké jsou nejnovější studie o diabetu typu 2?",
+                }
             ],
             next="",
             retrieved_docs=[],
         )
 
         # Step 2: Translate Czech → English
-        state_after_cz_to_en = await translate_cz_to_en_node(initial_state, mock_runtime)
+        state_after_cz_to_en = await translate_cz_to_en_node(
+            initial_state, mock_runtime
+        )
 
         # Verify research_query is populated
         assert state_after_cz_to_en.get("research_query") is not None
@@ -51,7 +58,9 @@ class TestFullTranslationFlow:
             retrieved_docs=[],
             research_query=english_query,
         )
-        state_after_pubmed = await pubmed_agent_node(state_with_english_query, mock_runtime)
+        state_after_pubmed = await pubmed_agent_node(
+            state_with_english_query, mock_runtime
+        )
 
         # Verify articles retrieved
         assert state_after_pubmed.get("retrieved_docs") is not None
@@ -71,13 +80,18 @@ class TestFullTranslationFlow:
 
         # Check that abstracts are in Czech format
         for doc in final_state["retrieved_docs"]:
-            assert "Abstract (CZ):" in doc.page_content or "Abstrakt (CZ):" in doc.page_content
+            assert (
+                "Abstract (CZ):" in doc.page_content
+                or "Abstrakt (CZ):" in doc.page_content
+            )
             assert doc.metadata["source"] == "PubMed"
             assert "pmid" in doc.metadata
             assert "url" in doc.metadata
 
     @pytest.mark.asyncio
-    async def test_pubmed_search_with_date_filter(self, mock_biomcp_client, mock_runtime):
+    async def test_pubmed_search_with_date_filter(
+        self, mock_biomcp_client, mock_runtime
+    ):
         """Test PubMed search with date range filter.
 
         Verifies that date filters from Czech query are properly extracted
@@ -121,9 +135,7 @@ class TestFullTranslationFlow:
         mock_runtime.context["biomcp_client"] = mock_biomcp_client
 
         state = State(
-            messages=[
-                {"role": "user", "content": "Ukaž mi článek PMID:12345678"}
-            ],
+            messages=[{"role": "user", "content": "Ukaž mi článek PMID:12345678"}],
             next="",
             retrieved_docs=[],
         )
@@ -230,10 +242,14 @@ class TestFullTranslationFlow:
         assert "ncbi.nlm.nih.gov/pmc" in doc.metadata["pmc_url"]
 
         # Czech abstract should be present
-        assert "Abstract (CZ):" in doc.page_content or "Abstrakt (CZ):" in doc.page_content
+        assert (
+            "Abstract (CZ):" in doc.page_content or "Abstrakt (CZ):" in doc.page_content
+        )
 
     @pytest.mark.asyncio
-    async def test_citation_tracking_across_queries(self, mock_biomcp_client, mock_runtime):
+    async def test_citation_tracking_across_queries(
+        self, mock_biomcp_client, mock_runtime
+    ):
         """Test citation numbering across multiple queries.
 
         Verifies that citation numbers [1], [2], [3] are assigned sequentially
@@ -244,9 +260,7 @@ class TestFullTranslationFlow:
 
         # First query
         state1 = State(
-            messages=[
-                {"role": "user", "content": "Studie o diabetu typu 2"}
-            ],
+            messages=[{"role": "user", "content": "Studie o diabetu typu 2"}],
             next="",
             retrieved_docs=[],
         )
@@ -321,7 +335,7 @@ class TestFullTranslationFlow:
 
         # Assert: Response message contains inline citations
         assert "messages" in result
-        response_content = result["messages"][0]["content"]
+        _ = result["messages"][0]["content"]
 
         # Should have inline citation markers [1], [2], etc.
         # Pattern: Article title followed by [N]
@@ -358,9 +372,7 @@ class TestFullTranslationFlow:
         mock_runtime.context["biomcp_client"] = mock_client
 
         state = State(
-            messages=[
-                {"role": "user", "content": "Studie o diabetu"}
-            ],
+            messages=[{"role": "user", "content": "Studie o diabetu"}],
             next="",
             retrieved_docs=[],
         )
@@ -387,5 +399,12 @@ class TestFullTranslationFlow:
         error_message = result["messages"][0]["content"]
         assert any(
             keyword in error_message.lower()
-            for keyword in ["nedostupn", "chyba", "problém", "zkuste", "unavailable", "error"]
+            for keyword in [
+                "nedostupn",
+                "chyba",
+                "problém",
+                "zkuste",
+                "unavailable",
+                "error",
+            ]
         )

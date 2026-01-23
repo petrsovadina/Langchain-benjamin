@@ -6,7 +6,7 @@ medical prompts for PubMed queries and abstracts.
 
 from __future__ import annotations
 
-from typing import Any, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.documents import Document
@@ -17,7 +17,7 @@ from agent.models.research_models import ResearchQuery
 from agent.utils.translation_prompts import CZ_TO_EN_PROMPT, EN_TO_CZ_PROMPT
 
 if TYPE_CHECKING:
-    from agent.graph import State, Context
+    from agent.graph import Context, State
 
 
 async def translate_cz_to_en_node(
@@ -67,25 +67,32 @@ async def translate_cz_to_en_node(
     # Initialize LLM
     context = runtime.context or {}
     model_name = context.get("model_name", "claude-sonnet-4-5-20250929")
-    llm = ChatAnthropic(model=model_name, temperature=0)  # temperature=0 for caching
+    llm = ChatAnthropic(model_name=model_name, temperature=0, timeout=None, stop=None)
 
     # Format prompt
     prompt = CZ_TO_EN_PROMPT.format(czech_query=czech_query)
 
     # Call LLM
     response = await llm.ainvoke([HumanMessage(content=prompt)])
-    english_query = response.content.strip()
+    # Handle both str and list content types
+    english_query_raw = response.content
+    english_query = (
+        english_query_raw.strip()
+        if isinstance(english_query_raw, str)
+        else str(english_query_raw).strip()
+    )
 
     print(f"[translate_cz_to_en] English: {english_query[:100]}...")
 
     # Create ResearchQuery
     # Import classify_research_query for query type detection
-    from agent.nodes.pubmed_agent import classify_research_query
 
     # Check if PMID pattern exists
     import re
+    from typing import Literal
 
     pmid_match = re.search(r"PMID:?\s*(\d{8})", czech_query, re.IGNORECASE)
+    query_type: Literal["search", "pmid_lookup"]
     if pmid_match:
         query_type = "pmid_lookup"
         english_query = pmid_match.group(1)  # Just the PMID number
@@ -103,7 +110,7 @@ async def translate_cz_to_en_node(
 async def translate_en_to_cz_node(
     state: State, runtime: Runtime[Context]
 ) -> Dict[str, Any]:
-    """Translate English abstracts to Czech for display.
+    r"""Translate English abstracts to Czech for display.
 
     Processes all retrieved_docs and translates English abstracts to
     professional Czech suitable for physicians.
@@ -131,8 +138,8 @@ async def translate_en_to_cz_node(
     # Initialize LLM
     context = runtime.context or {}
     model_name = context.get("model_name", "claude-sonnet-4-5-20250929")
-    batch_size = context.get("batch_size", 5)
-    llm = ChatAnthropic(model=model_name, temperature=0)
+    _ = context.get("batch_size", 5)  # Reserved for future parallel translation
+    llm = ChatAnthropic(model_name=model_name, temperature=0, timeout=None, stop=None)
 
     translated_docs = []
 
@@ -151,9 +158,17 @@ async def translate_en_to_cz_node(
 
         # Call LLM
         response = await llm.ainvoke([HumanMessage(content=prompt)])
-        czech_abstract = response.content.strip()
+        # Handle both str and list content types
+        czech_abstract_raw = response.content
+        czech_abstract = (
+            czech_abstract_raw.strip()
+            if isinstance(czech_abstract_raw, str)
+            else str(czech_abstract_raw).strip()
+        )
 
-        print(f"[translate_en_to_cz] Doc {i+1}/{len(state.retrieved_docs)}: Translated {len(english_abstract)} → {len(czech_abstract)} chars")
+        print(
+            f"[translate_en_to_cz] Doc {i + 1}/{len(state.retrieved_docs)}: Translated {len(english_abstract)} → {len(czech_abstract)} chars"
+        )
 
         # Update page_content with Czech abstract
         title = doc.metadata.get("title", "Untitled")
@@ -170,6 +185,8 @@ async def translate_en_to_cz_node(
 
         translated_docs.append(translated_doc)
 
-    print(f"[translate_en_to_cz] Translation complete: {len(translated_docs)} documents")
+    print(
+        f"[translate_en_to_cz] Translation complete: {len(translated_docs)} documents"
+    )
 
     return {"retrieved_docs": translated_docs}

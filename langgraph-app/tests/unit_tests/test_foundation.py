@@ -5,7 +5,8 @@ They MUST FAIL initially until implementation is complete.
 """
 
 import pytest
-from src.agent.graph import State, Context, placeholder_node
+
+from agent.graph import State, placeholder_node
 
 
 @pytest.mark.asyncio
@@ -17,10 +18,7 @@ async def test_placeholder_node_echoes_message(mock_runtime):
     Then it returns AI message echoing the user input.
     """
     # Arrange
-    state = State(
-        messages=[{"role": "user", "content": "Hello"}],
-        next="placeholder"
-    )
+    state = State(messages=[{"role": "user", "content": "Hello"}], next="placeholder")
 
     # Act
     result = await placeholder_node(state, mock_runtime)
@@ -62,10 +60,7 @@ async def test_placeholder_node_accesses_runtime_config(mock_runtime):
     Then it can read model_name from runtime.context.
     """
     # Arrange
-    state = State(
-        messages=[{"role": "user", "content": "test"}],
-        next="placeholder"
-    )
+    state = State(messages=[{"role": "user", "content": "test"}], next="placeholder")
 
     # Act
     result = await placeholder_node(state, mock_runtime)

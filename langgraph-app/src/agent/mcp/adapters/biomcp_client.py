@@ -11,25 +11,20 @@ Provides 24 tools, focusing on top 3:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List
 
 import aiohttp
 from pydantic import BaseModel, Field, ValidationError
 
-from ..domain.entities import (
-    MCPHealthStatus,
-    MCPResponse,
-    MCPToolMetadata,
-    RetryConfig
-)
-from ..domain.ports import IMCPClient, IRetryStrategy
+from ..domain.entities import MCPHealthStatus, MCPResponse, MCPToolMetadata, RetryConfig
 from ..domain.exceptions import (
     MCPConnectionError,
+    MCPServerError,
     MCPTimeoutError,
     MCPValidationError,
-    MCPServerError
 )
+from ..domain.ports import IMCPClient, IRetryStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -37,21 +32,23 @@ logger = logging.getLogger(__name__)
 # Pydantic models for BioMCP responses
 class PubMedArticle(BaseModel):
     """Schema for article_searcher response."""
+
     pmid: str
     title: str
-    abstract: Optional[str] = None
+    abstract: str | None = None
     authors: List[str] = Field(default_factory=list)
-    publication_date: Optional[str] = None
-    doi: Optional[str] = None
-    journal: Optional[str] = None
+    publication_date: str | None = None
+    doi: str | None = None
+    journal: str | None = None
 
 
 class ClinicalTrial(BaseModel):
     """Schema for search_clinical_trials response."""
+
     nct_id: str
     title: str
     status: str
-    phase: Optional[str] = None
+    phase: str | None = None
     conditions: List[str] = Field(default_factory=list)
 
 
@@ -78,8 +75,8 @@ class BioMCPClient(IMCPClient):
         base_url: str = "http://localhost:8080",
         timeout: float = 60.0,
         max_results: int = 10,
-        retry_strategy: Optional[IRetryStrategy] = None,
-        default_retry_config: Optional[RetryConfig] = None
+        retry_strategy: IRetryStrategy | None = None,
+        default_retry_config: RetryConfig | None = None,
     ):
         """Initialize BioMCPClient.
 
@@ -96,9 +93,9 @@ class BioMCPClient(IMCPClient):
         self.retry_strategy = retry_strategy
         self.default_retry_config = default_retry_config or RetryConfig(
             max_retries=3,
-            base_delay=2.0  # BioMCP slower, longer delays
+            base_delay=2.0,  # BioMCP slower, longer delays
         )
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
 
         logger.info(f"[BioMCPClient] Initialized with base_url={base_url}")
 
@@ -117,7 +114,7 @@ class BioMCPClient(IMCPClient):
         self,
         tool_name: str,
         parameters: Dict[str, Any],
-        retry_config: Optional[RetryConfig] = None
+        retry_config: RetryConfig | None = None,
     ) -> MCPResponse:
         """Call BioMCP tool with parameters.
 
@@ -144,9 +141,7 @@ class BioMCPClient(IMCPClient):
             start_time = datetime.now()
 
             try:
-                logger.debug(
-                    f"[BioMCPClient] Calling {tool_name} with {parameters}"
-                )
+                logger.debug(f"[BioMCPClient] Calling {tool_name} with {parameters}")
 
                 async with session.post(url, json=parameters) as response:
                     latency_ms = int(
@@ -158,7 +153,7 @@ class BioMCPClient(IMCPClient):
                         error_text = await response.text()
                         raise MCPServerError(
                             f"BioMCP server error: {response.status} - {error_text}",
-                            status_code=response.status
+                            status_code=response.status,
                         )
 
                     # Handle rate limiting (429)
@@ -166,7 +161,7 @@ class BioMCPClient(IMCPClient):
                         retry_after = response.headers.get("Retry-After", "60")
                         raise MCPTimeoutError(
                             f"Rate limited, retry after {retry_after}s",
-                            server_url=self.base_url
+                            server_url=self.base_url,
                         )
 
                     # Handle client errors (4xx)
@@ -175,7 +170,7 @@ class BioMCPClient(IMCPClient):
                         return MCPResponse(
                             success=False,
                             error=f"HTTP {response.status}: {error_text}",
-                            metadata={"latency_ms": latency_ms}
+                            metadata={"latency_ms": latency_ms},
                         )
 
                     # Success - parse JSON response
@@ -187,26 +182,25 @@ class BioMCPClient(IMCPClient):
                         metadata={
                             "latency_ms": latency_ms,
                             "server_url": self.base_url,
-                            "tool_name": tool_name
-                        }
+                            "tool_name": tool_name,
+                        },
                     )
 
             except aiohttp.ClientConnectorError as e:
                 raise MCPConnectionError(
                     f"Cannot connect to BioMCP server at {self.base_url}",
-                    server_url=self.base_url
+                    server_url=self.base_url,
                 ) from e
 
             except aiohttp.ServerTimeoutError as e:
                 raise MCPTimeoutError(
                     f"BioMCP request timeout after {self.timeout.total}s",
-                    server_url=self.base_url
+                    server_url=self.base_url,
                 ) from e
 
             except ValidationError as e:
                 raise MCPValidationError(
-                    "Invalid BioMCP response schema",
-                    validation_errors=e.errors()
+                    "Invalid BioMCP response schema", validation_errors=e.errors()
                 ) from e
 
         # Execute with retry if strategy provided
@@ -235,42 +229,34 @@ class BioMCPClient(IMCPClient):
             start_time = datetime.now()
 
             async with session.get(
-                f"{self.base_url}/health",
-                timeout=aiohttp.ClientTimeout(total=timeout)
+                f"{self.base_url}/health", timeout=aiohttp.ClientTimeout(total=timeout)
             ) as response:
-                latency_ms = int(
-                    (datetime.now() - start_time).total_seconds() * 1000
-                )
+                latency_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
                 if response.status == 200:
                     data = await response.json()
                     return MCPHealthStatus(
                         status="healthy",
                         latency_ms=latency_ms,
-                        tools_count=data.get("tools_count", 24)
+                        tools_count=data.get("tools_count", 24),
                     )
                 else:
                     error_text = await response.text()
                     return MCPHealthStatus(
                         status="unhealthy",
                         latency_ms=latency_ms,
-                        error=f"HTTP {response.status}: {error_text}"
+                        error=f"HTTP {response.status}: {error_text}",
                     )
 
         except aiohttp.ClientConnectorError:
-            return MCPHealthStatus(
-                status="unavailable",
-                error="Connection refused"
-            )
+            return MCPHealthStatus(status="unavailable", error="Connection refused")
         except aiohttp.ServerTimeoutError:
             return MCPHealthStatus(
-                status="timeout",
-                error=f"Health check timeout after {timeout}s"
+                status="timeout", error=f"Health check timeout after {timeout}s"
             )
         except Exception as e:
             return MCPHealthStatus(
-                status="unavailable",
-                error=f"Unexpected error: {str(e)}"
+                status="unavailable", error=f"Unexpected error: {str(e)}"
             )
 
     async def list_tools(self) -> List[MCPToolMetadata]:
@@ -287,19 +273,19 @@ class BioMCPClient(IMCPClient):
                 name="article_searcher",
                 description="Search PubMed, bioRxiv, and other databases",
                 parameters={"query": "string", "max_results": "int"},
-                returns={"articles": "list[PubMedArticle]"}
+                returns={"articles": "list[PubMedArticle]"},
             ),
             MCPToolMetadata(
                 name="get_article_full_text",
                 description="Get full article text or open access URL",
                 parameters={"pmid": "string"},
-                returns={"full_text": "string", "url": "string"}
+                returns={"full_text": "string", "url": "string"},
             ),
             MCPToolMetadata(
                 name="search_clinical_trials",
                 description="Search ClinicalTrials.gov database",
                 parameters={"query": "string"},
-                returns={"trials": "list[ClinicalTrial]"}
+                returns={"trials": "list[ClinicalTrial]"},
             ),
             # ... 21 more tools not shown for brevity
         ]
@@ -313,9 +299,7 @@ class BioMCPClient(IMCPClient):
     # High-level helper methods (typed convenience API)
 
     async def search_articles(
-        self,
-        query: str,
-        max_results: Optional[int] = None
+        self, query: str, max_results: int | None = None
     ) -> List[PubMedArticle]:
         """Search PubMed articles (typed helper).
 
@@ -332,10 +316,7 @@ class BioMCPClient(IMCPClient):
         """
         response = await self.call_tool(
             "article_searcher",
-            {
-                "query": query,
-                "max_results": max_results or self.max_results
-            }
+            {"query": query, "max_results": max_results or self.max_results},
         )
 
         if not response.success:
@@ -349,11 +330,10 @@ class BioMCPClient(IMCPClient):
             ]
         except ValidationError as e:
             raise MCPValidationError(
-                "Invalid article search response",
-                validation_errors=e.errors()
+                "Invalid article search response", validation_errors=e.errors()
             ) from e
 
-    async def get_full_text(self, pmid: str) -> Optional[str]:
+    async def get_full_text(self, pmid: str) -> str | None:
         """Get article full text or URL.
 
         Args:
@@ -372,7 +352,7 @@ class BioMCPClient(IMCPClient):
 
         # Return full_text if available, otherwise URL
         data = response.data if isinstance(response.data, dict) else {}
-        full_text: Optional[str] = data.get("full_text") or data.get("url")
+        full_text: str | None = data.get("full_text") or data.get("url")
         return full_text
 
     async def search_trials(self, query: str) -> List[ClinicalTrial]:
@@ -395,12 +375,8 @@ class BioMCPClient(IMCPClient):
 
         # Validate with Pydantic
         try:
-            return [
-                ClinicalTrial(**trial)
-                for trial in response.data.get("trials", [])
-            ]
+            return [ClinicalTrial(**trial) for trial in response.data.get("trials", [])]
         except ValidationError as e:
             raise MCPValidationError(
-                "Invalid trial search response",
-                validation_errors=e.errors()
+                "Invalid trial search response", validation_errors=e.errors()
             ) from e

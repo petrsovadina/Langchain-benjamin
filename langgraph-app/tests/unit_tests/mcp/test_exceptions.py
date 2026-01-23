@@ -5,11 +5,11 @@ from __future__ import annotations
 import pytest
 
 from agent.mcp.domain.exceptions import (
-    MCPError,
     MCPConnectionError,
+    MCPError,
+    MCPServerError,
     MCPTimeoutError,
     MCPValidationError,
-    MCPServerError
 )
 
 
@@ -44,8 +44,7 @@ class TestMCPConnectionError:
     def test_connection_error_creation(self):
         """Test MCPConnectionError with server_url."""
         error = MCPConnectionError(
-            "Cannot connect to SÚKL server",
-            server_url="http://localhost:3000"
+            "Cannot connect to SÚKL server", server_url="http://localhost:3000"
         )
 
         assert str(error) == "Cannot connect to SÚKL server"
@@ -66,8 +65,7 @@ class TestMCPTimeoutError:
     def test_timeout_error_creation(self):
         """Test MCPTimeoutError with timeout details."""
         error = MCPTimeoutError(
-            "Request timeout after 30s",
-            server_url="http://localhost:8080"
+            "Request timeout after 30s", server_url="http://localhost:8080"
         )
 
         assert str(error) == "Request timeout after 30s"
@@ -95,12 +93,11 @@ class TestMCPValidationError:
         """Test MCPValidationError with Pydantic-style errors."""
         validation_errors = [
             {"loc": ["drugs", 0, "name"], "msg": "field required"},
-            {"loc": ["drugs", 0, "atc_code"], "msg": "field required"}
+            {"loc": ["drugs", 0, "atc_code"], "msg": "field required"},
         ]
 
         error = MCPValidationError(
-            "Invalid SÚKL response",
-            validation_errors=validation_errors
+            "Invalid SÚKL response", validation_errors=validation_errors
         )
 
         assert error.message == "Invalid SÚKL response"
@@ -146,7 +143,7 @@ class TestExceptionInheritance:
             MCPConnectionError("test"),
             MCPTimeoutError("test"),
             MCPValidationError("test"),
-            MCPServerError("test", status_code=500)
+            MCPServerError("test", status_code=500),
         ]
 
         for exc in exceptions:

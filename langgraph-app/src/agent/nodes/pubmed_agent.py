@@ -10,19 +10,19 @@ This module implements the pubmed_agent_node and helper functions for:
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from langchain_core.documents import Document
 from langgraph.runtime import Runtime
 
 from agent.models.research_models import (
-    ResearchQuery,
-    PubMedArticle,
     CitationReference,
+    PubMedArticle,
+    ResearchQuery,
 )
 
 if TYPE_CHECKING:
-    from agent.graph import State, Context
+    from agent.graph import Context, State
 
 # Research keywords for query classification (Czech + English)
 RESEARCH_KEYWORDS = {
@@ -45,7 +45,7 @@ RESEARCH_KEYWORDS = {
 }
 
 
-def classify_research_query(message: str) -> Optional[ResearchQuery]:
+def classify_research_query(message: str) -> ResearchQuery | None:
     """Classify user message as research query.
 
     Detects research intent and extracts query parameters from user message.
@@ -84,7 +84,9 @@ def classify_research_query(message: str) -> Optional[ResearchQuery]:
         )
 
     # Check for research keywords
-    has_research_keyword = any(keyword in message_lower for keyword in RESEARCH_KEYWORDS)
+    has_research_keyword = any(
+        keyword in message_lower for keyword in RESEARCH_KEYWORDS
+    )
 
     if not has_research_keyword:
         return None
@@ -108,10 +110,10 @@ def classify_research_query(message: str) -> Optional[ResearchQuery]:
 
 
 def article_to_document(article: PubMedArticle, czech_abstract: str) -> Document:
-    """Transform PubMedArticle + Czech translation to LangChain Document.
+    r"""Transform PubMedArticle + Czech translation to LangChain Document.
 
     Converts BioMCP article response to LangChain Document format with:
-    - page_content: "Title: {title}\\n\\nAbstract (CZ): {czech_abstract}"
+    - page_content: "Title: {title}\n\nAbstract (CZ): {czech_abstract}"
     - metadata: source="PubMed", pmid, url, authors, journal, publication_date, doi
 
     Args:
@@ -148,7 +150,8 @@ def article_to_document(article: PubMedArticle, czech_abstract: str) -> Document
         metadata["doi"] = article.doi
     if article.pmc_id:
         metadata["pmc_id"] = article.pmc_id
-        metadata["pmc_url"] = article.pmc_url
+        if article.pmc_url:
+            metadata["pmc_url"] = article.pmc_url
 
     return Document(page_content=page_content, metadata=metadata)
 
@@ -245,7 +248,7 @@ def _build_references_section(articles: List[PubMedArticle]) -> str:
 async def _search_pubmed_articles(
     query: ResearchQuery, biomcp_client: Any, max_results: int = 5
 ) -> List[PubMedArticle]:
-    """Helper: Search PubMed via BioMCP article_searcher.
+    """Search PubMed via BioMCP article_searcher.
 
     Args:
         query: Research query with English query_text.
@@ -289,8 +292,10 @@ async def _search_pubmed_articles(
     return articles
 
 
-async def _get_article_by_pmid(pmid: str, biomcp_client: Any) -> Optional[PubMedArticle]:
-    """Helper: Get article by PMID via BioMCP article_getter.
+async def _get_article_by_pmid(
+    pmid: str, biomcp_client: Any
+) -> PubMedArticle | None:
+    """Get article by PMID via BioMCP article_getter.
 
     Args:
         pmid: PubMed ID (8-digit).
@@ -320,7 +325,7 @@ async def _get_article_by_pmid(pmid: str, biomcp_client: Any) -> Optional[PubMed
 
 
 async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
-    """Main node for PubMed article search with BioMCP integration.
+    """Search PubMed articles with BioMCP integration.
 
     Workflow:
         1. Use state.research_query (already populated by translation node)
@@ -398,12 +403,17 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str
 
         if research_query.query_type == "pmid_lookup":
             print(f"[pubmed_agent] PMID lookup: {research_query.query_text}")
-            article = await _get_article_by_pmid(research_query.query_text, biomcp_client)
+            article = await _get_article_by_pmid(
+                research_query.query_text, biomcp_client
+            )
             if article:
                 articles = [article]
         else:
             # Search
-            max_results = context.get("max_results", 5)
+            max_results_raw = context.get("max_results", 5)
+            max_results = (
+                int(max_results_raw) if isinstance(max_results_raw, (int, str)) else 5
+            )
             print(f"[pubmed_agent] Searching: {research_query.query_text[:100]}...")
             articles = await _search_pubmed_articles(
                 research_query, biomcp_client, max_results
@@ -436,7 +446,9 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str
                     "pmid": article.pmid,
                     "url": article.pubmed_url,
                     "title": article.title,
-                    "authors": ", ".join(article.authors) if article.authors else "Unknown",
+                    "authors": ", ".join(article.authors)
+                    if article.authors
+                    else "Unknown",
                     "journal": article.journal or "Unknown",
                     "publication_date": article.publication_date or "Unknown",
                     "doi": article.doi,

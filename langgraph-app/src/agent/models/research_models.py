@@ -5,9 +5,10 @@ and citation tracking with Czech translation support.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field, field_validator
+from pydantic_core.core_schema import ValidationInfo
 
 
 class ResearchQuery(BaseModel):
@@ -28,12 +29,11 @@ class ResearchQuery(BaseModel):
 
     query_text: str = Field(..., min_length=1, description="Original user query text")
     query_type: Literal["search", "pmid_lookup"] = Field(
-        default="search",
-        description="Type of research query"
+        default="search", description="Type of research query"
     )
-    filters: Optional[Dict[str, Any]] = Field(
+    filters: Dict[str, Any] | None = Field(
         default=None,
-        description="Optional search filters (date_range, article_type, journal, max_results)"
+        description="Optional search filters (date_range, article_type, journal, max_results)",
     )
 
     @field_validator("query_text")
@@ -46,7 +46,9 @@ class ResearchQuery(BaseModel):
 
     @field_validator("filters")
     @classmethod
-    def validate_filters(cls, v: Optional[Dict[str, Any]], info) -> Optional[Dict[str, Any]]:
+    def validate_filters(
+        cls, v: Dict[str, Any] | None, info: ValidationInfo
+    ) -> Dict[str, Any] | None:
         """Validate filters structure and date format."""
         if v is None:
             return None
@@ -87,14 +89,18 @@ class PubMedArticle(BaseModel):
         ... )
     """
 
-    pmid: str = Field(..., min_length=8, max_length=8, description="PubMed unique identifier")
+    pmid: str = Field(
+        ..., min_length=8, max_length=8, description="PubMed unique identifier"
+    )
     title: str = Field(..., min_length=1, description="Article title")
-    abstract: Optional[str] = Field(default=None, description="Article abstract")
+    abstract: str | None = Field(default=None, description="Article abstract")
     authors: List[str] = Field(default_factory=list, description="Author names")
-    publication_date: Optional[str] = Field(default=None, description="Publication date")
-    journal: Optional[str] = Field(default=None, description="Journal name")
-    doi: Optional[str] = Field(default=None, description="Digital Object Identifier")
-    pmc_id: Optional[str] = Field(default=None, description="PubMed Central ID")
+    publication_date: str | None = Field(
+        default=None, description="Publication date"
+    )
+    journal: str | None = Field(default=None, description="Journal name")
+    doi: str | None = Field(default=None, description="Digital Object Identifier")
+    pmc_id: str | None = Field(default=None, description="PubMed Central ID")
 
     @field_validator("pmid")
     @classmethod
@@ -114,7 +120,7 @@ class PubMedArticle(BaseModel):
 
     @field_validator("doi")
     @classmethod
-    def validate_doi(cls, v: Optional[str]) -> Optional[str]:
+    def validate_doi(cls, v: str | None) -> str | None:
         """Validate DOI format if provided."""
         if v is None:
             return None
@@ -129,7 +135,7 @@ class PubMedArticle(BaseModel):
         return f"https://pubmed.ncbi.nlm.nih.gov/{self.pmid}/"
 
     @property
-    def pmc_url(self) -> Optional[str]:
+    def pmc_url(self) -> str | None:
         """Generate PMC URL if pmc_id exists."""
         if self.pmc_id:
             return f"https://www.ncbi.nlm.nih.gov/pmc/articles/{self.pmc_id}/"
@@ -158,15 +164,17 @@ class TranslatedArticle(PubMedArticle):
         ... )
     """
 
-    abstract_cz: str = Field(..., min_length=1, description="Czech translation of abstract")
+    abstract_cz: str = Field(
+        ..., min_length=1, description="Czech translation of abstract"
+    )
     translation_timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        description="When translation was generated (UTC)"
+        description="When translation was generated (UTC)",
     )
 
     @field_validator("abstract_cz")
     @classmethod
-    def validate_abstract_cz(cls, v: str, info) -> str:
+    def validate_abstract_cz(cls, v: str, info: ValidationInfo) -> str:
         """Validate abstract_cz is not empty if abstract exists."""
         if not v or not v.strip():
             raise ValueError("abstract_cz must not be empty")
@@ -204,8 +212,12 @@ class CitationReference(BaseModel):
 
     citation_num: int = Field(..., gt=0, description="Sequential citation number")
     pmid: str = Field(..., min_length=8, max_length=8, description="PubMed ID")
-    short_citation: str = Field(..., min_length=1, description="Short citation for inline display")
-    full_citation: str = Field(..., min_length=1, description="Complete bibliographic entry")
+    short_citation: str = Field(
+        ..., min_length=1, description="Short citation for inline display"
+    )
+    full_citation: str = Field(
+        ..., min_length=1, description="Complete bibliographic entry"
+    )
     url: str = Field(..., min_length=1, description="PubMed URL")
 
     @field_validator("pmid")

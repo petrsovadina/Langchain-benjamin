@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 # These imports will fail initially (RED phase)
-from agent.mcp.domain.entities import MCPResponse, RetryConfig, MCPHealthStatus
+from agent.mcp.domain.entities import MCPHealthStatus, MCPResponse, RetryConfig
 
 
 class TestMCPResponse:
@@ -23,7 +23,7 @@ class TestMCPResponse:
         response = MCPResponse(
             success=True,
             data={"drugs": [{"name": "Aspirin", "atc_code": "B01AC06"}]},
-            metadata={"latency_ms": 50, "server_url": "http://localhost:3000"}
+            metadata={"latency_ms": 50, "server_url": "http://localhost:3000"},
         )
 
         assert response.success is True
@@ -34,9 +34,7 @@ class TestMCPResponse:
     def test_failed_response_with_error(self):
         """Test creating failed MCPResponse with error message."""
         response = MCPResponse(
-            success=False,
-            error="Connection timeout",
-            metadata={"attempt": 3}
+            success=False, error="Connection timeout", metadata={"attempt": 3}
         )
 
         assert response.success is False
@@ -65,14 +63,10 @@ class TestMCPResponse:
     def test_response_equality(self):
         """Test two MCPResponse instances with same values are equal."""
         response1 = MCPResponse(
-            success=True,
-            data={"value": 42},
-            metadata={"test": True}
+            success=True, data={"value": 42}, metadata={"test": True}
         )
         response2 = MCPResponse(
-            success=True,
-            data={"value": 42},
-            metadata={"test": True}
+            success=True, data={"value": 42}, metadata={"test": True}
         )
 
         assert response1 == response2
@@ -98,7 +92,7 @@ class TestRetryConfig:
             base_delay=2.0,
             max_delay=60.0,
             jitter=False,
-            exponential_base=3
+            exponential_base=3,
         )
 
         assert config.max_retries == 5
@@ -139,11 +133,7 @@ class TestMCPHealthStatus:
 
     def test_healthy_status(self):
         """Test healthy MCPHealthStatus."""
-        status = MCPHealthStatus(
-            status="healthy",
-            latency_ms=45,
-            tools_count=8
-        )
+        status = MCPHealthStatus(status="healthy", latency_ms=45, tools_count=8)
 
         assert status.status == "healthy"
         assert status.latency_ms == 45
@@ -152,10 +142,7 @@ class TestMCPHealthStatus:
 
     def test_unavailable_status(self):
         """Test unavailable MCPHealthStatus with error."""
-        status = MCPHealthStatus(
-            status="unavailable",
-            error="Connection refused"
-        )
+        status = MCPHealthStatus(status="unavailable", error="Connection refused")
 
         assert status.status == "unavailable"
         assert status.error == "Connection refused"
@@ -165,8 +152,7 @@ class TestMCPHealthStatus:
     def test_timeout_status(self):
         """Test timeout MCPHealthStatus."""
         status = MCPHealthStatus(
-            status="timeout",
-            error="Health check timeout after 5s"
+            status="timeout", error="Health check timeout after 5s"
         )
 
         assert status.status == "timeout"
@@ -174,11 +160,7 @@ class TestMCPHealthStatus:
 
     def test_unhealthy_status(self):
         """Test unhealthy MCPHealthStatus."""
-        status = MCPHealthStatus(
-            status="unhealthy",
-            latency_ms=5000,
-            error="HTTP 503"
-        )
+        status = MCPHealthStatus(status="unhealthy", latency_ms=5000, error="HTTP 503")
 
         assert status.status == "unhealthy"
         assert status.latency_ms == 5000

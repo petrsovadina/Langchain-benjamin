@@ -11,16 +11,16 @@ Test Strategy:
 Note: Uses mocked backends to avoid API costs and ensure reproducibility.
 """
 
-import pytest
+import asyncio
 import time
 from typing import List
 from unittest.mock import AsyncMock, MagicMock
 
-from agent.graph import State, Context
+import pytest
+
+from agent.graph import State
 from agent.nodes.pubmed_agent import pubmed_agent_node
 from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
-from agent.models.research_models import ResearchQuery
-from agent.mcp import MCPResponse
 
 
 class TestPubMedLatencyBenchmark:
@@ -46,21 +46,23 @@ class TestPubMedLatencyBenchmark:
         # CZ→EN translation response
         async def mock_cz_to_en_translation(*args, **kwargs):
             await asyncio.sleep(0.8)  # 800ms latency
+
             class MockResponse:
                 content = "diabetes type 2 studies"
+
             return MockResponse()
 
         # EN→CZ translation response (abstracts)
         async def mock_en_to_cz_translation(*args, **kwargs):
             await asyncio.sleep(1.2)  # 1200ms latency for longer text
+
             class MockResponse:
                 content = "Český překlad abstraktu..."
+
             return MockResponse()
 
         state = State(
-            messages=[
-                {"role": "user", "content": "Studie o diabetu typu 2"}
-            ],
+            messages=[{"role": "user", "content": "Studie o diabetu typu 2"}],
             next="",
             retrieved_docs=[],
         )
@@ -82,7 +84,7 @@ class TestPubMedLatencyBenchmark:
             next="",
             retrieved_docs=state_after_pubmed["retrieved_docs"],
         )
-        final_state = await translate_en_to_cz_node(state_with_docs, mock_runtime)
+        _ = await translate_en_to_cz_node(state_with_docs, mock_runtime)
 
         end_time = time.perf_counter()
         latency_ms = (end_time - start_time) * 1000
@@ -94,7 +96,9 @@ class TestPubMedLatencyBenchmark:
         )
 
         # Log latency for monitoring
-        print(f"\n[PERF] Search query end-to-end latency: {latency_ms:.0f}ms (target: <5000ms)")
+        print(
+            f"\n[PERF] Search query end-to-end latency: {latency_ms:.0f}ms (target: <5000ms)"
+        )
 
     @pytest.mark.asyncio
     async def test_pmid_lookup_latency_target(self, mock_biomcp_client, mock_runtime):
@@ -111,9 +115,7 @@ class TestPubMedLatencyBenchmark:
         mock_runtime.context["biomcp_client"] = mock_biomcp_client
 
         state = State(
-            messages=[
-                {"role": "user", "content": "Zobraz PMID:12345678"}
-            ],
+            messages=[{"role": "user", "content": "Zobraz PMID:12345678"}],
             next="",
             retrieved_docs=[],
         )
@@ -134,7 +136,7 @@ class TestPubMedLatencyBenchmark:
             next="",
             retrieved_docs=state_after_pubmed["retrieved_docs"],
         )
-        final_state = await translate_en_to_cz_node(state_with_docs, mock_runtime)
+        _ = await translate_en_to_cz_node(state_with_docs, mock_runtime)
 
         end_time = time.perf_counter()
         latency_ms = (end_time - start_time) * 1000
@@ -145,10 +147,14 @@ class TestPubMedLatencyBenchmark:
             f"PMID lookups should be faster than search queries."
         )
 
-        print(f"\n[PERF] PMID lookup end-to-end latency: {latency_ms:.0f}ms (target: <3000ms)")
+        print(
+            f"\n[PERF] PMID lookup end-to-end latency: {latency_ms:.0f}ms (target: <3000ms)"
+        )
 
     @pytest.mark.asyncio
-    async def test_multi_article_translation_latency(self, mock_biomcp_client, mock_runtime):
+    async def test_multi_article_translation_latency(
+        self, mock_biomcp_client, mock_runtime
+    ):
         """Test latency for translating multiple article abstracts (5 articles).
 
         Validates that batch translation of 5 abstracts doesn't cause timeout.
@@ -188,7 +194,7 @@ class TestPubMedLatencyBenchmark:
             next="",
             retrieved_docs=state_after_pubmed["retrieved_docs"],
         )
-        final_state = await translate_en_to_cz_node(state_with_docs, mock_runtime)
+        _ = await translate_en_to_cz_node(state_with_docs, mock_runtime)
 
         end_time = time.perf_counter()
         latency_ms = (end_time - start_time) * 1000
@@ -199,7 +205,9 @@ class TestPubMedLatencyBenchmark:
             f"5 articles should complete within 7s including all translations."
         )
 
-        print(f"\n[PERF] Multi-article (5) end-to-end latency: {latency_ms:.0f}ms (target: <7000ms)")
+        print(
+            f"\n[PERF] Multi-article (5) end-to-end latency: {latency_ms:.0f}ms (target: <7000ms)"
+        )
 
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="Requires actual LangSmith traces for p90 calculation")
@@ -226,6 +234,7 @@ class TestPubMedLatencyBenchmark:
 
 
 # Performance monitoring helpers
+
 
 def calculate_p90_latency(latencies: List[float]) -> float:
     """Calculate p90 (90th percentile) latency.

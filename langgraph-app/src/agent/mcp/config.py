@@ -86,12 +86,10 @@ class MCPConfig:
             # SÚKL configuration
             sukl_url=os.getenv("SUKL_MCP_URL", "http://localhost:3000"),
             sukl_timeout=float(os.getenv("SUKL_MCP_TIMEOUT", "30.0")),
-
             # BioMCP configuration
             biomcp_url=os.getenv("BIOMCP_URL", "http://localhost:8080"),
             biomcp_timeout=float(os.getenv("BIOMCP_TIMEOUT", "60.0")),
             biomcp_max_results=int(os.getenv("BIOMCP_MAX_RESULTS", "10")),
-
             # Retry configuration
             max_retries=int(os.getenv("MCP_MAX_RETRIES", "3")),
             retry_base_delay=float(os.getenv("MCP_RETRY_BASE_DELAY", "1.0")),
