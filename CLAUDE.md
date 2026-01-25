@@ -10,8 +10,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ✅ Feature 001: LangGraph Foundation (dokončeno)
 - ✅ Feature 002: MCP Infrastructure (dokončeno)
 - ✅ Feature 003: SÚKL Drug Agent (dokončeno)
-- ✅ Feature 005: BioMCP PubMed Agent (dokončeno - včetně Phase 7 Polish)
+- ✅ Feature 005: BioMCP PubMed Agent (dokončeno - včetně Phase 7 Polish + Multimodal Fix)
 - ⏳ Feature 004: VZP Pricing Agent (čeká)
+
+**Poslední změny (2026-01-25)**:
+- ✅ Multimodal content handling fix (commit `a8429ba`)
+- ✅ dev.sh startup script pro snadné spouštění serveru
+- ✅ Test coverage: 177/183 passing (97%)
 
 ## Technologie
 
@@ -20,9 +25,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **MCP Servery**:
   - **SÚKL-mcp** - Czech pharmaceutical database (68k+ léků)
   - **BioMCP** - Biomedical databases (PubMed, ClinicalTrials, atd.)
-- **Testing**: pytest s async podporou (169/175 testů passing)
+- **Testing**: pytest s async podporou (177/183 testů passing - 97%)
 - **Kvalita kódu**: ruff (linting/formátování), mypy --strict (type checking)
 - **Observability**: LangSmith tracing
+- **Package Manager**: uv (doporučeno) nebo pip
 
 ## Struktura Projektu
 
@@ -42,6 +48,7 @@ langgraph-app/              # Hlavní aplikace (Python balíček)
 │   └── performance/       # Performance benchmarky (<5s latency)
 ├── pyproject.toml         # Závislosti & konfigurace nástrojů
 ├── Makefile               # Vývojové příkazy
+├── dev.sh                 # Startup script (auto-sets PYTHONPATH)
 └── langgraph.json         # LangGraph server konfigurace
 
 specs/                     # Specifikace features
@@ -143,26 +150,42 @@ uv run ruff format . && uv run ruff check . && uv run mypy --strict src/agent/
 ### Vývojový Server
 
 ```bash
-# Spustit lokální dev server s hot reload
-langgraph dev
+# DOPORUČENO: Použít dev.sh script (automaticky nastavuje PYTHONPATH)
+./dev.sh
 
-# Otevře LangGraph Studio na http://localhost:8000
+# NEBO manuálně s PYTHONPATH
+PYTHONPATH=src langgraph dev
+
+# Otevře LangGraph Studio na https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
 # Auto-reload při změnách kódu
 ```
+
+**DŮLEŽITÉ**: LangGraph CLI běží v pipx prostředí a potřebuje `PYTHONPATH=src` pro správný import modulu `agent`. Script `dev.sh` toto nastavuje automaticky.
 
 ### Environment Variables
 
 Vytvořit `.env` z `.env.example`:
 
 ```bash
-# Volitelný LangSmith tracing
+# LangSmith tracing (volitelné)
 LANGSMITH_API_KEY=lsv2_pt_...
 LANGSMITH_PROJECT=czech-medai-dev
 LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 
+# Translation API (POVINNÉ pro PubMed agent)
+# Možnost 1: Anthropic (doporučeno)
+ANTHROPIC_API_KEY=sk-ant-api03-...
+TRANSLATION_MODEL=claude-4.5-haiku
+
+# Možnost 2: OpenAI
+# OPENAI_API_KEY=sk-proj-...
+# TRANSLATION_MODEL=gpt-4o-mini
+
 # Development
 LOG_LEVEL=INFO
 ```
+
+**DŮLEŽITÉ**: Translation nodes (`translate_cz_to_en_node`, `translate_en_to_cz_node`) vyžadují buď `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY` pro funkčnost PubMed agenta (Sandwich Pattern).
 
 ## Architektura
 
@@ -179,6 +202,7 @@ LOG_LEVEL=INFO
 - Sandwich Pattern: CZ→EN→PubMed→EN→CZ translation
 - Citation tracking s inline references [1][2][3]
 - Performance <5s latency (SC-001)
+- **Multimodal content handling**: route_query normalizuje LangGraph Studio `list[ContentBlock]` format
 
 ### Multi-Agent Pattern (Cílový Stav)
 
@@ -471,10 +495,23 @@ state = await translate_en_to_cz_node(state, runtime)
 
 ## Troubleshooting
 
+### ModuleNotFoundError: No module named 'agent'
+
+**Problém**: LangGraph CLI běží v pipx prostředí a nevidí modul `agent`.
+
+**Řešení**:
+```bash
+# Možnost 1: Použít dev.sh (doporučeno)
+./dev.sh
+
+# Možnost 2: Manuálně nastavit PYTHONPATH
+PYTHONPATH=src langgraph dev
+```
+
 ### Import Issues
 - Vždy importovat z `agent.graph`, ne `src.agent.graph`
 - Package discovery v pyproject.toml: `[tool.setuptools.packages.find]`
-- PYTHONPATH=src při spouštění testů
+- PYTHONPATH=src při spouštění testů a serveru
 
 ### Type Checking
 - `mypy --strict` enforced - žádné implicitní Any
@@ -487,9 +524,22 @@ state = await translate_en_to_cz_node(state, runtime)
 - PYTHONPATH=src required: `PYTHONPATH=src uv run pytest`
 
 ### Translation Tests
-- 5 translation testů vyžaduje Anthropic API kredity
-- Mock LLM responses v unit testech
+- 6 translation testů vyžaduje Anthropic/OpenAI API kredity
+- Zkontrolujte `.env` file: `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY`
+- Mock LLM responses v unit testech pro offline testing
 - Use `ChatAnthropic(model_name=..., temperature=0, timeout=None, stop=None)`
+
+### AttributeError: 'list' object has no attribute 'lower'
+
+**Problém**: Starší verze `route_query` nezvládala multimodal content z LangGraph Studio.
+
+**Řešení**: Bug byl opraven v commit `a8429ba` (2026-01-25). Aktualizujte na nejnovější verzi:
+```bash
+git pull origin 005-biomcp-pubmed-agent
+
+# Ověřte, že máte multimodal content fix:
+grep -A 5 "Normalize content to string" src/agent/graph.py
+```
 
 ## Důležité Soubory
 
@@ -519,9 +569,10 @@ state = await translate_en_to_cz_node(state, runtime)
 
 ---
 
-**Poslední aktualizace**: 2026-01-23
+**Poslední aktualizace**: 2026-01-25
 **Aktuální větev**: 005-biomcp-pubmed-agent
 **Main větev**: main
-**Status projektu**: Fáze 1 (Core Agents) - 3/4 agentů dokončeno (Drug, PubMed), Pricing čeká
+**Status projektu**: Fáze 1 (Core Agents) - 3/4 agentů dokončeno (Drug, PubMed + Multimodal Fix), Pricing čeká
 **Constitution**: v1.0.3 (Phase 7 quality standards codified)
-**Test Coverage**: 169/175 passing (96%)
+**Test Coverage**: 177/183 passing (97%)
+**Poslední commit**: `a8429ba` (fix: multimodal content handling), `ebf850a` (docs: README + dev.sh)
