@@ -12,20 +12,42 @@ Multi-agentní AI asistent pro české lékaře postavený na LangGraph framewor
 git clone https://github.com/petrsovadina/Langchain-benjamin.git
 cd Langchain-benjamin/langgraph-app
 
-# 2. Instalace
-pip install -e .
-pip install langgraph-cli[inmem]
+# 2. Instalace (doporučeno: uv)
+# Instalace uv (fast Python package installer)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Vytvoření virtual environment
+uv venv
+source .venv/bin/activate  # macOS/Linux
+# .venv\Scripts\activate   # Windows
+
+# Instalace závislostí
+uv pip install -e .
+uv pip install 'langgraph-cli[inmem]'
 
 # 3. Environment setup
 cp .env.example .env
-# Editujte .env a přidejte klíče (volitelné)
+# Editujte .env a přidejte API klíče:
+# - ANTHROPIC_API_KEY (pro translation) nebo OPENAI_API_KEY
+# - LANGSMITH_API_KEY (volitelné - pro tracing)
 
 # 4. Spustit dev server
-langgraph dev
-# → LangGraph Studio na http://localhost:8000
+# DŮLEŽITÉ: Použijte dev.sh script nebo nastavte PYTHONPATH
+./dev.sh
+# NEBO manuálně:
+# PYTHONPATH=src langgraph dev
+
+# → LangGraph Studio na https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
 ```
 
 **📖 Detailní návod:** Viz [QUICKSTART.md](./QUICKSTART.md)
+
+### ⚠️ Důležité Poznámky
+
+- **PYTHONPATH**: Server vyžaduje `PYTHONPATH=src` pro správný import modulů
+- **dev.sh script**: Automaticky nastavuje PYTHONPATH a aktivuje venv
+- **API klíče**: Translation nodes vyžadují buď ANTHROPIC_API_KEY nebo OPENAI_API_KEY
+- **LangGraph CLI**: Běží v pipx prostředí, proto potřebujeme PYTHONPATH
 
 ## 📋 Co je Czech MedAI?
 
@@ -230,6 +252,10 @@ ped                       # Edit plan.md
 ```bash
 cd langgraph-app
 
+# Development Server
+./dev.sh                    # Spustit dev server (doporučeno)
+PYTHONPATH=src langgraph dev # Nebo manuálně
+
 # Testy
 make test                    # Unit testy
 make integration_tests       # Integrační testy
@@ -239,6 +265,10 @@ make test_watch             # Watch mode
 make lint                    # ruff + mypy (strict)
 make format                  # Auto-format
 make spell_check            # Spell check
+
+# Manuální test spouštění (s PYTHONPATH)
+PYTHONPATH=src uv run pytest tests/unit_tests/ -v
+PYTHONPATH=src uv run mypy --strict src/agent/graph.py
 ```
 
 ### CI/CD
@@ -287,7 +317,7 @@ make spell_check            # Spell check
 - ⏳ Kategorie úhrad parsing (A/B/D)
 - ⏳ Předepisovatelnost a limitace
 
-#### ✅ Feature 005: BioMCP PubMed Agent (7 dní) - VČETNĚ PHASE 7 POLISH
+#### ✅ Feature 005: BioMCP PubMed Agent (7 dní) - DOKONČENO + HOTFIX
 - ✅ **pubmed_agent_node** implementace
   - BioMCP article_searcher integration (abstract search)
   - BioMCP article_getter integration (PMID lookup)
@@ -303,8 +333,13 @@ make spell_check            # Spell check
   - mypy --strict: 0 errors (100% type safety)
   - ruff check: All checks passed
   - ruff format: 27 files reformatted
-  - Test coverage: 169/175 passing (96%)
+  - Test coverage: 177/183 passing (97%)
   - Performance validated: <5s latency (SC-001)
+- ✅ **Multimodal Content Fix (2026-01-25)**
+  - Fixed AttributeError: `route_query` now handles LangGraph Studio multimodal content
+  - Content normalization for `list[ContentBlock]` format
+  - 8 new routing tests covering all message formats
+  - Commit: `a8429ba`
 
 #### ⏳ Feature 006: Guidelines Agent (8 dní) - PLÁNOVÁNO
 - ⏳ guidelines_agent_node s ČLS JEP PDFs
@@ -410,26 +445,79 @@ make spell_check            # Spell check
 
 ## 🐛 Troubleshooting
 
+### "ModuleNotFoundError: No module named 'agent'"
+```bash
+# LangGraph CLI běží v pipx prostředí - potřebujeme nastavit PYTHONPATH
+cd langgraph-app
+
+# Možnost 1: Použít dev.sh script (doporučeno)
+./dev.sh
+
+# Možnost 2: Manuálně nastavit PYTHONPATH
+PYTHONPATH=src langgraph dev
+```
+
 ### "Not on a feature branch"
 ```bash
 make speckit_new FEATURE="Your feature"
 ```
 
-### "LangGraph dev doesn't work"
+### "LangGraph dev doesn't work" nebo "Old version warning"
 ```bash
+# Upgrade LangGraph CLI
+uv pip install --upgrade 'langgraph-cli[inmem]'
+
+# Nebo s pip
 pip install --upgrade langgraph-cli[inmem]
 ```
 
 ### "Tests fail"
 ```bash
 cd langgraph-app
+
+# Všechny unit testy
+PYTHONPATH=src uv run pytest tests/unit_tests/ -v
+
+# Konkrétní test file
+PYTHONPATH=src uv run pytest tests/unit_tests/test_routing.py -v
+
+# S Makefile
 make test TEST_FILE=tests/unit_tests/test_specific.py
+```
+
+### "Translation tests fail with API error"
+```bash
+# Translation testy vyžadují API kredity
+# Zkontrolujte .env file:
+cat .env | grep API_KEY
+
+# Možnost 1: Použít Anthropic
+ANTHROPIC_API_KEY=sk-ant-api03-...
+TRANSLATION_MODEL=claude-4.5-haiku
+
+# Možnost 2: Použít OpenAI
+OPENAI_API_KEY=sk-proj-...
+TRANSLATION_MODEL=gpt-4o-mini
+
+# Pak restartujte server
+./dev.sh
 ```
 
 ### "mypy type errors"
 ```bash
 make lint  # Shows all errors
 # Fix: Přidejte type hints, použijte TypedDict, Annotated
+```
+
+### "AttributeError: 'list' object has no attribute 'lower'"
+```bash
+# Tento bug byl opraven v commit a8429ba (2026-01-25)
+# Pokud se objevuje, aktualizujte na nejnovější verzi:
+git pull origin 005-biomcp-pubmed-agent
+
+# Ověřte, že máte multimodal content fix:
+grep -A 5 "Normalize content to string" src/agent/graph.py
+# Měli byste vidět content normalization logic
 ```
 
 **📖 Více troubleshooting:** [QUICKSTART.md - Troubleshooting](./QUICKSTART.md#-troubleshooting)
@@ -456,11 +544,13 @@ make lint  # Shows all errors
 - ⏳ **Fáze 2**: Integration (supervisor, citations, synthesizer)
 
 **Quality Metrics:**
-- 📊 Test Coverage: **169/175 passing (96%)**
+- 📊 Test Coverage: **177/183 passing (97%)**
+  - 6 translation tests vyžadují Anthropic API kredity (očekáváno)
 - ✅ Type Safety: **mypy --strict** (0 errors)
 - ✅ Code Quality: **ruff check** (all checks passed)
-- ✅ Formatting: **ruff format** (27 files)
+- ✅ Formatting: **ruff format** (automated)
 - ⚡ Performance: **<5s latency** (SC-001 requirement)
+- ✅ Multimodal Content: **LangGraph Studio kompatibilita** (hotfix 2026-01-25)
 
 **Constitution Compliance:**
 - ✅ Princip I: Graph-Centric Architecture (všechny features jako LangGraph nodes)
@@ -483,7 +573,8 @@ Czech MedAI Development Team
 
 ---
 
-**Verze:** 1.1.0 (Core Agents Phase - 3/4 Complete)
-**Poslední aktualizace:** 2026-01-23
+**Verze:** 1.1.1 (Core Agents Phase - 3/4 Complete + Multimodal Fix)
+**Poslední aktualizace:** 2026-01-25
+**Poslední commit:** `a8429ba` (fix: multimodal content handling for LangGraph Studio)
 
 **🚀 Ready to start?** → [QUICKSTART.md](./QUICKSTART.md)
