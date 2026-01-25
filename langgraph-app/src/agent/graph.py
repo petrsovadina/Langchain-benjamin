@@ -259,12 +259,25 @@ def route_query(
     # Check last user message for keywords
     if state.messages:
         last_message = state.messages[-1]
-        content = (
+        raw_content = (
             last_message.get("content", "")
             if isinstance(last_message, dict)
             else getattr(last_message, "content", "")
         )
-        content_lower = content.lower() if content else ""
+
+        # Normalize content to string (handle multimodal list format from LangGraph Studio)
+        content_text: str = ""
+        if isinstance(raw_content, str):
+            content_text = raw_content
+        elif isinstance(raw_content, list) and raw_content:
+            # Handle multimodal content blocks
+            first_block = raw_content[0]
+            if isinstance(first_block, str):
+                content_text = first_block
+            elif isinstance(first_block, dict) and "text" in first_block:
+                content_text = str(first_block["text"])
+
+        content_lower = content_text.lower() if content_text else ""
 
         # Check for research keywords (higher priority - more specific)
         for keyword in RESEARCH_KEYWORDS:

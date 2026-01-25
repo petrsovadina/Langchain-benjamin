@@ -95,9 +95,7 @@ class PubMedArticle(BaseModel):
     title: str = Field(..., min_length=1, description="Article title")
     abstract: str | None = Field(default=None, description="Article abstract")
     authors: List[str] = Field(default_factory=list, description="Author names")
-    publication_date: str | None = Field(
-        default=None, description="Publication date"
-    )
+    publication_date: str | None = Field(default=None, description="Publication date")
     journal: str | None = Field(default=None, description="Journal name")
     doi: str | None = Field(default=None, description="Digital Object Identifier")
     pmc_id: str | None = Field(default=None, description="PubMed Central ID")

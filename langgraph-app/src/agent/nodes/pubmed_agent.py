@@ -292,9 +292,7 @@ async def _search_pubmed_articles(
     return articles
 
 
-async def _get_article_by_pmid(
-    pmid: str, biomcp_client: Any
-) -> PubMedArticle | None:
+async def _get_article_by_pmid(pmid: str, biomcp_client: Any) -> PubMedArticle | None:
     """Get article by PMID via BioMCP article_getter.
 
     Args:

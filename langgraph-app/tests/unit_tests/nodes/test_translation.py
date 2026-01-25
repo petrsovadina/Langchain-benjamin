@@ -6,7 +6,6 @@ abbreviation expansion, and error handling.
 TDD Workflow: These tests are written FIRST and should FAIL before implementation.
 """
 
-
 import pytest
 
 from agent.graph import State
