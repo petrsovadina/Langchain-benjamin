@@ -7,16 +7,15 @@ Following TDD - tests written BEFORE implementation.
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, patch
 
+from agent.mcp.adapters.retry_strategy import TenacityRetryStrategy
 from agent.mcp.domain.entities import RetryConfig
 from agent.mcp.domain.exceptions import (
     MCPConnectionError,
-    MCPTimeoutError,
     MCPServerError,
+    MCPTimeoutError,
     MCPValidationError,
 )
-from agent.mcp.adapters.retry_strategy import TenacityRetryStrategy
 
 
 class TestTenacityRetryStrategyInitialization:
@@ -223,7 +222,7 @@ class TestTenacityRetryStrategyWaitBehavior:
             base_delay=0.1,
             max_delay=10.0,
             jitter=False,
-            exponential_base=2
+            exponential_base=2,
         )
 
         call_times: list[float] = []
@@ -256,11 +255,7 @@ class TestTenacityRetryStrategyWaitBehavior:
     async def test_jitter_adds_randomness(self):
         """Test that jitter adds randomness to delays."""
         strategy = TenacityRetryStrategy()
-        config = RetryConfig(
-            max_retries=2,
-            base_delay=0.1,
-            jitter=True
-        )
+        config = RetryConfig(max_retries=2, base_delay=0.1, jitter=True)
 
         # Run multiple times and verify delays vary
         delays: list[float] = []
@@ -298,12 +293,13 @@ class TestTenacityRetryStrategyWaitBehavior:
         config = RetryConfig(
             max_retries=5,
             base_delay=0.05,  # Start with small delay
-            max_delay=0.15,   # Cap at 150ms (must be >= base_delay)
+            max_delay=0.15,  # Cap at 150ms (must be >= base_delay)
             jitter=False,
-            exponential_base=2
+            exponential_base=2,
         )
 
         import time
+
         call_times: list[float] = []
         call_count = 0
 
@@ -372,8 +368,7 @@ class TestTenacityRetryStrategyEdgeCases:
 
         async def operation_with_context():
             raise MCPConnectionError(
-                "Connection failed",
-                server_url="http://test.example.com"
+                "Connection failed", server_url="http://test.example.com"
             )
 
         with pytest.raises(MCPConnectionError) as exc_info:

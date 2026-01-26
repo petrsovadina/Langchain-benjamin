@@ -144,7 +144,9 @@ def drug_result_to_document(result: DrugResult) -> Document:
     Returns:
         Document: Formatted document with metadata for citations.
     """
-    content = f"{result.name} ({result.atc_code}) - Reg. č.: {result.registration_number}"
+    content = (
+        f"{result.name} ({result.atc_code}) - Reg. č.: {result.registration_number}"
+    )
     if result.manufacturer:
         content += f" - Výrobce: {result.manufacturer}"
 
@@ -173,7 +175,7 @@ def drug_details_to_document(details: DrugDetails) -> Document:
     content = f"""## {details.name}
 **Účinná látka**: {details.active_ingredient}
 **ATC kód**: {details.atc_code}
-**Léková forma**: {details.pharmaceutical_form or 'Neuvedeno'}
+**Léková forma**: {details.pharmaceutical_form or "Neuvedeno"}
 
 ### Indikace
 {_format_list(details.indications)}
@@ -182,10 +184,10 @@ def drug_details_to_document(details: DrugDetails) -> Document:
 {details.dosage}
 
 ### Kontraindikace
-{_format_list(details.contraindications) if details.contraindications else 'Nejsou známy'}
+{_format_list(details.contraindications) if details.contraindications else "Nejsou známy"}
 
 ### Nežádoucí účinky
-{_format_list(details.side_effects) if details.side_effects else 'Viz příbalový leták'}
+{_format_list(details.side_effects) if details.side_effects else "Viz příbalový leták"}
 """
 
     return Document(
@@ -217,12 +219,12 @@ def reimbursement_to_document(info: ReimbursementInfo) -> Document:
     }
 
     content = f"""## Úhrada léku (Reg. č.: {info.registration_number})
-**Kategorie**: {info.category.value} - {category_desc.get(info.category, 'Neznámá')}
+**Kategorie**: {info.category.value} - {category_desc.get(info.category, "Neznámá")}
 **Doplatek**: {info.copay_amount:.2f} Kč
-**Vyžaduje recept**: {'Ano' if info.prescription_required else 'Ne'}
+**Vyžaduje recept**: {"Ano" if info.prescription_required else "Ne"}
 
 ### Podmínky úhrady
-{_format_list(info.conditions) if info.conditions else 'Standardní podmínky'}
+{_format_list(info.conditions) if info.conditions else "Standardní podmínky"}
 """
 
     return Document(
@@ -306,9 +308,7 @@ def _format_list(items: List[str]) -> str:
 # =============================================================================
 
 
-async def _search_drugs(
-    client: SUKLMCPClient, query: DrugQuery
-) -> List[DrugResult]:
+async def _search_drugs(client: SUKLMCPClient, query: DrugQuery) -> List[DrugResult]:
     """Search drugs by name using SÚKL MCP.
 
     Args:
@@ -598,12 +598,12 @@ async def drug_agent_node(
     # Entry logging
     logger.info("[drug_agent_node] Starting drug query processing")
 
-    # Get context
-    context = runtime.context or {}
-    sukl_client: SUKLMCPClient | None = context.get("sukl_mcp_client")
+    # Get MCP clients with fallback to module-level instances
+    from agent.graph import get_mcp_clients
+    sukl_client, _ = get_mcp_clients(runtime)
 
     if not sukl_client:
-        logger.error("[drug_agent_node] No SÚKL MCP client in context")
+        logger.error("[drug_agent_node] No SÚKL MCP client available")
         return {
             "messages": [
                 {
@@ -677,7 +677,9 @@ async def drug_agent_node(
                 if len(results) > 5:
                     response_text += f"\n... a dalších {len(results) - 5} výsledků."
             else:
-                response_text = f"Žádný lék odpovídající '{query.query_text}' nebyl nalezen."
+                response_text = (
+                    f"Žádný lék odpovídající '{query.query_text}' nebyl nalezen."
+                )
 
         elif query.query_type == QueryType.DETAILS:
             # First search, then get details of first result
@@ -690,7 +692,9 @@ async def drug_agent_node(
                     documents = [drug_details_to_document(details)]
                     response_text = f"Detailní informace o léku {details.name}:\n\n"
                     response_text += f"**Účinná látka**: {details.active_ingredient}\n"
-                    response_text += f"**Indikace**: {', '.join(details.indications[:3])}\n"
+                    response_text += (
+                        f"**Indikace**: {', '.join(details.indications[:3])}\n"
+                    )
                     response_text += f"**Dávkování**: {details.dosage}\n"
                 else:
                     response_text = "Detaily léku nebyly nalezeny."
@@ -729,7 +733,9 @@ async def drug_agent_node(
                 )
                 if avail_info:
                     documents = [availability_to_document(avail_info)]
-                    status = "dostupný ✅" if avail_info.is_available else "nedostupný ❌"
+                    status = (
+                        "dostupný ✅" if avail_info.is_available else "nedostupný ❌"
+                    )
                     response_text = f"Lék {results[0].name} je aktuálně {status}.\n"
                     if not avail_info.is_available and avail_info.alternatives:
                         response_text += "\n**Alternativy**:\n"
@@ -742,17 +748,25 @@ async def drug_agent_node(
 
         elif query.query_type == QueryType.ATC:
             # Extract ATC code from query
-            atc_match = re.search(r"\b([A-Z]\d{2}[A-Z]{2}\d{2})\b", query.query_text, re.IGNORECASE)
+            atc_match = re.search(
+                r"\b([A-Z]\d{2}[A-Z]{2}\d{2})\b", query.query_text, re.IGNORECASE
+            )
             if atc_match:
                 atc_code = atc_match.group(1).upper()
                 results = await _search_by_atc(sukl_client, atc_code, query.limit)
                 if results:
                     documents = [drug_result_to_document(r) for r in results]
-                    response_text = f"Nalezeno {len(results)} léků s ATC kódem {atc_code}:\n\n"
+                    response_text = (
+                        f"Nalezeno {len(results)} léků s ATC kódem {atc_code}:\n\n"
+                    )
                     for r in results[:5]:
-                        response_text += f"- **{r.name}** (Reg.: {r.registration_number})\n"
+                        response_text += (
+                            f"- **{r.name}** (Reg.: {r.registration_number})\n"
+                        )
                 else:
-                    response_text = f"Žádné léky s ATC kódem {atc_code} nebyly nalezeny."
+                    response_text = (
+                        f"Žádné léky s ATC kódem {atc_code} nebyly nalezeny."
+                    )
             else:
                 response_text = "Nebyl rozpoznán platný ATC kód ve vašem dotazu."
 
@@ -762,11 +776,15 @@ async def drug_agent_node(
             )
             if results:
                 documents = [drug_result_to_document(r) for r in results]
-                response_text = f"Nalezeno {len(results)} léků obsahujících účinnou látku:\n\n"
+                response_text = (
+                    f"Nalezeno {len(results)} léků obsahujících účinnou látku:\n\n"
+                )
                 for r in results[:5]:
                     response_text += f"- **{r.name}** (ATC: {r.atc_code})\n"
             else:
-                response_text = f"Žádné léky s účinnou látkou '{query.query_text}' nebyly nalezeny."
+                response_text = (
+                    f"Žádné léky s účinnou látkou '{query.query_text}' nebyly nalezeny."
+                )
 
     except (MCPConnectionError, MCPTimeoutError, MCPServerError) as e:
         logger.error(f"[drug_agent_node] MCP error: {e}")
@@ -781,9 +799,7 @@ async def drug_agent_node(
         response_text += "\n\n_Zdroj: SÚKL - Státní ústav pro kontrolu léčiv_"
 
     # Exit logging
-    logger.info(
-        f"[drug_agent_node] Completed. Found {len(documents)} documents."
-    )
+    logger.info(f"[drug_agent_node] Completed. Found {len(documents)} documents.")
 
     return {
         "messages": [{"role": "assistant", "content": response_text}],

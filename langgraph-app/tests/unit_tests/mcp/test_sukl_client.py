@@ -5,17 +5,16 @@ Tests use aioresponses to mock HTTP calls without real SÚKL-mcp server.
 
 from __future__ import annotations
 
+import aiohttp
 import pytest
 from aioresponses import aioresponses
-import aiohttp
 
 from agent.mcp.adapters.sukl_client import SUKLMCPClient
 from agent.mcp.domain.entities import RetryConfig
 from agent.mcp.domain.exceptions import (
     MCPConnectionError,
-    MCPTimeoutError,
     MCPServerError,
-    MCPValidationError
+    MCPTimeoutError,
 )
 
 
@@ -98,18 +97,15 @@ class TestSUKLMCPClientCallTool:
                         {
                             "name": "Aspirin",
                             "atc_code": "B01AC06",
-                            "registration_number": "12345"
+                            "registration_number": "12345",
                         }
                     ]
                 },
-                status=200
+                status=200,
             )
 
             client = SUKLMCPClient()
-            response = await client.call_tool(
-                "search_drugs",
-                {"query": "aspirin"}
-            )
+            response = await client.call_tool("search_drugs", {"query": "aspirin"})
 
             assert response.success is True
             assert response.data["drugs"][0]["name"] == "Aspirin"
@@ -125,9 +121,8 @@ class TestSUKLMCPClientCallTool:
             m.post(
                 "http://localhost:3000/tools/test_tool",
                 exception=aiohttp.ClientConnectorError(
-                    connection_key=None,
-                    os_error=OSError("Connection refused")
-                )
+                    connection_key=None, os_error=OSError("Connection refused")
+                ),
             )
 
             client = SUKLMCPClient()
@@ -143,7 +138,7 @@ class TestSUKLMCPClientCallTool:
         with aioresponses() as m:
             m.post(
                 "http://localhost:3000/tools/test_tool",
-                exception=aiohttp.ServerTimeoutError()
+                exception=aiohttp.ServerTimeoutError(),
             )
 
             client = SUKLMCPClient()
@@ -160,7 +155,7 @@ class TestSUKLMCPClientCallTool:
             m.post(
                 "http://localhost:3000/tools/test_tool",
                 status=500,
-                body="Internal Server Error"
+                body="Internal Server Error",
             )
 
             client = SUKLMCPClient()
@@ -179,7 +174,7 @@ class TestSUKLMCPClientCallTool:
             m.post(
                 "http://localhost:3000/tools/test_tool",
                 status=429,
-                headers={"Retry-After": "60"}
+                headers={"Retry-After": "60"},
             )
 
             client = SUKLMCPClient()
@@ -196,7 +191,7 @@ class TestSUKLMCPClientCallTool:
             m.post(
                 "http://localhost:3000/tools/test_tool",
                 status=400,
-                body="Bad Request: Invalid parameters"
+                body="Bad Request: Invalid parameters",
             )
 
             client = SUKLMCPClient()
@@ -215,7 +210,7 @@ class TestSUKLMCPClientCallTool:
             m.post(
                 "http://localhost:3000/tools/test_tool",
                 payload={"result": "ok"},
-                status=200
+                status=200,
             )
 
             client = SUKLMCPClient()
@@ -239,7 +234,7 @@ class TestSUKLMCPClientHealthCheck:
             m.get(
                 "http://localhost:3000/health",
                 payload={"status": "ok", "tools_count": 8},
-                status=200
+                status=200,
             )
 
             client = SUKLMCPClient()
@@ -260,9 +255,8 @@ class TestSUKLMCPClientHealthCheck:
             m.get(
                 "http://localhost:3000/health",
                 exception=aiohttp.ClientConnectorError(
-                    connection_key=None,
-                    os_error=OSError("Connection refused")
-                )
+                    connection_key=None, os_error=OSError("Connection refused")
+                ),
             )
 
             client = SUKLMCPClient()
@@ -279,8 +273,7 @@ class TestSUKLMCPClientHealthCheck:
         """Test health check handles timeout."""
         with aioresponses() as m:
             m.get(
-                "http://localhost:3000/health",
-                exception=aiohttp.ServerTimeoutError()
+                "http://localhost:3000/health", exception=aiohttp.ServerTimeoutError()
             )
 
             client = SUKLMCPClient()
@@ -296,9 +289,7 @@ class TestSUKLMCPClientHealthCheck:
         """Test health check handles non-200 status."""
         with aioresponses() as m:
             m.get(
-                "http://localhost:3000/health",
-                status=503,
-                body="Service Unavailable"
+                "http://localhost:3000/health", status=503, body="Service Unavailable"
             )
 
             client = SUKLMCPClient()

@@ -5,17 +5,14 @@ Tests use aioresponses to mock HTTP calls without real BioMCP Docker server.
 
 from __future__ import annotations
 
+import aiohttp
 import pytest
 from aioresponses import aioresponses
-import aiohttp
 
 from agent.mcp.adapters.biomcp_client import BioMCPClient
-from agent.mcp.domain.entities import RetryConfig
 from agent.mcp.domain.exceptions import (
     MCPConnectionError,
     MCPTimeoutError,
-    MCPServerError,
-    MCPValidationError
 )
 
 
@@ -80,17 +77,16 @@ class TestBioMCPClientCallTool:
                             "title": "Diabetes Treatment Study",
                             "abstract": "This study examines...",
                             "authors": ["Smith J", "Doe A"],
-                            "doi": "10.1234/example"
+                            "doi": "10.1234/example",
                         }
                     ]
                 },
-                status=200
+                status=200,
             )
 
             client = BioMCPClient()
             response = await client.call_tool(
-                "article_searcher",
-                {"query": "diabetes", "max_results": 10}
+                "article_searcher", {"query": "diabetes", "max_results": 10}
             )
 
             assert response.success is True
@@ -106,9 +102,8 @@ class TestBioMCPClientCallTool:
             m.post(
                 "http://localhost:8080/tools/test_tool",
                 exception=aiohttp.ClientConnectorError(
-                    connection_key=None,
-                    os_error=OSError("Connection refused")
-                )
+                    connection_key=None, os_error=OSError("Connection refused")
+                ),
             )
 
             client = BioMCPClient()
@@ -124,7 +119,7 @@ class TestBioMCPClientCallTool:
         with aioresponses() as m:
             m.post(
                 "http://localhost:8080/tools/test_tool",
-                exception=aiohttp.ServerTimeoutError()
+                exception=aiohttp.ServerTimeoutError(),
             )
 
             client = BioMCPClient()
@@ -145,7 +140,7 @@ class TestBioMCPClientHealthCheck:
             m.get(
                 "http://localhost:8080/health",
                 payload={"status": "ok", "tools_count": 24},
-                status=200
+                status=200,
             )
 
             client = BioMCPClient()
@@ -165,9 +160,8 @@ class TestBioMCPClientHealthCheck:
             m.get(
                 "http://localhost:8080/health",
                 exception=aiohttp.ClientConnectorError(
-                    connection_key=None,
-                    os_error=OSError("Connection refused")
-                )
+                    connection_key=None, os_error=OSError("Connection refused")
+                ),
             )
 
             client = BioMCPClient()
@@ -197,11 +191,11 @@ class TestBioMCPClientTypedHelpers:
                             "authors": ["Author A"],
                             "publication_date": "2024-01-01",
                             "doi": "10.1234/test",
-                            "journal": "Test Journal"
+                            "journal": "Test Journal",
                         }
                     ]
                 },
-                status=200
+                status=200,
             )
 
             client = BioMCPClient()
@@ -220,7 +214,7 @@ class TestBioMCPClientTypedHelpers:
             m.post(
                 "http://localhost:8080/tools/article_searcher",
                 payload={"articles": []},
-                status=200
+                status=200,
             )
 
             client = BioMCPClient(max_results=5)
@@ -237,7 +231,7 @@ class TestBioMCPClientTypedHelpers:
             m.post(
                 "http://localhost:8080/tools/get_article_full_text",
                 payload={"full_text": "Article full text content..."},
-                status=200
+                status=200,
             )
 
             client = BioMCPClient()
@@ -254,7 +248,7 @@ class TestBioMCPClientTypedHelpers:
             m.post(
                 "http://localhost:8080/tools/get_article_full_text",
                 payload={"url": "https://doi.org/10.1234/example"},
-                status=200
+                status=200,
             )
 
             client = BioMCPClient()
@@ -268,10 +262,7 @@ class TestBioMCPClientTypedHelpers:
     async def test_get_full_text_returns_none_on_failure(self):
         """Test get_full_text returns None on failure."""
         with aioresponses() as m:
-            m.post(
-                "http://localhost:8080/tools/get_article_full_text",
-                status=404
-            )
+            m.post("http://localhost:8080/tools/get_article_full_text", status=404)
 
             client = BioMCPClient()
             text = await client.get_full_text("99999999")
@@ -293,11 +284,11 @@ class TestBioMCPClientTypedHelpers:
                             "title": "Cancer Immunotherapy Trial",
                             "status": "Recruiting",
                             "phase": "Phase 2",
-                            "conditions": ["Cancer", "Melanoma"]
+                            "conditions": ["Cancer", "Melanoma"],
                         }
                     ]
                 },
-                status=200
+                status=200,
             )
 
             client = BioMCPClient()

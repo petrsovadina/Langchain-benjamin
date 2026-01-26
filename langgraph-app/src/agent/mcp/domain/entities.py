@@ -13,7 +13,7 @@ Entities:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal
 
 
 @dataclass(frozen=True)
@@ -41,9 +41,10 @@ class MCPResponse:
         >>> response.success
         True
     """
+
     success: bool
     data: Any = None
-    error: Optional[str] = None
+    error: str | None = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -77,10 +78,11 @@ class MCPHealthStatus:
         >>> status.status
         'healthy'
     """
+
     status: Literal["healthy", "unhealthy", "unavailable", "timeout"]
-    latency_ms: Optional[int] = None
-    tools_count: Optional[int] = None
-    error: Optional[str] = None
+    latency_ms: int | None = None
+    tools_count: int | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -105,6 +107,7 @@ class RetryConfig:
         >>> config.max_retries
         5
     """
+
     max_retries: int = 3
     base_delay: float = 1.0
     max_delay: float = 30.0
@@ -144,6 +147,7 @@ class MCPToolMetadata:
         >>> metadata.name
         'search_drugs'
     """
+
     name: str
     description: str
     parameters: Dict[str, Any] = field(default_factory=dict)

@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import pytest
 from typing import Any, Dict, List, Optional
 
+import pytest
+
 from agent.mcp.domain.entities import (
-    MCPResponse,
     MCPHealthStatus,
+    MCPResponse,
     MCPToolMetadata,
-    RetryConfig
+    RetryConfig,
 )
 from agent.mcp.domain.ports import IMCPClient, IRetryStrategy
 
@@ -47,7 +48,7 @@ class TestIMCPClient:
                 self,
                 tool_name: str,
                 parameters: Dict[str, Any],
-                retry_config: Optional[RetryConfig] = None
+                retry_config: Optional[RetryConfig] = None,
             ) -> MCPResponse:
                 return MCPResponse(success=True, data={})
 
@@ -73,12 +74,12 @@ class TestIMCPClient:
                 self,
                 tool_name: str,
                 parameters: Dict[str, Any],
-                retry_config: Optional[RetryConfig] = None
+                retry_config: Optional[RetryConfig] = None,
             ) -> MCPResponse:
                 return MCPResponse(
                     success=True,
                     data={"tool": tool_name},
-                    metadata={"params": parameters}
+                    metadata={"params": parameters},
                 )
 
             async def health_check(self, timeout: float = 5.0) -> MCPHealthStatus:
@@ -105,16 +106,12 @@ class TestIMCPClient:
                 self,
                 tool_name: str,
                 parameters: Dict[str, Any],
-                retry_config: Optional[RetryConfig] = None
+                retry_config: Optional[RetryConfig] = None,
             ) -> MCPResponse:
                 return MCPResponse(success=True, data={})
 
             async def health_check(self, timeout: float = 5.0) -> MCPHealthStatus:
-                return MCPHealthStatus(
-                    status="healthy",
-                    latency_ms=50,
-                    tools_count=8
-                )
+                return MCPHealthStatus(status="healthy", latency_ms=50, tools_count=8)
 
             async def list_tools(self) -> List[MCPToolMetadata]:
                 return []
@@ -142,9 +139,7 @@ class TestIRetryStrategy:
 
         class MockRetryStrategy(IRetryStrategy):
             async def execute_with_retry(
-                self,
-                operation: Any,
-                config: RetryConfig
+                self, operation: Any, config: RetryConfig
             ) -> Any:
                 # Just execute without retry for testing
                 return await operation()
@@ -159,9 +154,7 @@ class TestIRetryStrategy:
 
         class MockRetryStrategy(IRetryStrategy):
             async def execute_with_retry(
-                self,
-                operation: Any,
-                config: RetryConfig
+                self, operation: Any, config: RetryConfig
             ) -> Any:
                 result = await operation()
                 return result

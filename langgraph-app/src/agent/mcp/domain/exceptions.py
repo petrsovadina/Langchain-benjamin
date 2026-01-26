@@ -10,7 +10,7 @@ Hierarchy:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 
 class MCPError(Exception):
@@ -24,7 +24,13 @@ class MCPError(Exception):
         server_url: Optional MCP server URL for context.
     """
 
-    def __init__(self, message: str, server_url: Optional[str] = None):
+    def __init__(self, message: str, server_url: str | None = None):
+        """Initialize MCP error.
+
+        Args:
+            message: Error description.
+            server_url: Optional URL of MCP server where error occurred.
+        """
         super().__init__(message)
         self.message = message
         self.server_url = server_url
@@ -40,6 +46,7 @@ class MCPConnectionError(MCPError):
 
     Should trigger retry with exponential backoff.
     """
+
     pass
 
 
@@ -52,6 +59,7 @@ class MCPTimeoutError(MCPError):
 
     Should trigger retry with exponential backoff.
     """
+
     pass
 
 
@@ -70,7 +78,13 @@ class MCPValidationError(MCPError):
         validation_errors: List of Pydantic-style validation errors.
     """
 
-    def __init__(self, message: str, validation_errors: Optional[list[Any]] = None):
+    def __init__(self, message: str, validation_errors: list[Any] | None = None):
+        """Initialize validation error.
+
+        Args:
+            message: Error description.
+            validation_errors: List of validation error details.
+        """
         super().__init__(message)
         self.validation_errors = validation_errors or []
 
@@ -91,5 +105,11 @@ class MCPServerError(MCPError):
     """
 
     def __init__(self, message: str, status_code: int):
+        """Initialize server error.
+
+        Args:
+            message: Error description.
+            status_code: HTTP status code (500, 503, etc.).
+        """
         super().__init__(message)
         self.status_code = status_code

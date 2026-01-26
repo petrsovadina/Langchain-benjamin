@@ -1,0 +1,314 @@
+# LangGraph Node Contract: PubMed Agent
+# Feature: 005-biomcp-pubmed-agent
+# Date: 2026-01-20
+
+# This contract defines the input/output schema for pubmed_agent_node
+# and its helper nodes (translation) according to Constitution Principle I & II
+
+---
+nodes:
+  - name: pubmed_agent_node
+    description: Main node for PubMed article search with BioMCP integration
+    signature: async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]
+
+    inputs:
+      state:
+        type: State
+        required_fields:
+          - messages: list[AnyMessage]  # Must contain user query
+          - research_query: Optional[ResearchQuery]  # Classified query
+        description: |
+          State.research_query populated by classify_research_query() helper.
+          If research_query is None, node will attempt classification from messages.
+
+      runtime:
+        type: Runtime[Context]
+        required_context:
+          - biomcp_client: BioMCPClient  # Injected at graph runtime
+        optional_context:
+          - max_results: int  # Override default 5
+          - translation_enabled: bool  # Default true
+
+    outputs:
+      type: Dict[str, Any]
+      fields:
+        retrieved_docs:
+          type: list[Document]
+          description: PubMed articles as LangChain Documents with metadata
+          format: |
+            [
+              Document(
+                page_content="Title: ...\n\nAbstract (CZ): ...",
+                metadata={
+                  "source": "PubMed",
+                  "pmid": "12345678",
+                  "url": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+                  "authors": "Smith J, Doe J",
+                  "journal": "NEJM",
+                  "publication_date": "2024-06-15",
+                  "doi": "10.1056/NEJMoa2401234"
+                }
+              )
+            ]
+
+        messages:
+          type: list[AnyMessage]
+          description: Appended assistant message with article summaries
+          format: |
+            {
+              "role": "assistant",
+              "content": "Found 5 relevant articles:\n\n1. [Title] - [Short Citation] [1]\n..."
+            }
+
+        next:
+          type: str
+          description: Routing indicator for next node
+          values: ["__end__", "citation_system", "synthesizer"]
+
+    error_handling:
+      - exception: MCPConnectionError
+        behavior: Return empty retrieved_docs with Czech error message
+        message: "PubMed služba dočasně nedostupná. Zkuste to prosím později."
+
+      - exception: MCPTimeoutError
+        behavior: Return partial results if any, else error message
+        message: "Vyhledávání trvalo příliš dlouho. Zobrazuji dostupné výsledky."
+
+      - exception: ValidationError
+        behavior: Log error, request query clarification
+        message: "Nerozumím vašemu dotazu. Můžete ho prosím přeformulovat?"
+
+    performance:
+      target_latency: "< 5s for 90% queries (SC-001)"
+      max_latency: "10s (hard timeout)"
+      token_budget: "~1800 tokens per query (translation + results)"
+      cost_per_query: "$0.001 (Claude Sonnet 4.5)"
+
+  - name: translate_cz_to_en_node
+    description: Translate Czech query to English for PubMed search
+    signature: async def translate_cz_to_en_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]
+
+    inputs:
+      state:
+        type: State
+        required_fields:
+          - messages: list[AnyMessage]  # Must contain Czech query
+
+      runtime:
+        type: Runtime[Context]
+        required_context:
+          - model: str  # LLM model name (default: claude-sonnet-4-5)
+
+    outputs:
+      type: Dict[str, Any]
+      fields:
+        research_query:
+          type: ResearchQuery
+          description: Query with translated English text
+          example: |
+            ResearchQuery(
+              query_text="What are the latest studies on type 2 diabetes treatment?",
+              query_type="search",
+              filters={"date_range": ("2023-01-01", "2026-01-20")}
+            )
+
+    prompt_template: |
+      Translate the following Czech medical query to English for PubMed search.
+
+      CRITICAL RULES:
+      1. Preserve Latin medical terms unchanged (e.g., diabetes mellitus)
+      2. Preserve drug names unchanged (e.g., Metformin, Ibalgin)
+      3. Expand Czech abbreviations to full English terms:
+         - DM2 → type 2 diabetes
+         - ICHS → ischemic heart disease
+         - TEN → pulmonary embolism
+      4. Maintain medical precision - do not simplify terminology
+      5. Optimize for PubMed search effectiveness
+
+      Czech query: {czech_query}
+
+      English translation:
+
+    performance:
+      target_latency: "< 2s"
+      temperature: 0  # Deterministic for caching
+      max_tokens: 200
+
+  - name: translate_en_to_cz_node
+    description: Translate English abstracts to Czech for display
+    signature: async def translate_en_to_cz_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]
+
+    inputs:
+      state:
+        type: State
+        required_fields:
+          - retrieved_docs: list[Document]  # English abstracts in metadata
+
+      runtime:
+        type: Runtime[Context]
+        required_context:
+          - model: str  # LLM model name
+        optional_context:
+          - batch_size: int  # Parallel translation batch (default: 5)
+
+    outputs:
+      type: Dict[str, Any]
+      fields:
+        retrieved_docs:
+          type: list[Document]
+          description: Documents with page_content updated to Czech abstracts
+          transformation: |
+            Original: metadata["abstract_en"]
+            Updated: page_content = f"Title: {title}\n\nAbstract (CZ): {czech_abstract}"
+
+    prompt_template: |
+      Translate the following English medical abstract to professional Czech.
+
+      CRITICAL RULES:
+      1. Use formal medical register suitable for physicians
+      2. Preserve Latin terms unchanged (e.g., diabetes mellitus, myocardium)
+      3. Preserve drug names unchanged (e.g., Metformin)
+      4. Use standard Czech medical terminology from medical literature
+      5. Maintain paragraph structure and formatting
+
+      English abstract: {english_abstract}
+
+      Czech translation:
+
+    performance:
+      target_latency: "< 2s for 5 abstracts (parallel)"
+      temperature: 0  # Deterministic for caching
+      max_tokens: 1000  # 5 abstracts × 200 tokens each
+
+---
+helper_functions:
+  - name: classify_research_query
+    signature: def classify_research_query(message: str) -> ResearchQuery | None
+    description: Detect research intent and extract query parameters
+
+    detection_keywords:
+      czech: ["studie", "výzkum", "pubmed", "článek", "literatura", "pmid"]
+      patterns:
+        pmid_lookup: "PMID:?\\s*(\\d{8})"
+        date_filter: "(za )?poslední(ch)? (\\d+) (rok|roky|let)"
+
+    logic: |
+      1. Check for PMID pattern → query_type="pmid_lookup"
+      2. Check for research keywords → query_type="search"
+      3. Extract date filter if present → filters.date_range
+      4. Return ResearchQuery or None
+
+    example_input: "Jaké jsou studie za poslední 2 roky o diabetu?"
+    example_output: |
+      ResearchQuery(
+        query_text="Jaké jsou studie za poslední 2 roky o diabetu?",
+        query_type="search",
+        filters={"date_range": ("2024-01-20", "2026-01-20")}
+      )
+
+  - name: article_to_document
+    signature: def article_to_document(article: PubMedArticle, czech_abstract: str) -> Document
+    description: Transform PubMedArticle to LangChain Document
+
+    logic: |
+      1. Format page_content: "Title: {title}\n\nAbstract (CZ): {czech_abstract}"
+      2. Build metadata dict with all article fields
+      3. Add source="PubMed", url=f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+      4. Return Document
+
+    example_output: |
+      Document(
+        page_content="Title: Efficacy of Metformin...\n\nAbstract (CZ): Úvod: Metformin je...",
+        metadata={
+          "source": "PubMed",
+          "pmid": "12345678",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+          "authors": "Smith J, Doe J",
+          "journal": "NEJM",
+          "publication_date": "2024-06-15",
+          "doi": "10.1056/NEJMoa2401234",
+          "abstract_en": "Background: Metformin is...",
+          "translation_timestamp": "2026-01-20T14:30:00Z"
+        }
+      )
+
+  - name: format_citation
+    signature: def format_citation(article: PubMedArticle, citation_num: int) -> CitationReference
+    description: Generate citation reference for article
+
+    logic: |
+      1. Extract first author: article.authors[0].split(",")[0]
+      2. Extract year: article.publication_date[:4]
+      3. Create short_citation: f"{first_author} et al. ({year})"
+      4. Create full_citation: f"{authors}. {title}. {journal}. {year}. PMID: {pmid}. {url}"
+      5. Return CitationReference
+
+    example_output: |
+      CitationReference(
+        citation_num=1,
+        pmid="12345678",
+        short_citation="Smith et al. (2024)",
+        full_citation="Smith J, Doe J. Efficacy of Metformin in Type 2 Diabetes. NEJM. 2024. PMID: 12345678. https://pubmed.ncbi.nlm.nih.gov/12345678/",
+        url="https://pubmed.ncbi.nlm.nih.gov/12345678/"
+      )
+
+---
+validation_rules:
+  state_schema:
+    - field: research_query
+      type: Optional[ResearchQuery]
+      validation: Pydantic model with query_text, query_type, filters
+      error_message: "Invalid research query format"
+
+    - field: retrieved_docs
+      type: list[Document]
+      validation: Each Document must have metadata.source="PubMed" and metadata.pmid
+      error_message: "Invalid PubMed document format"
+
+  performance:
+    - metric: total_latency
+      target: "< 5s"
+      measurement: "Time from user query to retrieved_docs populated"
+      failure_action: "Log warning, continue with partial results"
+
+    - metric: translation_quality
+      target: "95% semantic preservation"
+      measurement: "Manual evaluation by bilingual medical expert"
+      failure_action: "Review prompt templates, adjust medical terminology rules"
+
+    - metric: citation_completeness
+      target: "100% PubMed URLs"
+      measurement: "Verify every retrieved_doc has metadata.url"
+      failure_action: "ERROR - block deployment"
+
+---
+constitutional_compliance:
+  principle_i_graph_centric:
+    - "✅ All nodes are async functions with signature: async def node_name(state: State, runtime: Runtime[Context]) -> Dict[str, Any]"
+    - "✅ State transitions via .add_edge() (pubmed_agent → __end__)"
+    - "✅ Graph visualizable in LangGraph Studio"
+
+  principle_ii_type_safety:
+    - "✅ State.research_query typed as Optional[ResearchQuery]"
+    - "✅ Pydantic models: ResearchQuery, PubMedArticle, CitationReference"
+    - "✅ All node outputs return Dict[str, Any] matching State fields"
+
+  principle_iii_test_first:
+    - "✅ Unit tests planned: test_translation.py, test_pubmed_agent.py"
+    - "✅ Integration tests planned: test_pubmed_agent_flow.py"
+    - "✅ Test-first workflow: Write test → Fail → Implement → Pass"
+
+  principle_iv_observability:
+    - "✅ LangSmith tracing enabled (LANGSMITH_API_KEY)"
+    - "✅ Logging at node boundaries (query classification, BioMCP calls, translations)"
+    - "✅ State transitions logged (research_query populated, retrieved_docs count)"
+
+  principle_v_modular_design:
+    - "✅ Nodes are small: translate_cz_to_en, translate_en_to_cz, pubmed_agent"
+    - "✅ Reusable helpers: classify_research_query, article_to_document, format_citation"
+    - "✅ Configuration in Context: max_results, translation_enabled, batch_size"
+
+---
+# Contract version: 1.0
+# Last updated: 2026-01-20
+# Status: Design complete, ready for implementation

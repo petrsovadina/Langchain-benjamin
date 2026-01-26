@@ -12,7 +12,7 @@ Ports:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from .entities import MCPHealthStatus, MCPResponse, MCPToolMetadata, RetryConfig
 
@@ -40,7 +40,7 @@ class IMCPClient(ABC):
         self,
         tool_name: str,
         parameters: Dict[str, Any],
-        retry_config: Optional[RetryConfig] = None
+        retry_config: RetryConfig | None = None,
     ) -> MCPResponse:
         """Call MCP tool with parameters.
 
@@ -120,7 +120,7 @@ class IRetryStrategy(ABC):
     async def execute_with_retry(
         self,
         operation: Any,  # Async callable
-        config: RetryConfig
+        config: RetryConfig,
     ) -> Any:
         """Execute async operation with retry logic.
 

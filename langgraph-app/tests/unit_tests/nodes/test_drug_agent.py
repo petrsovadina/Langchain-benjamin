@@ -11,34 +11,32 @@ Test Organization:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from agent.graph import State
+from agent.mcp import MCPConnectionError, MCPResponse, MCPTimeoutError
 from agent.models.drug_models import (
+    AvailabilityInfo,
+    DrugDetails,
     DrugQuery,
     DrugResult,
-    DrugDetails,
     QueryType,
     ReimbursementCategory,
     ReimbursementInfo,
-    AvailabilityInfo,
 )
-from agent.mcp import MCPResponse, MCPConnectionError, MCPTimeoutError
 from agent.nodes.drug_agent import (
-    classify_drug_query,
-    drug_result_to_document,
-    drug_details_to_document,
-    reimbursement_to_document,
-    availability_to_document,
-    format_mcp_error,
-    drug_agent_node,
-    _search_drugs,
     _get_drug_details,
+    _search_drugs,
+    availability_to_document,
+    classify_drug_query,
+    drug_agent_node,
+    drug_details_to_document,
+    drug_result_to_document,
+    format_mcp_error,
+    reimbursement_to_document,
 )
-
 
 # =============================================================================
 # T021: Unit tests for drug search
@@ -84,9 +82,7 @@ class TestDrugSearch:
     ) -> None:
         """Test complete drug_agent_node search workflow."""
         # Setup: state with user message about drug search
-        sample_state.messages = [
-            {"role": "user", "content": "Najdi lék Ibalgin"}
-        ]
+        sample_state.messages = [{"role": "user", "content": "Najdi lék Ibalgin"}]
 
         # Mock runtime with sukl_mcp_client
         mock_runtime = MagicMock()
@@ -113,9 +109,7 @@ class TestDrugSearch:
         """Test that drug_agent_node prioritizes state.drug_query."""
         # Setup: explicit drug_query in state
         sample_state.drug_query = DrugQuery(
-            query_text="Paralen",
-            query_type=QueryType.SEARCH,
-            limit=5
+            query_text="Paralen", query_type=QueryType.SEARCH, limit=5
         )
         sample_state.messages = [
             {"role": "user", "content": "Something completely different"}
@@ -167,7 +161,10 @@ class TestQueryClassification:
     def test_classify_ingredient_query(self) -> None:
         """Test classification of ingredient queries."""
         assert classify_drug_query("účinná látka ibuprofen") == QueryType.INGREDIENT
-        assert classify_drug_query("léky s účinnou látkou paracetamol") == QueryType.INGREDIENT
+        assert (
+            classify_drug_query("léky s účinnou látkou paracetamol")
+            == QueryType.INGREDIENT
+        )
 
 
 # =============================================================================
@@ -179,9 +176,7 @@ class TestFuzzyMatching:
     """Test fuzzy matching behavior (T022)."""
 
     @pytest.mark.asyncio
-    async def test_search_handles_typos(
-        self, mock_sukl_client: MagicMock
-    ) -> None:
+    async def test_search_handles_typos(self, mock_sukl_client: MagicMock) -> None:
         """Test that search handles minor typos via SÚKL fuzzy matching."""
         # The actual fuzzy matching happens in SÚKL-mcp server
         # This test verifies we pass the query correctly and handle results
@@ -194,9 +189,7 @@ class TestFuzzyMatching:
         assert len(results) > 0
 
     @pytest.mark.asyncio
-    async def test_search_with_partial_name(
-        self, mock_sukl_client: MagicMock
-    ) -> None:
+    async def test_search_with_partial_name(self, mock_sukl_client: MagicMock) -> None:
         """Test search with partial drug name."""
         query = DrugQuery(query_text="Ibal", query_type=QueryType.SEARCH)
 
@@ -248,9 +241,7 @@ class TestNoResults:
             return_value=MCPResponse(success=True, data={"drugs": []})
         )
 
-        sample_state.messages = [
-            {"role": "user", "content": "Najdi lék XYZ123456"}
-        ]
+        sample_state.messages = [{"role": "user", "content": "Najdi lék XYZ123456"}]
 
         mock_runtime = MagicMock()
         mock_runtime.context = {"sukl_mcp_client": mock_client}
@@ -285,9 +276,7 @@ class TestNoResults:
 class TestDocumentTransformers:
     """Test document transformation functions."""
 
-    def test_drug_result_to_document(
-        self, sample_drug_result: DrugResult
-    ) -> None:
+    def test_drug_result_to_document(self, sample_drug_result: DrugResult) -> None:
         """Test DrugResult to Document transformation."""
         doc = drug_result_to_document(sample_drug_result)
 
@@ -300,9 +289,7 @@ class TestDocumentTransformers:
         assert doc.metadata["source_type"] == "drug_search"
         assert doc.metadata["registration_number"] == "58/123/01-C"
 
-    def test_drug_details_to_document(
-        self, sample_drug_details: DrugDetails
-    ) -> None:
+    def test_drug_details_to_document(self, sample_drug_details: DrugDetails) -> None:
         """Test DrugDetails to Document transformation."""
         doc = drug_details_to_document(sample_drug_details)
 
@@ -396,9 +383,7 @@ class TestErrorHandling:
         self, sample_state: State
     ) -> None:
         """Test drug_agent_node handles missing SÚKL client gracefully."""
-        sample_state.messages = [
-            {"role": "user", "content": "Najdi Ibalgin"}
-        ]
+        sample_state.messages = [{"role": "user", "content": "Najdi Ibalgin"}]
 
         mock_runtime = MagicMock()
         mock_runtime.context = {}  # No sukl_mcp_client

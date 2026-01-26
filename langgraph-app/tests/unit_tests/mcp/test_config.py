@@ -131,6 +131,7 @@ class TestMCPConfigRetryConfigIntegration:
             retry_config = config.to_retry_config()
 
             from agent.mcp.domain.entities import RetryConfig
+
             assert isinstance(retry_config, RetryConfig)
             assert retry_config.max_retries == config.max_retries
             assert retry_config.base_delay == config.retry_base_delay

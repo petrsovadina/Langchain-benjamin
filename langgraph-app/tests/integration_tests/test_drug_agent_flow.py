@@ -6,16 +6,14 @@ Tests T048-T051 from Feature 003 task list.
 
 from __future__ import annotations
 
-from typing import Any, Dict
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from agent.graph import Context, State, graph
+from agent.graph import State
 from agent.mcp import MCPConnectionError, MCPResponse, MCPTimeoutError
 from agent.models.drug_models import DrugQuery, QueryType
 from agent.nodes.drug_agent import drug_agent_node
-
 
 # =============================================================================
 # T048: Integration test file created
@@ -27,9 +25,7 @@ class TestDrugAgentSearchDetailsFlow:
     """Integration tests for search → details workflow (T049)."""
 
     @pytest.mark.asyncio
-    async def test_search_then_details_flow(
-        self, mock_sukl_client: MagicMock
-    ) -> None:
+    async def test_search_then_details_flow(self, mock_sukl_client: MagicMock) -> None:
         """Test complete flow: search for drug, then get details."""
         # Create state with search query
         state = State(
@@ -82,7 +78,7 @@ class TestDrugAgentSearchDetailsFlow:
         mock_runtime = MagicMock()
         mock_runtime.context = {"sukl_mcp_client": mock_sukl_client}
 
-        result = await drug_agent_node(state, mock_runtime)
+        _ = await drug_agent_node(state, mock_runtime)
 
         # Verify search was executed with explicit query
         mock_sukl_client.call_tool.assert_called()
@@ -91,9 +87,7 @@ class TestDrugAgentSearchDetailsFlow:
         assert call_args[0][1]["limit"] == 5
 
     @pytest.mark.asyncio
-    async def test_reimbursement_flow(
-        self, mock_sukl_client: MagicMock
-    ) -> None:
+    async def test_reimbursement_flow(self, mock_sukl_client: MagicMock) -> None:
         """Test reimbursement query flow."""
         state = State(
             messages=[{"role": "user", "content": "Kolik stojí Ibalgin?"}],
@@ -111,9 +105,7 @@ class TestDrugAgentSearchDetailsFlow:
         assert "Kategorie" in response_text or "úhrad" in response_text.lower()
 
     @pytest.mark.asyncio
-    async def test_availability_flow(
-        self, mock_sukl_client: MagicMock
-    ) -> None:
+    async def test_availability_flow(self, mock_sukl_client: MagicMock) -> None:
         """Test availability check flow."""
         state = State(
             messages=[{"role": "user", "content": "Je Ibalgin dostupný?"}],
@@ -128,12 +120,14 @@ class TestDrugAgentSearchDetailsFlow:
 
         # Verify availability info in response
         response_text = result["messages"][0]["content"]
-        assert "dostupný" in response_text.lower() or "✅" in response_text or "❌" in response_text
+        assert (
+            "dostupný" in response_text.lower()
+            or "✅" in response_text
+            or "❌" in response_text
+        )
 
     @pytest.mark.asyncio
-    async def test_atc_search_flow(
-        self, mock_sukl_client: MagicMock
-    ) -> None:
+    async def test_atc_search_flow(self, mock_sukl_client: MagicMock) -> None:
         """Test ATC code search flow."""
         # Configure mock for ATC search
         mock_sukl_client.call_tool = AsyncMock(
@@ -270,7 +264,9 @@ class TestDrugAgentErrorHandling:
 
         # Verify configuration error message
         response_text = result["messages"][0]["content"]
-        assert "chyba" in response_text.lower() or "konfigurace" in response_text.lower()
+        assert (
+            "chyba" in response_text.lower() or "konfigurace" in response_text.lower()
+        )
 
     @pytest.mark.asyncio
     async def test_empty_query_handling(self) -> None:
@@ -315,9 +311,7 @@ class TestFullGraphExecution:
         assert state.drug_query is None
 
         # Can set drug_query
-        state.drug_query = DrugQuery(
-            query_text="Ibalgin", query_type=QueryType.SEARCH
-        )
+        state.drug_query = DrugQuery(query_text="Ibalgin", query_type=QueryType.SEARCH)
         assert state.drug_query is not None
         assert state.drug_query.query_text == "Ibalgin"
 

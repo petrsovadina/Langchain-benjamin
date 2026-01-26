@@ -12,20 +12,44 @@ Multi-agentní AI asistent pro české lékaře postavený na LangGraph framewor
 git clone https://github.com/petrsovadina/Langchain-benjamin.git
 cd Langchain-benjamin/langgraph-app
 
-# 2. Instalace
-pip install -e .
-pip install langgraph-cli[inmem]
+# 2. Instalace (doporučeno: uv)
+# Instalace uv (fast Python package installer)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Vytvoření virtual environment
+uv venv
+source .venv/bin/activate  # macOS/Linux
+# .venv\Scripts\activate   # Windows
+
+# Instalace závislostí
+uv pip install -e .
+uv pip install 'langgraph-cli[inmem]'
 
 # 3. Environment setup
 cp .env.example .env
-# Editujte .env a přidejte klíče (volitelné)
+# Editujte .env a přidejte API klíče:
+# - ANTHROPIC_API_KEY (AKTUÁLNĚ pro translation, BUDE OPTIONAL po Feature 005 Refactoring)
+# - LANGSMITH_API_KEY (volitelné - pro tracing)
 
 # 4. Spustit dev server
-langgraph dev
-# → LangGraph Studio na http://localhost:8000
+# DŮLEŽITÉ: Použijte dev.sh script nebo nastavte PYTHONPATH
+./dev.sh
+# NEBO manuálně:
+# PYTHONPATH=src langgraph dev
+
+# → LangGraph Studio na https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
 ```
 
 **📖 Detailní návod:** Viz [QUICKSTART.md](./QUICKSTART.md)
+
+### ⚠️ Důležité Poznámky
+
+- **PYTHONPATH**: Server vyžaduje `PYTHONPATH=src` pro správný import modulů
+- **dev.sh script**: Automaticky nastavuje PYTHONPATH a aktivuje venv
+- **API klíče**:
+  - **AKTUÁLNĚ**: Translation nodes vyžadují ANTHROPIC_API_KEY nebo OPENAI_API_KEY
+  - **PLÁNOVÁNO**: Po Feature 005 Refactoring bude ANTHROPIC_API_KEY volitelný (direct Czech processing)
+- **LangGraph CLI**: Běží v pipx prostředí, proto potřebujeme PYTHONPATH
 
 ## 📋 Co je Czech MedAI?
 
@@ -45,6 +69,14 @@ Czech MedAI (kódové jméno "Benjamin") je AI-powered systém určený pro čes
 - Farmaceuti
 - Zdravotní sestry a studenti medicíny
 
+### 🔄 Aktuální Vývoj
+
+**Feature 005 Refactoring** (v plánu):
+- 🎯 Odstranění zbytečného translation layer (CZ→EN→PubMed→EN→CZ)
+- 🚀 Využití nativních multilingvních schopností Claude Sonnet 4.5
+- 📊 Očekávané výsledky: 40-50% rychlejší, 66% levnější, jednodušší architektura
+- 📋 Specifikace: `specs/005-remove-translation-layer/` (spec, plan, 44 tasks ready)
+
 ## 🏗️ Architektura
 
 ### Multi-Agent Pattern
@@ -56,7 +88,9 @@ User Query (CZ)
     ↓
     ├─→ [Drug Agent] → SÚKL-mcp (8 tools, 68k+ léků)
     ├─→ [Pricing Agent] → VZP LEK-13 (exact match)
-    ├─→ [PubMed Agent] → BioMCP (24 tools) + CZ→EN→CZ translation
+    ├─→ [PubMed Agent] → BioMCP (24 tools)
+    │    └─→ CURRENT: CZ→EN→CZ translation (BUDE ODSTRANĚNO)
+    │    └─→ PLANNED: Direct Czech processing (Feature 005 Refactoring)
     └─→ [Guidelines Agent] → ČLS JEP PDFs (pgvector)
     ↓
 [Citation System] → Konsolidace referencí
@@ -230,6 +264,10 @@ ped                       # Edit plan.md
 ```bash
 cd langgraph-app
 
+# Development Server
+./dev.sh                    # Spustit dev server (doporučeno)
+PYTHONPATH=src langgraph dev # Nebo manuálně
+
 # Testy
 make test                    # Unit testy
 make integration_tests       # Integrační testy
@@ -239,6 +277,10 @@ make test_watch             # Watch mode
 make lint                    # ruff + mypy (strict)
 make format                  # Auto-format
 make spell_check            # Spell check
+
+# Manuální test spouštění (s PYTHONPATH)
+PYTHONPATH=src uv run pytest tests/unit_tests/ -v
+PYTHONPATH=src uv run mypy --strict src/agent/graph.py
 ```
 
 ### CI/CD
@@ -250,27 +292,135 @@ make spell_check            # Spell check
 
 ## 🗺️ Roadmap
 
-### Fáze 0: Foundation (Aktuální - Týdny 1-2)
-- [x] **001-langgraph-foundation** - AgentState, Context, LangSmith setup
-- [ ] **002-mcp-infrastructure** - MCP protocol, Docker, Supabase
+### ✅ Fáze 0: Foundation (DOKONČENO - Týdny 1-2)
 
-### Fáze 1: Core Agents (Týdny 3-6)
-- [ ] **003-sukl-drug-agent** - SÚKL drug search
-- [ ] **004-vzp-pricing-agent** - VZP pricing & coverage
-- [ ] **005-biomcp-pubmed-agent** - PubMed research (BioMCP)
-- [ ] **006-guidelines-agent** - ČLS JEP guidelines
+#### ✅ Feature 001: LangGraph Foundation (5 dní)
+- ✅ State dataclass s typed fields (messages, next, retrieved_docs)
+- ✅ Context TypedDict s runtime konfigurací (model_name, temperature, MCP clients)
+- ✅ pytest fixtures (mock_runtime, sample_state)
+- ✅ LangSmith tracing setup s graceful degradation
+- ✅ placeholder_node jako reference implementace
 
-### Fáze 2: Integration (Týdny 7-9)
-- [ ] **007-supervisor-orchestration** - Intent routing
-- [ ] **008-citation-system** - Citation tracking
-- [ ] **009-synthesizer-node** - Response synthesis
+#### ✅ Feature 002: MCP Infrastructure (4 dny)
+- ✅ **SUKLMCPClient** wrapper s domain-driven design
+  - 8 MCP tools (search_medicine, get_details, PIL/SPC, reimbursement)
+  - Retry strategies s exponential backoff (3 attempts, 2^n delay)
+  - Error handling hierarchy (MCPError → MCPValidationError → MCPServerError)
+- ✅ **BioMCPClient** wrapper
+  - 24 tools pro biomedical databases
+  - article_searcher, article_getter pro PubMed integration
+- ✅ MCP protocol integration s async communication patterns
 
-### Fáze 3: UX & Deployment (Týdny 10-12)
-- [ ] **010-czech-localization** - České lokalizace
-- [ ] **011-fastapi-backend** - REST API
-- [ ] **012-nextjs-frontend** - Chat interface
+---
 
-**📖 Detailní Roadmap:** [specs/ROADMAP.md](./specs/ROADMAP.md)
+### 🔄 Fáze 1: Core Agents (3/4 DOKONČENO - Týdny 3-6)
+
+#### ✅ Feature 003: SÚKL Drug Agent (8 dní)
+- ✅ drug_agent_node implementace
+- ✅ SÚKL-mcp integration s 8 tools
+- ✅ Fuzzy search s typo tolerance (rapidfuzz, threshold 80)
+- ✅ Document transformation (PIL/SPC → LangChain Documents)
+- ✅ Multi-kriteriální ranking pro alternativy
+- ✅ Metadata preservation (ATC kódy, ceny, úhrady)
+
+#### ⏳ Feature 004: VZP Pricing Agent (6 dní) - ČEKÁ NA IMPLEMENTACI
+- ⏳ pricing_agent_node s VZP LEK-13 integration
+- ⏳ Exact match vyhledávání (KÓDL, název léku)
+- ⏳ Kategorie úhrad parsing (A/B/D)
+- ⏳ Předepisovatelnost a limitace
+
+#### ✅ Feature 005: BioMCP PubMed Agent (7 dní) - DOKONČENO + HOTFIX
+- ✅ **pubmed_agent_node** implementace
+  - BioMCP article_searcher integration (abstract search)
+  - BioMCP article_getter integration (PMID lookup)
+  - ResearchQuery model s filters (date_range, article_types)
+- ✅ **Translation nodes** (Sandwich Pattern: CZ→EN→PubMed→EN→CZ)
+  - translate_cz_to_en_node s medicínskou terminologií
+  - translate_en_to_cz_node s metadata preservation
+  - ⚠️ **BUDE ODSTRANĚNO v Feature 005 Refactoring**
+- ✅ **Citation tracking**
+  - Inline references [1][2][3] v responses
+  - Reference section s kompletními citacemi
+  - format_citation helper pro IEEE style
+- ✅ **Phase 7 Quality Polish**
+  - mypy --strict: 0 errors (100% type safety)
+  - ruff check: All checks passed
+  - ruff format: 27 files reformatted
+  - Test coverage: 177/183 passing (97%)
+  - Performance validated: <5s latency (SC-001)
+- ✅ **Multimodal Content Fix (2026-01-25)**
+  - Fixed AttributeError: `route_query` now handles LangGraph Studio multimodal content
+  - Content normalization for `list[ContentBlock]` format
+  - 8 new routing tests covering all message formats
+  - Commit: `a8429ba`
+
+#### 🔄 Feature 005 Refactoring: Remove Translation Layer (PLÁNOVÁNO)
+- 📋 **Status**: Specifikace, plán a 44 tasks připraveny k implementaci
+- 🎯 **Cíl**: Odstranit Sandwich Pattern, využít nativní Claude Sonnet 4.5 multilingvní capabilities
+- 📊 **Očekávané výsledky**:
+  - 40-50% rychlejší odpovědi (8-10s → ≤5s)
+  - 66% úspora nákladů (3 LLM calls → 1 call)
+  - Jednodušší architektura (5 nodes → 3 nodes)
+  - Lepší kvalita češtiny (žádné translation artifacts)
+- 📁 **Dokumentace**: `specs/005-remove-translation-layer/`
+  - spec.md (9 funkčních požadavků, 3 user scenarios)
+  - plan.md (12 high-level tasks, constitution check)
+  - tasks.md (44 detailed tasks v 11 fázích)
+  - checklists/requirements.md (✅ APPROVED)
+- ⏱️ **Časový odhad**: 4-5 hodin (single developer, focused work)
+
+#### ⏳ Feature 006: Guidelines Agent (8 dní) - PLÁNOVÁNO
+- ⏳ guidelines_agent_node s ČLS JEP PDFs
+- ⏳ pgvector semantic search
+- ⏳ PDF parsing a chunking
+- ⏳ Citation extraction
+
+---
+
+### ⏳ Fáze 2: Integration (PLÁNOVÁNO - Týdny 7-9)
+
+#### ⏳ Feature 007: Supervisor Orchestration (9 dní)
+- ⏳ supervisor_node s intent classification (8 typů)
+- ⏳ Multi-agent routing logic
+- ⏳ Conditional edges pro agent selection
+
+#### ⏳ Feature 008: Citation System (6 dní)
+- ⏳ Cross-agent citation consolidation
+- ⏳ Deduplikace referencí
+- ⏳ Citation formatting (IEEE, AMA, APA)
+
+#### ⏳ Feature 009: Synthesizer Node (5 dní)
+- ⏳ Response synthesis z multiple agents
+- ⏳ Inline citation insertion
+- ⏳ Markdown formatting
+
+---
+
+### ⏳ Fáze 3: UX & Deployment (PLÁNOVÁNO - Týdny 10-12)
+
+#### ⏳ Feature 010: Czech Localization (4 dny)
+- ⏳ Kompletní české UI/UX texty
+- ⏳ Error messages v češtině
+- ⏳ Medical terminology dictionary
+
+#### ⏳ Feature 011: FastAPI Backend (6 dní)
+- ⏳ REST API endpoints
+- ⏳ WebSocket/SSE streaming
+- ⏳ Redis caching layer
+- ⏳ Docker containerization
+
+#### ⏳ Feature 012: Next.js Frontend (10 dní)
+- ⏳ Chat interface s streaming
+- ⏳ Citation popups
+- ⏳ TailwindCSS + shadcn/ui
+- ⏳ Mobile-responsive design
+
+---
+
+**📊 Aktuální Progress**: 3/12 features dokončeno (25%) | Constitution v1.0.3 | Test Coverage: 97%
+**🔄 V Plánu**: Feature 005 Refactoring (remove translation layer) - spec/plan/tasks ready
+
+**📖 Detailní Roadmap s tasky:** [specs/ROADMAP.md](./specs/ROADMAP.md)
 
 ## 📚 Dokumentace
 
@@ -289,6 +439,11 @@ make spell_check            # Spell check
 - **specs/001-langgraph-foundation/** - Foundation feature (příklad)
   - [spec.md](./specs/001-langgraph-foundation/spec.md) - Specifikace
   - [plan.md](./specs/001-langgraph-foundation/plan.md) - Implementační plán
+- **specs/005-remove-translation-layer/** - Feature 005 Refactoring (aktuální)
+  - [spec.md](./specs/005-remove-translation-layer/spec.md) - 9 FR, 3 user scenarios
+  - [plan.md](./specs/005-remove-translation-layer/plan.md) - 12 tasks, constitution check
+  - [tasks.md](./specs/005-remove-translation-layer/tasks.md) - 44 detailed tasks
+  - [checklists/requirements.md](./specs/005-remove-translation-layer/checklists/requirements.md) - ✅ APPROVED
 
 ### PRD Dokumentace
 
@@ -324,20 +479,62 @@ make spell_check            # Spell check
 
 ## 🐛 Troubleshooting
 
+### "ModuleNotFoundError: No module named 'agent'"
+```bash
+# LangGraph CLI běží v pipx prostředí - potřebujeme nastavit PYTHONPATH
+cd langgraph-app
+
+# Možnost 1: Použít dev.sh script (doporučeno)
+./dev.sh
+
+# Možnost 2: Manuálně nastavit PYTHONPATH
+PYTHONPATH=src langgraph dev
+```
+
 ### "Not on a feature branch"
 ```bash
 make speckit_new FEATURE="Your feature"
 ```
 
-### "LangGraph dev doesn't work"
+### "LangGraph dev doesn't work" nebo "Old version warning"
 ```bash
+# Upgrade LangGraph CLI
+uv pip install --upgrade 'langgraph-cli[inmem]'
+
+# Nebo s pip
 pip install --upgrade langgraph-cli[inmem]
 ```
 
 ### "Tests fail"
 ```bash
 cd langgraph-app
+
+# Všechny unit testy
+PYTHONPATH=src uv run pytest tests/unit_tests/ -v
+
+# Konkrétní test file
+PYTHONPATH=src uv run pytest tests/unit_tests/test_routing.py -v
+
+# S Makefile
 make test TEST_FILE=tests/unit_tests/test_specific.py
+```
+
+### "Translation tests fail with API error"
+```bash
+# Translation testy vyžadují API kredity
+# Zkontrolujte .env file:
+cat .env | grep API_KEY
+
+# Možnost 1: Použít Anthropic
+ANTHROPIC_API_KEY=sk-ant-api03-...
+TRANSLATION_MODEL=claude-4.5-haiku
+
+# Možnost 2: Použít OpenAI
+OPENAI_API_KEY=sk-proj-...
+TRANSLATION_MODEL=gpt-4o-mini
+
+# Pak restartujte server
+./dev.sh
 ```
 
 ### "mypy type errors"
@@ -346,21 +543,62 @@ make lint  # Shows all errors
 # Fix: Přidejte type hints, použijte TypedDict, Annotated
 ```
 
+### "AttributeError: 'list' object has no attribute 'lower'"
+```bash
+# Tento bug byl opraven v commit a8429ba (2026-01-25)
+# Pokud se objevuje, aktualizujte na nejnovější verzi:
+git pull origin 005-biomcp-pubmed-agent
+
+# Ověřte, že máte multimodal content fix:
+grep -A 5 "Normalize content to string" src/agent/graph.py
+# Měli byste vidět content normalization logic
+```
+
 **📖 Více troubleshooting:** [QUICKSTART.md - Troubleshooting](./QUICKSTART.md#-troubleshooting)
 
 ## 📊 Project Status
 
-**Current Phase:** Foundation (Fáze 0)
-**Current Branch:** `001-langgraph-foundation`
+**Current Phase:** Core Agents (Fáze 1) - 3/4 Complete
+**Current Branch:** `005-biomcp-pubmed-agent`
 **Main Branch:** `main`
+**Constitution:** v1.0.3 (Phase 7 quality standards codified)
 
-**Progress:**
-- ✅ Constitution vytvořena (v1.0.1)
-- ✅ SpecKit framework inicializován
-- ✅ Foundation spec hotová
-- ✅ Foundation plan hotový
-- 🚧 Foundation implementace probíhá
-- ⏳ MCP infrastructure čeká
+**Dokončené Features:**
+- ✅ **Feature 001**: LangGraph Foundation (State, Context, pytest)
+- ✅ **Feature 002**: MCP Infrastructure (SÚKL-mcp + BioMCP clients)
+- ✅ **Feature 003**: SÚKL Drug Agent (fuzzy search, 8 MCP tools)
+- ✅ **Feature 005**: BioMCP PubMed Agent (včetně Phase 7 Polish)
+  - Sandwich Pattern: CZ→EN→PubMed→EN→CZ (⚠️ BUDE ODSTRANĚNO)
+  - Citation tracking [1][2][3]
+  - Performance: <5s latency (SC-001 validated)
+  - Multimodal content fix (commit `a8429ba`)
+
+**V Plánu - Priorita 1:**
+- 🔄 **Feature 005 Refactoring**: Remove Translation Layer (spec/plan/tasks READY)
+  - Odstranit Sandwich Pattern, direct Czech processing
+  - 40-50% rychlejší, 66% levnější, jednodušší architektura
+  - 44 tasks v 11 fázích, 4-5h odhad
+
+**V Plánu - Další:**
+- ⏳ **Feature 004**: VZP Pricing Agent (VZP LEK-13 integration)
+- ⏳ **Feature 006**: Guidelines Agent (ČLS JEP PDFs)
+- ⏳ **Fáze 2**: Integration (supervisor, citations, synthesizer)
+
+**Quality Metrics:**
+- 📊 Test Coverage: **177/183 passing (97%)**
+  - 6 translation tests vyžadují Anthropic API kredity (očekáváno)
+- ✅ Type Safety: **mypy --strict** (0 errors)
+- ✅ Code Quality: **ruff check** (all checks passed)
+- ✅ Formatting: **ruff format** (automated)
+- ⚡ Performance: **<5s latency** (SC-001 requirement)
+- ✅ Multimodal Content: **LangGraph Studio kompatibilita** (hotfix 2026-01-25)
+
+**Constitution Compliance:**
+- ✅ Princip I: Graph-Centric Architecture (všechny features jako LangGraph nodes)
+- ✅ Princip II: Type Safety (mypy --strict enforcement)
+- ✅ Princip III: Test-First Development (TDD workflow dodržen)
+- ✅ Princip IV: Observability (LangSmith tracing configured)
+- ✅ Princip V: Modular Design (single-responsibility nodes)
 
 ## 📜 License
 
@@ -376,7 +614,9 @@ Czech MedAI Development Team
 
 ---
 
-**Verze:** 1.0.0 (Foundation Phase)
-**Poslední aktualizace:** 2026-01-13
+**Verze:** 1.1.2 (Core Agents Phase - 3/4 Complete + Feature 005 Refactoring Ready)
+**Poslední aktualizace:** 2026-01-25
+**Poslední commit:** `a8429ba` (fix: multimodal content handling for LangGraph Studio)
+**Aktuální práce:** Feature 005 Refactoring - Remove Translation Layer (spec/plan/44 tasks ready)
 
 **🚀 Ready to start?** → [QUICKSTART.md](./QUICKSTART.md)
