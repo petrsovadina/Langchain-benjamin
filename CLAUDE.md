@@ -11,9 +11,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ✅ Feature 002: MCP Infrastructure (dokončeno)
 - ✅ Feature 003: SÚKL Drug Agent (dokončeno)
 - ✅ Feature 005: BioMCP PubMed Agent (dokončeno - včetně Phase 7 Polish + Multimodal Fix)
+- 🔄 **Feature 005 Refactoring**: Remove Translation Layer (PLÁNOVÁNO - spec/plan/tasks ready)
 - ⏳ Feature 004: VZP Pricing Agent (čeká)
 
 **Poslední změny (2026-01-25)**:
+- 📋 Feature 005 Refactoring: Specifikace, plán a 44 tasks vytvořeny
+- 🎯 Cíl: Odstranit Sandwich Pattern (CZ→EN→CZ), využít nativní Claude Sonnet 4.5 multilingvní capabilities
+- 📈 Očekávaný přínos: 40-50% rychlejší, 66% levnější, jednodušší architektura
 - ✅ Multimodal content handling fix (commit `a8429ba`)
 - ✅ dev.sh startup script pro snadné spouštění serveru
 - ✅ Test coverage: 177/183 passing (97%)
@@ -60,6 +64,11 @@ specs/                     # Specifikace features
 │   ├── plan.md           # Implementační plán
 │   ├── tasks.md          # Rozpad úkolů (81 tasks, all complete)
 │   └── contracts/        # API contracts, data models
+├── 005-remove-translation-layer/  # Feature 005 Refactoring
+│   ├── spec.md           # Refactoring specifikace (9 FR)
+│   ├── plan.md           # Implementační plán (12 tasks)
+│   ├── tasks.md          # Task breakdown (44 tasks)
+│   └── checklists/       # Quality validation checklists
 └── ROADMAP.md            # Master roadmap (12 features, 4 fáze)
 
 .specify/                  # SpecKit framework
@@ -172,7 +181,8 @@ LANGSMITH_API_KEY=lsv2_pt_...
 LANGSMITH_PROJECT=czech-medai-dev
 LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 
-# Translation API (POVINNÉ pro PubMed agent)
+# Translation API (AKTUÁLNĚ POVINNÉ, BUDE ODSTRANENO)
+# ⚠️ Plánováno k odstranění v Feature 005 Refactoring
 # Možnost 1: Anthropic (doporučeno)
 ANTHROPIC_API_KEY=sk-ant-api03-...
 TRANSLATION_MODEL=claude-4.5-haiku
@@ -185,7 +195,9 @@ TRANSLATION_MODEL=claude-4.5-haiku
 LOG_LEVEL=INFO
 ```
 
-**DŮLEŽITÉ**: Translation nodes (`translate_cz_to_en_node`, `translate_en_to_cz_node`) vyžadují buď `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY` pro funkčnost PubMed agenta (Sandwich Pattern).
+**DŮLEŽITÉ**:
+- **SOUČASNÝ STAV**: Translation nodes (`translate_cz_to_en_node`, `translate_en_to_cz_node`) vyžadují buď `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY` pro funkčnost PubMed agenta (Sandwich Pattern)
+- **PLÁNOVANÉ ZMĚNY**: Po Feature 005 Refactoring NEBUDE třeba ANTHROPIC_API_KEY (direct Czech processing)
 
 ## Architektura
 
@@ -199,10 +211,13 @@ LOG_LEVEL=INFO
 
 **PubMed Agent (Feature 005)**:
 - BioMCP integration (article_searcher, article_getter)
-- Sandwich Pattern: CZ→EN→PubMed→EN→CZ translation
+- **CURRENT**: Sandwich Pattern: CZ→EN→PubMed→EN→CZ translation (BUDE ODSTRANĚNO)
+- **PLANNED**: Direct Czech processing s Claude Sonnet 4.5 (Feature 005 Refactoring)
 - Citation tracking s inline references [1][2][3]
 - Performance <5s latency (SC-001)
 - **Multimodal content handling**: route_query normalizuje LangGraph Studio `list[ContentBlock]` format
+
+**⚠️ Poznámka**: Translation layer je plánován k odstranění (Feature 005 Refactoring) - viz `specs/005-remove-translation-layer/`
 
 ### Multi-Agent Pattern (Cílový Stav)
 
@@ -481,8 +496,9 @@ async def drug_agent_node(state: State, runtime: Runtime[Context]):
 - `article_recommender` - Get similar articles
 - `article_pmc_getter` - Get full text from PMC
 
-**Sandwich Pattern** (CZ→EN→CZ):
+**Sandwich Pattern** (CZ→EN→CZ) - ⚠️ BUDE ODSTRANĚNO:
 ```python
+# SOUČASNÝ STAV (Feature 005)
 # 1. Czech query → Translate to English
 state = await translate_cz_to_en_node(state, runtime)
 
@@ -491,7 +507,13 @@ state = await pubmed_agent_node(state, runtime)
 
 # 3. Results → Translate to Czech
 state = await translate_en_to_cz_node(state, runtime)
+
+# PLÁNOVANÝ STAV (Feature 005 Refactoring)
+# Direct Czech processing - bez translation layer
+state = await pubmed_agent_node(state, runtime)  # Direct CZ query → CZ response
 ```
+
+**📋 Refactoring Specifikace**: `specs/005-remove-translation-layer/` (spec.md, plan.md, tasks.md)
 
 ## Troubleshooting
 
@@ -528,6 +550,7 @@ PYTHONPATH=src langgraph dev
 - Zkontrolujte `.env` file: `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY`
 - Mock LLM responses v unit testech pro offline testing
 - Use `ChatAnthropic(model_name=..., temperature=0, timeout=None, stop=None)`
+- **⚠️ Poznámka**: Translation tests budou odstraněny v Feature 005 Refactoring
 
 ### AttributeError: 'list' object has no attribute 'lower'
 
@@ -551,6 +574,7 @@ grep -A 5 "Normalize content to string" src/agent/graph.py
 6. **`pyproject.toml`** - Závislosti & ruff/mypy konfigurace
 7. **`tests/conftest.py`** - Pytest fixtures (anyio_backend, mocks, samples)
 8. **`specs/ROADMAP.md`** - Master roadmap všech features
+9. **`specs/005-remove-translation-layer/`** - Feature 005 Refactoring (spec, plan, 44 tasks)
 
 ## Reference
 
@@ -573,6 +597,66 @@ grep -A 5 "Normalize content to string" src/agent/graph.py
 **Aktuální větev**: 005-biomcp-pubmed-agent
 **Main větev**: main
 **Status projektu**: Fáze 1 (Core Agents) - 3/4 agentů dokončeno (Drug, PubMed + Multimodal Fix), Pricing čeká
+**Aktuální práce**: Feature 005 Refactoring - Remove Translation Layer (spec/plan/tasks ready for implementation)
 **Constitution**: v1.0.3 (Phase 7 quality standards codified)
 **Test Coverage**: 177/183 passing (97%)
 **Poslední commit**: `a8429ba` (fix: multimodal content handling), `ebf850a` (docs: README + dev.sh)
+
+---
+
+## 🔄 Feature 005 Refactoring: Remove Translation Layer
+
+**Status**: PLÁNOVÁNO - Ready for Implementation
+**Specifikace**: `specs/005-remove-translation-layer/`
+**Branch**: `005-biomcp-pubmed-agent` (current)
+
+### Motivace
+
+Claude Sonnet 4.5 je nativně multilingvní - zbytečné překládat CZ→EN→CZ. Translation layer je overengineering.
+
+### Cíle Refactoringu
+
+- ❌ Odstranit `translate_cz_to_en_node` a `translate_en_to_cz_node`
+- ✅ PubMed agent bude přímo zpracovávat české dotazy
+- ✅ Eliminovat závislost na ANTHROPIC_API_KEY pro translation
+- ✅ Zjednodušit routing: `route_query` → `pubmed_agent` → `__end__`
+
+### Očekávané Výsledky
+
+- 🚀 **40-50% rychlejší** odpovědi (8-10s → ≤5s latence)
+- 💰 **66% úspora nákladů** (3 LLM calls → 1 call)
+- 🏗️ **Jednodušší architektura** (5 nodes → 3 nodes v research flow)
+- 🇨🇿 **Lepší kvalita češtiny** (žádné translation artifacts)
+
+### Implementační Plán
+
+**44 tasks v 11 fázích**:
+
+1. **Setup & Validation** (T001-T003): Baseline metrics, backup branch
+2. **Test Preparation** (T004-T007): TDD red phase
+3. **PubMed Agent Refactoring** (T008-T012): TDD green phase
+4. **Graph Simplification** (T013-T018): Remove translation nodes
+5. **State Schema Cleanup** (T019-T021): Remove ResearchQuery
+6. **File Deletion** (T022-T025): Delete translation files
+7. **Configuration Cleanup** (T026-T028): Remove ANTHROPIC_API_KEY
+8. **Documentation Updates** (T029-T031): CLAUDE.md, README.md
+9. **Quality Validation** (T032-T037): mypy, ruff, tests
+10. **Manual Validation** (T038-T041): LangGraph Studio testing
+11. **Polish & Finalization** (T042-T044): Code review, commit
+
+**Časový odhad**: 4-5 hodin (single developer)
+
+### Dokumentace
+
+- **Spec**: `specs/005-remove-translation-layer/spec.md` (9 FR, 3 user scenarios)
+- **Plan**: `specs/005-remove-translation-layer/plan.md` (12 high-level tasks)
+- **Tasks**: `specs/005-remove-translation-layer/tasks.md` (44 detailed tasks)
+- **Checklist**: `specs/005-remove-translation-layer/checklists/requirements.md` (✅ APPROVED)
+
+### Další Kroky
+
+**Po dokončení refactoringu**:
+1. Update CLAUDE.md (odstranit Sandwich Pattern references)
+2. Update README.md (ANTHROPIC_API_KEY optional)
+3. Merge do main
+4. Pokračovat s Feature 004 (VZP Pricing Agent)

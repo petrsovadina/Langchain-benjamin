@@ -28,7 +28,7 @@ uv pip install 'langgraph-cli[inmem]'
 # 3. Environment setup
 cp .env.example .env
 # Editujte .env a přidejte API klíče:
-# - ANTHROPIC_API_KEY (pro translation) nebo OPENAI_API_KEY
+# - ANTHROPIC_API_KEY (AKTUÁLNĚ pro translation, BUDE OPTIONAL po Feature 005 Refactoring)
 # - LANGSMITH_API_KEY (volitelné - pro tracing)
 
 # 4. Spustit dev server
@@ -46,7 +46,9 @@ cp .env.example .env
 
 - **PYTHONPATH**: Server vyžaduje `PYTHONPATH=src` pro správný import modulů
 - **dev.sh script**: Automaticky nastavuje PYTHONPATH a aktivuje venv
-- **API klíče**: Translation nodes vyžadují buď ANTHROPIC_API_KEY nebo OPENAI_API_KEY
+- **API klíče**:
+  - **AKTUÁLNĚ**: Translation nodes vyžadují ANTHROPIC_API_KEY nebo OPENAI_API_KEY
+  - **PLÁNOVÁNO**: Po Feature 005 Refactoring bude ANTHROPIC_API_KEY volitelný (direct Czech processing)
 - **LangGraph CLI**: Běží v pipx prostředí, proto potřebujeme PYTHONPATH
 
 ## 📋 Co je Czech MedAI?
@@ -67,6 +69,14 @@ Czech MedAI (kódové jméno "Benjamin") je AI-powered systém určený pro čes
 - Farmaceuti
 - Zdravotní sestry a studenti medicíny
 
+### 🔄 Aktuální Vývoj
+
+**Feature 005 Refactoring** (v plánu):
+- 🎯 Odstranění zbytečného translation layer (CZ→EN→PubMed→EN→CZ)
+- 🚀 Využití nativních multilingvních schopností Claude Sonnet 4.5
+- 📊 Očekávané výsledky: 40-50% rychlejší, 66% levnější, jednodušší architektura
+- 📋 Specifikace: `specs/005-remove-translation-layer/` (spec, plan, 44 tasks ready)
+
 ## 🏗️ Architektura
 
 ### Multi-Agent Pattern
@@ -78,7 +88,9 @@ User Query (CZ)
     ↓
     ├─→ [Drug Agent] → SÚKL-mcp (8 tools, 68k+ léků)
     ├─→ [Pricing Agent] → VZP LEK-13 (exact match)
-    ├─→ [PubMed Agent] → BioMCP (24 tools) + CZ→EN→CZ translation
+    ├─→ [PubMed Agent] → BioMCP (24 tools)
+    │    └─→ CURRENT: CZ→EN→CZ translation (BUDE ODSTRANĚNO)
+    │    └─→ PLANNED: Direct Czech processing (Feature 005 Refactoring)
     └─→ [Guidelines Agent] → ČLS JEP PDFs (pgvector)
     ↓
 [Citation System] → Konsolidace referencí
@@ -325,6 +337,7 @@ PYTHONPATH=src uv run mypy --strict src/agent/graph.py
 - ✅ **Translation nodes** (Sandwich Pattern: CZ→EN→PubMed→EN→CZ)
   - translate_cz_to_en_node s medicínskou terminologií
   - translate_en_to_cz_node s metadata preservation
+  - ⚠️ **BUDE ODSTRANĚNO v Feature 005 Refactoring**
 - ✅ **Citation tracking**
   - Inline references [1][2][3] v responses
   - Reference section s kompletními citacemi
@@ -340,6 +353,21 @@ PYTHONPATH=src uv run mypy --strict src/agent/graph.py
   - Content normalization for `list[ContentBlock]` format
   - 8 new routing tests covering all message formats
   - Commit: `a8429ba`
+
+#### 🔄 Feature 005 Refactoring: Remove Translation Layer (PLÁNOVÁNO)
+- 📋 **Status**: Specifikace, plán a 44 tasks připraveny k implementaci
+- 🎯 **Cíl**: Odstranit Sandwich Pattern, využít nativní Claude Sonnet 4.5 multilingvní capabilities
+- 📊 **Očekávané výsledky**:
+  - 40-50% rychlejší odpovědi (8-10s → ≤5s)
+  - 66% úspora nákladů (3 LLM calls → 1 call)
+  - Jednodušší architektura (5 nodes → 3 nodes)
+  - Lepší kvalita češtiny (žádné translation artifacts)
+- 📁 **Dokumentace**: `specs/005-remove-translation-layer/`
+  - spec.md (9 funkčních požadavků, 3 user scenarios)
+  - plan.md (12 high-level tasks, constitution check)
+  - tasks.md (44 detailed tasks v 11 fázích)
+  - checklists/requirements.md (✅ APPROVED)
+- ⏱️ **Časový odhad**: 4-5 hodin (single developer, focused work)
 
 #### ⏳ Feature 006: Guidelines Agent (8 dní) - PLÁNOVÁNO
 - ⏳ guidelines_agent_node s ČLS JEP PDFs
@@ -389,7 +417,8 @@ PYTHONPATH=src uv run mypy --strict src/agent/graph.py
 
 ---
 
-**📊 Aktuální Progress**: 3/12 features dokončeno (25%) | Constitution v1.0.3 | Test Coverage: 96%
+**📊 Aktuální Progress**: 3/12 features dokončeno (25%) | Constitution v1.0.3 | Test Coverage: 97%
+**🔄 V Plánu**: Feature 005 Refactoring (remove translation layer) - spec/plan/tasks ready
 
 **📖 Detailní Roadmap s tasky:** [specs/ROADMAP.md](./specs/ROADMAP.md)
 
@@ -410,6 +439,11 @@ PYTHONPATH=src uv run mypy --strict src/agent/graph.py
 - **specs/001-langgraph-foundation/** - Foundation feature (příklad)
   - [spec.md](./specs/001-langgraph-foundation/spec.md) - Specifikace
   - [plan.md](./specs/001-langgraph-foundation/plan.md) - Implementační plán
+- **specs/005-remove-translation-layer/** - Feature 005 Refactoring (aktuální)
+  - [spec.md](./specs/005-remove-translation-layer/spec.md) - 9 FR, 3 user scenarios
+  - [plan.md](./specs/005-remove-translation-layer/plan.md) - 12 tasks, constitution check
+  - [tasks.md](./specs/005-remove-translation-layer/tasks.md) - 44 detailed tasks
+  - [checklists/requirements.md](./specs/005-remove-translation-layer/checklists/requirements.md) - ✅ APPROVED
 
 ### PRD Dokumentace
 
@@ -534,11 +568,18 @@ grep -A 5 "Normalize content to string" src/agent/graph.py
 - ✅ **Feature 002**: MCP Infrastructure (SÚKL-mcp + BioMCP clients)
 - ✅ **Feature 003**: SÚKL Drug Agent (fuzzy search, 8 MCP tools)
 - ✅ **Feature 005**: BioMCP PubMed Agent (včetně Phase 7 Polish)
-  - Sandwich Pattern: CZ→EN→PubMed→EN→CZ
+  - Sandwich Pattern: CZ→EN→PubMed→EN→CZ (⚠️ BUDE ODSTRANĚNO)
   - Citation tracking [1][2][3]
   - Performance: <5s latency (SC-001 validated)
+  - Multimodal content fix (commit `a8429ba`)
 
-**V Plánu:**
+**V Plánu - Priorita 1:**
+- 🔄 **Feature 005 Refactoring**: Remove Translation Layer (spec/plan/tasks READY)
+  - Odstranit Sandwich Pattern, direct Czech processing
+  - 40-50% rychlejší, 66% levnější, jednodušší architektura
+  - 44 tasks v 11 fázích, 4-5h odhad
+
+**V Plánu - Další:**
 - ⏳ **Feature 004**: VZP Pricing Agent (VZP LEK-13 integration)
 - ⏳ **Feature 006**: Guidelines Agent (ČLS JEP PDFs)
 - ⏳ **Fáze 2**: Integration (supervisor, citations, synthesizer)
@@ -573,8 +614,9 @@ Czech MedAI Development Team
 
 ---
 
-**Verze:** 1.1.1 (Core Agents Phase - 3/4 Complete + Multimodal Fix)
+**Verze:** 1.1.2 (Core Agents Phase - 3/4 Complete + Feature 005 Refactoring Ready)
 **Poslední aktualizace:** 2026-01-25
 **Poslední commit:** `a8429ba` (fix: multimodal content handling for LangGraph Studio)
+**Aktuální práce:** Feature 005 Refactoring - Remove Translation Layer (spec/plan/44 tasks ready)
 
 **🚀 Ready to start?** → [QUICKSTART.md](./QUICKSTART.md)
