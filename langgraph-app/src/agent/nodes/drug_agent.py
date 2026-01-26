@@ -598,12 +598,12 @@ async def drug_agent_node(
     # Entry logging
     logger.info("[drug_agent_node] Starting drug query processing")
 
-    # Get context
-    context = runtime.context or {}
-    sukl_client: SUKLMCPClient | None = context.get("sukl_mcp_client")
+    # Get MCP clients with fallback to module-level instances
+    from agent.graph import get_mcp_clients
+    sukl_client, _ = get_mcp_clients(runtime)
 
     if not sukl_client:
-        logger.error("[drug_agent_node] No SÚKL MCP client in context")
+        logger.error("[drug_agent_node] No SÚKL MCP client available")
         return {
             "messages": [
                 {

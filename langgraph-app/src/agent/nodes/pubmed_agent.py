@@ -378,12 +378,12 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str
             "next": "__end__",
         }
 
-    # Get BioMCP client
-    context = runtime.context or {}
-    biomcp_client = context.get("biomcp_client")
+    # Get MCP clients with fallback to module-level instances
+    from agent.graph import get_mcp_clients
+    _, biomcp_client = get_mcp_clients(runtime)
 
     if not biomcp_client:
-        print("[pubmed_agent] ERROR: biomcp_client not found in context")
+        print("[pubmed_agent] ERROR: BioMCP client not available")
         return {
             "retrieved_docs": [],
             "messages": [

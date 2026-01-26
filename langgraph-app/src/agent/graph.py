@@ -22,6 +22,9 @@ from typing_extensions import TypedDict
 from agent.models.drug_models import DrugQuery
 from agent.models.research_models import ResearchQuery
 
+# Import MCP infrastructure (Feature 002)
+from agent.mcp import SUKLMCPClient, BioMCPClient, MCPConfig
+
 # Import drug_agent_node (Feature 003)
 from agent.nodes import drug_agent_node
 from agent.nodes.pubmed_agent import pubmed_agent_node
@@ -44,6 +47,65 @@ except Exception as e:
     print(
         f"[LangSmith] Tracing initialization warning: {e} - continuing without tracing"
     )
+
+# Initialize MCP clients for dev server (Feature 002)
+_mcp_config = MCPConfig.from_env()
+_sukl_client: SUKLMCPClient | None = None
+_biomcp_client: BioMCPClient | None = None
+
+try:
+    _sukl_client = SUKLMCPClient(
+        base_url=_mcp_config.sukl_url,
+        timeout=_mcp_config.sukl_timeout,
+        default_retry_config=_mcp_config.to_retry_config()
+    )
+    print(f"[MCP] SÚKL client initialized: {_mcp_config.sukl_url}")
+except Exception as e:
+    print(f"[MCP] Failed to initialize SÚKL client: {e} - drug agent will be unavailable")
+
+try:
+    _biomcp_client = BioMCPClient(
+        base_url=_mcp_config.biomcp_url,
+        timeout=_mcp_config.biomcp_timeout,
+        max_results=_mcp_config.biomcp_max_results,
+        default_retry_config=_mcp_config.to_retry_config()
+    )
+    print(f"[MCP] BioMCP client initialized: {_mcp_config.biomcp_url}")
+except Exception as e:
+    print(f"[MCP] Failed to initialize BioMCP client: {e} - PubMed agent will be unavailable")
+
+
+def get_mcp_clients(runtime: Runtime[Any]) -> tuple[SUKLMCPClient | None, BioMCPClient | None]:
+    """Get MCP clients from runtime context with fallback to module-level instances.
+
+    Helper function for nodes to access MCP clients. Checks runtime.context first,
+    then falls back to module-level _sukl_client and _biomcp_client initialized
+    at module load time from environment variables.
+
+    Args:
+        runtime: LangGraph Runtime instance with optional context.
+
+    Returns:
+        Tuple of (sukl_client, biomcp_client), either may be None if unavailable.
+
+    Example:
+        >>> sukl_client, biomcp_client = get_mcp_clients(runtime)
+        >>> if sukl_client:
+        ...     result = await sukl_client.call_tool("search_medicine", {...})
+    """
+    context = runtime.context or {}
+
+    # Try runtime context first (for testing/override)
+    sukl = context.get("sukl_mcp_client")
+    biomcp = context.get("biomcp_client")
+
+    # Fallback to module-level clients (dev server default)
+    if sukl is None:
+        sukl = _sukl_client
+    if biomcp is None:
+        biomcp = _biomcp_client
+
+    return sukl, biomcp
 
 
 class Context(TypedDict, total=False):
