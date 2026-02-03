@@ -23,6 +23,13 @@ from agent.models.research_models import (
     ResearchQuery,
     TranslatedArticle,
 )
+from agent.models.guideline_models import (
+    GuidelineDocument,
+    GuidelineQuery,
+    GuidelineQueryType,
+    GuidelineSection,
+    GuidelineSource,
+)
 
 __all__: list[str] = [
     # Drug models (Feature 003)
@@ -39,4 +46,10 @@ __all__: list[str] = [
     "PubMedArticle",
     "TranslatedArticle",
     "CitationReference",
+    # Guideline models (Feature 006)
+    "GuidelineQueryType",
+    "GuidelineSource",
+    "GuidelineQuery",
+    "GuidelineSection",
+    "GuidelineDocument",
 ]

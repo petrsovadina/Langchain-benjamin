@@ -264,7 +264,7 @@ DRUG_KEYWORDS = {
 
 # Research-related keywords for routing (Czech + English)
 RESEARCH_KEYWORDS = {
-    # Czech
+    # Czech - research terms
     "studie",
     "výzkum",
     "pubmed",
@@ -282,6 +282,29 @@ RESEARCH_KEYWORDS = {
     "evidence",
     "důkazy",
     "publikace",
+    # Czech - medical conditions & treatments (route to research)
+    "diabetes",
+    "diabetu",
+    "diabetem",
+    "cukrovka",
+    "cukrovkou",
+    "léčba",
+    "léčení",
+    "terapie",
+    "onemocnění",
+    "nemoc",
+    "choroba",
+    "syndrom",
+    "symptom",
+    "příznaky",
+    "diagnóza",
+    "diagnostika",
+    "prevence",
+    "prognóza",
+    "komplikace",
+    "riziko",
+    "účinnost",
+    "bezpečnost",
     # English fallback
     "study",
     "research",
@@ -293,6 +316,10 @@ RESEARCH_KEYWORDS = {
     "systematic review",
     "evidence",
     "publication",
+    "treatment",
+    "therapy",
+    "disease",
+    "diagnosis",
 }
 
 
