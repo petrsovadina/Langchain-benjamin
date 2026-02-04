@@ -24,6 +24,7 @@ from agent.models.research_models import (
     PubMedArticle,
     ResearchQuery,
 )
+from agent.utils.guidelines_storage import GuidelineNotFoundError
 
 
 @pytest.fixture(scope="session")
@@ -537,4 +538,80 @@ def mock_openai_embeddings_client() -> MagicMock:
     mock.embeddings.create = AsyncMock(
         side_effect=lambda input, model: MockResponse(len(input))
     )
+    return mock
+
+
+@pytest.fixture
+def mock_guidelines_storage() -> MagicMock:
+    """Mock guidelines storage for testing.
+
+    Returns:
+        MagicMock: Mock with preconfigured search_guidelines and get_guideline_section.
+    """
+    mock = MagicMock()
+
+    # Mock search_guidelines (returns list of dicts)
+    async def search_guidelines_side_effect(
+        query: List[float],
+        limit: int = 10,
+        source_filter: str | None = None,
+        publication_date_from: str | None = None,
+        publication_date_to: str | None = None,
+        pool: Any = None,
+    ) -> List[Dict[str, Any]]:
+        # Return sample guideline sections
+        return [
+            {
+                "id": 1,
+                "guideline_id": "CLS-JEP-2024-001",
+                "title": "Doporučené postupy pro hypertenzi",
+                "section_name": "Farmakologická léčba",
+                "content": "ACE inhibitory jsou léky první volby...",
+                "publication_date": "2024-01-15",
+                "source": "cls_jep",
+                "url": "https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+                "metadata": {},
+                "similarity_score": 0.85,
+            },
+            {
+                "id": 2,
+                "guideline_id": "ESC-2023-015",
+                "title": "ESC Guidelines for Diabetes",
+                "section_name": "Cardiovascular Risk",
+                "content": "All patients with diabetes should undergo...",
+                "publication_date": "2023-09-01",
+                "source": "esc",
+                "url": "https://www.escardio.org/Guidelines/diabetes-2023.pdf",
+                "metadata": {},
+                "similarity_score": 0.78,
+            },
+        ]
+
+    # Mock get_guideline_section (returns single dict)
+    async def get_guideline_section_side_effect(
+        guideline_id: str,
+        section_name: str | None = None,
+        section_id: int | None = None,
+        pool: Any = None,
+    ) -> Dict[str, Any]:
+        if guideline_id == "CLS-JEP-2024-001":
+            return {
+                "id": 1,
+                "guideline_id": "CLS-JEP-2024-001",
+                "title": "Doporučené postupy pro hypertenzi",
+                "section_name": "Definice a klasifikace",
+                "content": "Hypertenze je definována jako...",
+                "publication_date": "2024-01-15",
+                "source": "cls_jep",
+                "url": "https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+                "metadata": {},
+            }
+        else:
+            raise GuidelineNotFoundError(f"Guideline {guideline_id} not found")
+
+    mock.search_guidelines = AsyncMock(side_effect=search_guidelines_side_effect)
+    mock.get_guideline_section = AsyncMock(
+        side_effect=get_guideline_section_side_effect
+    )
+
     return mock

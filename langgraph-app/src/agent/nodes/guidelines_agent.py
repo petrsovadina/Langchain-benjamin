@@ -215,9 +215,15 @@ async def search_guidelines_semantic(
         ValueError: If OpenAI API key is not available.
         GuidelinesStorageError: If search fails.
     """
-    # Get OpenAI API key from runtime context or environment
+    # Get OpenAI API key from runtime context, configurable, or environment
+    # Priority: context > configurable > environment variable
     context = runtime.context or {}
-    api_key = context.get("openai_api_key") or os.getenv("OPENAI_API_KEY")
+    configurable = getattr(runtime, "configurable", {}) or {}
+    api_key = (
+        context.get("openai_api_key")
+        or configurable.get("openai_api_key")
+        or os.getenv("OPENAI_API_KEY")
+    )
 
     if not api_key:
         raise ValueError(

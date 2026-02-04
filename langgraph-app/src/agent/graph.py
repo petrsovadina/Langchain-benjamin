@@ -129,6 +129,9 @@ class Context(TypedDict, total=False):
         sukl_mcp_client: SUKLMCPClient - Czech pharmaceutical database client
         biomcp_client: BioMCPClient - International biomedical data client
 
+        # API Keys (Feature 006)
+        openai_api_key: OpenAI API key for embeddings (guidelines semantic search)
+
         # Conversation Tracking (BioAgents-inspired)
         conversation_context: Any  # ConversationContext - persistent state
 
@@ -157,6 +160,9 @@ class Context(TypedDict, total=False):
     # Actual types: SUKLMCPClient, BioMCPClient (from agent.mcp)
     sukl_mcp_client: Any
     biomcp_client: Any
+
+    # API Keys (Feature 006)
+    openai_api_key: str
 
     # Conversation persistence (typed in Feature 013)
     conversation_context: Any
