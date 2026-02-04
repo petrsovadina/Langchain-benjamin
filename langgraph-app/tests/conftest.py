@@ -1,5 +1,6 @@
 """Pytest fixtures for Czech MedAI foundation tests."""
 
+from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock
 
@@ -12,6 +13,12 @@ from agent.models.drug_models import (
     DrugQuery,
     DrugResult,
     QueryType,
+)
+from agent.models.guideline_models import (
+    GuidelineQuery,
+    GuidelineQueryType,
+    GuidelineSection,
+    GuidelineSource,
 )
 from agent.models.research_models import (
     PubMedArticle,
@@ -406,3 +413,128 @@ def sample_pubmed_articles() -> List[PubMedArticle]:
             doi="10.1038/s41574-023-00456-7",
         ),
     ]
+
+
+# =============================================================================
+# Feature 006: Guidelines Agent Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def sample_guideline_query() -> GuidelineQuery:
+    """Provide a sample GuidelineQuery for testing.
+
+    Returns:
+        GuidelineQuery: Search query for hypertension guidelines.
+    """
+    return GuidelineQuery(
+        query_text="léčba hypertenze",
+        query_type=GuidelineQueryType.SEARCH,
+        specialty_filter="cardiology",
+        limit=10,
+    )
+
+
+@pytest.fixture
+def sample_guideline_section() -> GuidelineSection:
+    """Provide a sample GuidelineSection for testing.
+
+    Returns:
+        GuidelineSection: Sample guideline section with content.
+    """
+    return GuidelineSection(
+        guideline_id="CLS-JEP-2024-001",
+        title="Doporučené postupy pro hypertenzi",
+        section_name="Farmakologická léčba",
+        content="""ACE inhibitory (ramipril, perindopril) jsou léky první volby
+u většiny pacientů s hypertenzí. Alternativou jsou sartany (losartan, valsartan)
+při nesnášenlivosti ACE inhibitorů. Při nedostatečné kontrole monoterapií se
+přidává blokátor kalciových kanálů (amlodipin) nebo thiazidové diuretikum.""",
+        publication_date="2024-01-15",
+        source=GuidelineSource.CLS_JEP,
+        url="https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+    )
+
+
+@pytest.fixture
+def sample_guideline_sections() -> List[GuidelineSection]:
+    """Provide multiple GuidelineSection objects for testing.
+
+    Returns:
+        List[GuidelineSection]: List of 3 sample guideline sections.
+    """
+    return [
+        GuidelineSection(
+            guideline_id="CLS-JEP-2024-001",
+            title="Doporučené postupy pro hypertenzi",
+            section_name="Definice a klasifikace",
+            content="Hypertenze je definována jako opakovaně naměřený krevní tlak ≥140/90 mmHg.",
+            publication_date="2024-01-15",
+            source=GuidelineSource.CLS_JEP,
+            url="https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+        ),
+        GuidelineSection(
+            guideline_id="CLS-JEP-2024-001",
+            title="Doporučené postupy pro hypertenzi",
+            section_name="Farmakologická léčba",
+            content="ACE inhibitory jsou léky první volby u většiny pacientů.",
+            publication_date="2024-01-15",
+            source=GuidelineSource.CLS_JEP,
+            url="https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+        ),
+        GuidelineSection(
+            guideline_id="ESC-2023-015",
+            title="ESC Guidelines for Diabetes Management",
+            section_name="Cardiovascular Risk Assessment",
+            content="All patients with diabetes should undergo cardiovascular risk assessment.",
+            publication_date="2023-09-01",
+            source=GuidelineSource.ESC,
+            url="https://www.escardio.org/Guidelines/diabetes-2023.pdf",
+        ),
+    ]
+
+
+@pytest.fixture
+def sample_pdf_path(tmp_path: Path) -> str:
+    """Create sample PDF for testing.
+
+    Returns:
+        str: Path to sample PDF file.
+    """
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+
+    pdf_path = tmp_path / "sample_guideline.pdf"
+
+    # Create a simple PDF with text using reportlab
+    c = canvas.Canvas(str(pdf_path), pagesize=letter)
+    c.setTitle("Test Guideline")
+    c.setAuthor("ČLS JEP")
+    c.drawString(100, 700, "Sample guideline content for testing")
+    c.save()
+
+    return str(pdf_path)
+
+
+@pytest.fixture
+def mock_openai_embeddings_client() -> MagicMock:
+    """Mock OpenAI client for embeddings.
+
+    Returns:
+        MagicMock: Mock client with preconfigured embedding responses.
+    """
+
+    class MockEmbedding:
+        def __init__(self):
+            self.embedding = [0.1] * 1536
+
+    class MockResponse:
+        def __init__(self, num_embeddings: int):
+            self.data = [MockEmbedding() for _ in range(num_embeddings)]
+
+    mock = MagicMock()
+    mock.embeddings = MagicMock()
+    mock.embeddings.create = AsyncMock(
+        side_effect=lambda input, model: MockResponse(len(input))
+    )
+    return mock

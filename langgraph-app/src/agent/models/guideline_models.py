@@ -87,6 +87,7 @@ class GuidelineSection(BaseModel):
         publication_date: Publication date (YYYY-MM-DD).
         source: Guideline source (cls_jep/esc/ers).
         url: URL to guideline document.
+        metadata: Additional metadata dict for embeddings, chunk info, ingestion timestamp.
 
     Example:
         >>> section = GuidelineSection(
@@ -98,6 +99,9 @@ class GuidelineSection(BaseModel):
         ...     source=GuidelineSource.CLS_JEP,
         ...     url="https://www.cls.cz/guidelines/hypertenze-2024.pdf"
         ... )
+        >>> section.metadata["embedding"] = [0.1, 0.2, ...]
+        >>> section.model_dump()["metadata"]["embedding"]
+        [0.1, 0.2, ...]
     """
 
     guideline_id: str = Field(..., min_length=1, description="Unique guideline identifier")
@@ -107,6 +111,10 @@ class GuidelineSection(BaseModel):
     publication_date: str = Field(..., description="Publication date (YYYY-MM-DD)")
     source: GuidelineSource = Field(..., description="Guideline source")
     url: str = Field(..., description="URL to guideline document")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata (embeddings, chunk info, ingestion timestamp)",
+    )
 
     @field_validator("guideline_id")
     @classmethod
