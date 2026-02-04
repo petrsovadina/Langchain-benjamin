@@ -18,15 +18,17 @@ from langgraph.graph.message import add_messages
 from langgraph.runtime import Runtime
 from typing_extensions import TypedDict
 
+# Import MCP infrastructure (Feature 002)
+from agent.mcp import BioMCPClient, MCPConfig, SUKLMCPClient
+
 # Runtime import for State dataclass (required for LangGraph type resolution)
 from agent.models.drug_models import DrugQuery
+from agent.models.guideline_models import GuidelineQuery
 from agent.models.research_models import ResearchQuery
-
-# Import MCP infrastructure (Feature 002)
-from agent.mcp import SUKLMCPClient, BioMCPClient, MCPConfig
 
 # Import drug_agent_node (Feature 003)
 from agent.nodes import drug_agent_node
+from agent.nodes.guidelines_agent import guidelines_agent_node
 from agent.nodes.pubmed_agent import pubmed_agent_node
 
 # Import translation and pubmed_agent nodes (Feature 005)
@@ -57,25 +59,31 @@ try:
     _sukl_client = SUKLMCPClient(
         base_url=_mcp_config.sukl_url,
         timeout=_mcp_config.sukl_timeout,
-        default_retry_config=_mcp_config.to_retry_config()
+        default_retry_config=_mcp_config.to_retry_config(),
     )
     print(f"[MCP] SÚKL client initialized: {_mcp_config.sukl_url}")
 except Exception as e:
-    print(f"[MCP] Failed to initialize SÚKL client: {e} - drug agent will be unavailable")
+    print(
+        f"[MCP] Failed to initialize SÚKL client: {e} - drug agent will be unavailable"
+    )
 
 try:
     _biomcp_client = BioMCPClient(
         base_url=_mcp_config.biomcp_url,
         timeout=_mcp_config.biomcp_timeout,
         max_results=_mcp_config.biomcp_max_results,
-        default_retry_config=_mcp_config.to_retry_config()
+        default_retry_config=_mcp_config.to_retry_config(),
     )
     print(f"[MCP] BioMCP client initialized: {_mcp_config.biomcp_url}")
 except Exception as e:
-    print(f"[MCP] Failed to initialize BioMCP client: {e} - PubMed agent will be unavailable")
+    print(
+        f"[MCP] Failed to initialize BioMCP client: {e} - PubMed agent will be unavailable"
+    )
 
 
-def get_mcp_clients(runtime: Runtime[Any]) -> tuple[SUKLMCPClient | None, BioMCPClient | None]:
+def get_mcp_clients(
+    runtime: Runtime[Any],
+) -> tuple[SUKLMCPClient | None, BioMCPClient | None]:
     """Get MCP clients from runtime context with fallback to module-level instances.
 
     Helper function for nodes to access MCP clients. Checks runtime.context first,
@@ -168,6 +176,7 @@ class State:
         retrieved_docs: Documents retrieved by agents with citations.
         drug_query: Optional drug query for SÚKL agent (Feature 003).
         research_query: Optional research query for PubMed agent (Feature 005).
+        guideline_query: Optional guideline query for Guidelines agent (Feature 006).
     """
 
     messages: Annotated[list[AnyMessage], add_messages]
@@ -177,6 +186,8 @@ class State:
     drug_query: DrugQuery | None = None
     # Feature 005: BioMCP PubMed Agent
     research_query: ResearchQuery | None = None
+    # Feature 006: Guidelines Agent
+    guideline_query: GuidelineQuery | None = None
 
     def __post_init__(self) -> None:
         """Initialize mutable defaults.
@@ -322,20 +333,52 @@ RESEARCH_KEYWORDS = {
     "diagnosis",
 }
 
+# Guidelines-related keywords for routing (Czech + English)
+GUIDELINES_KEYWORDS = {
+    # Czech
+    "guidelines",
+    "doporučené postupy",
+    "doporučení",
+    "standardy",
+    "standard",
+    "protokol",
+    "algoritmus",
+    "cls jep",
+    "cls-jep",
+    "esc",
+    "ers",
+    "léčebný postup",
+    "diagnostický postup",
+    "klinické doporučení",
+    # English fallback
+    "guideline",
+    "recommendation",
+    "protocol",
+    "algorithm",
+    "clinical practice",
+}
+
 
 def route_query(
     state: State,
-) -> Literal["drug_agent", "translate_cz_to_en", "placeholder"]:
+) -> Literal["drug_agent", "translate_cz_to_en", "guidelines_agent", "placeholder"]:
     """Route query to appropriate agent based on content.
 
     Simple keyword-based routing for MVP. Will be replaced by
     Feature 007-supervisor-orchestration with LLM-based intent classification.
 
+    Routing priority:
+    1. Explicit queries (drug_query, research_query, guideline_query)
+    2. Research keywords (highest - most specific)
+    3. Guidelines keywords
+    4. Drug keywords
+    5. Placeholder (fallback)
+
     Args:
         state: Current agent state with messages.
 
     Returns:
-        Node name to route to: "drug_agent", "translate_cz_to_en", or "placeholder".
+        Node name to route to: "drug_agent", "translate_cz_to_en", "guidelines_agent", or "placeholder".
     """
     # Check if explicit drug_query is set
     if state.drug_query is not None:
@@ -344,6 +387,10 @@ def route_query(
     # Check if explicit research_query is set
     if state.research_query is not None:
         return "translate_cz_to_en"
+
+    # Check if explicit guideline_query is set
+    if state.guideline_query is not None:
+        return "guidelines_agent"
 
     # Check last user message for keywords
     if state.messages:
@@ -368,10 +415,15 @@ def route_query(
 
         content_lower = content_text.lower() if content_text else ""
 
-        # Check for research keywords (higher priority - more specific)
+        # Check for research keywords (highest priority - most specific)
         for keyword in RESEARCH_KEYWORDS:
             if keyword in content_lower:
                 return "translate_cz_to_en"
+
+        # Check for guidelines keywords (higher priority than drug)
+        for keyword in GUIDELINES_KEYWORDS:
+            if keyword in content_lower:
+                return "guidelines_agent"
 
         # Check for drug keywords
         for keyword in DRUG_KEYWORDS:
@@ -392,6 +444,8 @@ graph = (
     .add_node("translate_cz_to_en", translate_cz_to_en_node)
     .add_node("pubmed_agent", pubmed_agent_node)
     .add_node("translate_en_to_cz", translate_en_to_cz_node)
+    # Feature 006: Guidelines Agent
+    .add_node("guidelines_agent", guidelines_agent_node)
     # Route from start based on query content
     .add_conditional_edges(
         "__start__",
@@ -399,6 +453,7 @@ graph = (
         {
             "drug_agent": "drug_agent",
             "translate_cz_to_en": "translate_cz_to_en",
+            "guidelines_agent": "guidelines_agent",
             "placeholder": "placeholder",
         },
     )
@@ -408,6 +463,8 @@ graph = (
     .add_edge("translate_cz_to_en", "pubmed_agent")
     .add_edge("pubmed_agent", "translate_en_to_cz")
     .add_edge("translate_en_to_cz", "__end__")
+    # Guidelines agent ends immediately
+    .add_edge("guidelines_agent", "__end__")
     # Placeholder ends immediately
     .add_edge("placeholder", "__end__")
     .compile(name="Czech MedAI")
