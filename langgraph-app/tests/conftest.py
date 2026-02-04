@@ -24,6 +24,7 @@ from agent.models.research_models import (
     PubMedArticle,
     ResearchQuery,
 )
+from agent.models.supervisor_models import IntentResult, IntentType
 from agent.utils.guidelines_storage import GuidelineNotFoundError
 
 
@@ -615,3 +616,89 @@ def mock_guidelines_storage() -> MagicMock:
     )
 
     return mock
+
+
+# =============================================================================
+# Feature 007: Supervisor Intent Classifier Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def mock_llm() -> MagicMock:
+    """Mock ChatAnthropic LLM for testing.
+
+    Returns:
+        MagicMock: Mock LLM with preconfigured ainvoke method.
+    """
+    mock = MagicMock()
+    mock.ainvoke = AsyncMock()
+    return mock
+
+
+@pytest.fixture
+def create_mock_tool_call():
+    """Factory for creating mock Claude tool call responses.
+
+    Returns:
+        Callable: Factory function to create mock responses.
+
+    Example:
+        >>> response = create_mock_tool_call(
+        ...     intent_type="drug_info",
+        ...     confidence=0.95,
+        ...     agents_to_call=["drug_agent"],
+        ...     reasoning="Drug query detected"
+        ... )
+    """
+
+    def _create(
+        intent_type: str,
+        confidence: float,
+        agents_to_call: List[str],
+        reasoning: str,
+    ) -> MagicMock:
+        response = MagicMock()
+        response.tool_calls = [
+            {
+                "name": "classify_medical_intent",
+                "args": {
+                    "intent_type": intent_type,
+                    "confidence": confidence,
+                    "agents_to_call": agents_to_call,
+                    "reasoning": reasoning,
+                },
+            }
+        ]
+        return response
+
+    return _create
+
+
+@pytest.fixture
+def sample_intent_result() -> IntentResult:
+    """Provide a sample IntentResult for testing.
+
+    Returns:
+        IntentResult: Sample drug_info intent result.
+    """
+    return IntentResult(
+        intent_type=IntentType.DRUG_INFO,
+        confidence=0.95,
+        agents_to_call=["drug_agent"],
+        reasoning="Query asks about drug composition (Ibalgin)",
+    )
+
+
+@pytest.fixture
+def sample_compound_intent_result() -> IntentResult:
+    """Provide a sample compound IntentResult for testing.
+
+    Returns:
+        IntentResult: Sample compound_query intent result.
+    """
+    return IntentResult(
+        intent_type=IntentType.COMPOUND_QUERY,
+        confidence=0.92,
+        agents_to_call=["drug_agent", "guidelines_agent"],
+        reasoning="Query requires both drug info and guidelines",
+    )
