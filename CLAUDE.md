@@ -14,13 +14,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 🔄 **Feature 005 Refactoring**: Remove Translation Layer (PLÁNOVÁNO - spec/plan/tasks ready)
 - ⏳ Feature 004: VZP Pricing Agent (čeká)
 
-**Poslední změny (2026-01-25)**:
-- 📋 Feature 005 Refactoring: Specifikace, plán a 44 tasks vytvořeny
+**Poslední změny (2026-02)**:
+- 📋 Feature 005 Refactoring: Specifikace, plán a 44 tasks připraveny k implementaci
 - 🎯 Cíl: Odstranit Sandwich Pattern (CZ→EN→CZ), využít nativní Claude Sonnet 4.5 multilingvní capabilities
 - 📈 Očekávaný přínos: 40-50% rychlejší, 66% levnější, jednodušší architektura
+- ✅ Constitution v1.0.4 (validated 2026-02-02)
 - ✅ Multimodal content handling fix (commit `a8429ba`)
 - ✅ dev.sh startup script pro snadné spouštění serveru
-- ✅ Test coverage: 177/183 passing (97%)
 
 ## Technologie
 
@@ -29,7 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **MCP Servery**:
   - **SÚKL-mcp** - Czech pharmaceutical database (68k+ léků)
   - **BioMCP** - Biomedical databases (PubMed, ClinicalTrials, atd.)
-- **Testing**: pytest s async podporou (177/183 testů passing - 97%)
+- **Testing**: pytest s async podporou (175 testů, 97% passing)
 - **Kvalita kódu**: ruff (linting/formátování), mypy --strict (type checking)
 - **Observability**: LangSmith tracing
 - **Package Manager**: uv (doporučeno) nebo pip
@@ -47,7 +47,7 @@ langgraph-app/              # Hlavní aplikace (Python balíček)
 │   └── utils/             # Helper funkce (translation prompts)
 ├── tests/
 │   ├── conftest.py        # pytest fixtures (anyio_backend, mock_runtime, samples)
-│   ├── unit_tests/        # Unit testy pro nody (169 passing)
+│   ├── unit_tests/        # Unit testy pro nody
 │   ├── integration_tests/ # Integrační testy pro graf
 │   └── performance/       # Performance benchmarky (<5s latency)
 ├── pyproject.toml         # Závislosti & konfigurace nástrojů
@@ -73,13 +73,13 @@ specs/                     # Specifikace features
 
 .specify/                  # SpecKit framework
 ├── memory/
-│   └── constitution.md   # Constitution projektu v1.0.3 (5 principů)
+│   └── constitution.md   # Constitution projektu v1.0.4 (5 principů)
 └── templates/            # Šablony pro spec/plan/tasks
 ```
 
 ## Constitution Projektu
 
-Projekt je řízen 5 základními principy v `.specify/memory/constitution.md` (verze **1.0.3**):
+Projekt je řízen 5 základními principy v `.specify/memory/constitution.md` (verze **1.0.4**):
 
 ### I. Graph-Centric Architecture
 - **VŠECHNY** features MUSÍ být implementovány jako LangGraph nody a hrany
@@ -99,7 +99,7 @@ Projekt je řízen 5 základními principy v `.specify/memory/constitution.md` (
 - Unit testy v `tests/unit_tests/`
 - Integrační testy v `tests/integration_tests/`
 - Workflow: Napsat test → Fail → Implementovat → Pass
-- Cílové pokrytí: ≥80% (aktuálně 96%)
+- Cílové pokrytí: ≥80% (aktuálně 97%)
 
 ### IV. Observability & Debugging
 - **VŠECHNY** graph executions MUSÍ být sledovatelné
@@ -566,7 +566,7 @@ grep -A 5 "Normalize content to string" src/agent/graph.py
 
 ## Důležité Soubory
 
-1. **`.specify/memory/constitution.md`** - Constitution v1.0.3 (single source of truth)
+1. **`.specify/memory/constitution.md`** - Constitution v1.0.4 (5 principů, single source of truth)
 2. **`src/agent/graph.py`** - Core graph definice (route_query, State, Context)
 3. **`src/agent/nodes/`** - Node implementace (drug_agent, pubmed_agent, translation)
 4. **`src/agent/mcp/`** - MCP client wrappers (adapters, domain, config)
@@ -587,20 +587,20 @@ grep -A 5 "Normalize content to string" src/agent/graph.py
 - **BioMCP Repository**: https://github.com/genomoncology/biomcp
 
 ### Project Documentation
-- **Constitution**: `.specify/memory/constitution.md` (v1.0.3)
-- **Specs**: `specs/` directory (001-005 dostupné)
+- **Constitution**: `.specify/memory/constitution.md` (v1.0.4, 5 principů)
+- **Specs**: `specs/` directory (001-005 dostupné, 005-remove-translation-layer ready)
 - **Roadmap**: `specs/ROADMAP.md`
 
 ---
 
-**Poslední aktualizace**: 2026-01-25
+**Poslední aktualizace**: 2026-02-03
 **Aktuální větev**: 005-biomcp-pubmed-agent
 **Main větev**: main
 **Status projektu**: Fáze 1 (Core Agents) - 3/4 agentů dokončeno (Drug, PubMed + Multimodal Fix), Pricing čeká
 **Aktuální práce**: Feature 005 Refactoring - Remove Translation Layer (spec/plan/tasks ready for implementation)
-**Constitution**: v1.0.3 (Phase 7 quality standards codified)
-**Test Coverage**: 177/183 passing (97%)
-**Poslední commit**: `a8429ba` (fix: multimodal content handling), `ebf850a` (docs: README + dev.sh)
+**Constitution**: v1.0.4 (validated 2026-02-02)
+**Test Coverage**: 175 tests, 97% passing
+**Poslední commit**: `5882ea6` (docs: aktualizace dokumentace pro Feature 005 Refactoring)
 
 ---
 

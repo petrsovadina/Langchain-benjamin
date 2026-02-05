@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -54,7 +54,7 @@ class DrugQuery(BaseModel):
     query_type: QueryType = Field(
         default=QueryType.SEARCH, description="Query type for routing"
     )
-    filters: Dict[str, Any] | None = Field(
+    filters: dict[str, Any] | None = Field(
         default=None, description="Additional filters"
     )
     limit: int = Field(default=10, ge=1, le=100, description="Max results")
@@ -122,17 +122,17 @@ class DrugDetails(BaseModel):
     registration_number: str = Field(..., description="SÚKL registration number")
     name: str = Field(..., description="Drug name")
     active_ingredient: str = Field(..., description="Primary active substance")
-    composition: List[str] = Field(
+    composition: list[str] = Field(
         default_factory=list, min_length=1, description="Ingredients list"
     )
-    indications: List[str] = Field(
+    indications: list[str] = Field(
         default_factory=list, min_length=1, description="Indications"
     )
-    contraindications: List[str] = Field(
+    contraindications: list[str] = Field(
         default_factory=list, description="Contraindications"
     )
     dosage: str = Field(..., description="Dosage instructions")
-    side_effects: List[str] = Field(default_factory=list, description="Side effects")
+    side_effects: list[str] = Field(default_factory=list, description="Side effects")
     pharmaceutical_form: str | None = Field(
         default=None, description="Drug form (tablet, syrup, etc.)"
     )
@@ -175,7 +175,7 @@ class ReimbursementInfo(BaseModel):
     prescription_required: bool = Field(
         default=True, description="Requires prescription"
     )
-    conditions: List[str] = Field(
+    conditions: list[str] = Field(
         default_factory=list, description="Reimbursement conditions"
     )
 
@@ -197,7 +197,7 @@ class AvailabilityInfo(BaseModel):
     expected_availability: str | None = Field(
         default=None, description="Expected availability date"
     )
-    alternatives: List[DrugResult] = Field(
+    alternatives: list[DrugResult] = Field(
         default_factory=list, description="Alternative drugs"
     )
 
@@ -209,7 +209,7 @@ class DrugDocument(BaseModel):
     """
 
     page_content: str = Field(..., description="Formatted drug information")
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=lambda: {
             "source": "sukl",
             "source_type": "pharmaceutical_database",

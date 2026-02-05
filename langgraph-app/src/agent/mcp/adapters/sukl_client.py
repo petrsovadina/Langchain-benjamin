@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 import aiohttp
 from pydantic import BaseModel, ValidationError
@@ -101,7 +101,7 @@ class SUKLMCPClient(IMCPClient):
     async def call_tool(
         self,
         tool_name: str,
-        parameters: Dict[str, Any],
+        parameters: dict[str, Any],
         retry_config: RetryConfig | None = None,
     ) -> MCPResponse:
         """Call SÚKL MCP tool with parameters.
@@ -245,7 +245,7 @@ class SUKLMCPClient(IMCPClient):
                 status="unavailable", error=f"Unexpected error: {str(e)}"
             )
 
-    async def list_tools(self) -> List[MCPToolMetadata]:
+    async def list_tools(self) -> list[MCPToolMetadata]:
         """List available SÚKL MCP tools.
 
         Returns:
@@ -313,7 +313,7 @@ class SUKLMCPClient(IMCPClient):
 
     # High-level helper methods (typed convenience API)
 
-    async def search_drugs(self, query: str) -> List[DrugSearchResult]:
+    async def search_drugs(self, query: str) -> list[DrugSearchResult]:
         """Search drugs by name (typed helper).
 
         Args:

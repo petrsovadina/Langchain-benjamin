@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Annotated, Any, Dict, Literal
+from typing import Annotated, Any, Literal, Sequence
 
 from dotenv import load_dotenv
 from langchain_core.documents import Document
@@ -16,18 +16,27 @@ from langchain_core.messages import AnyMessage
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.runtime import Runtime
+from langgraph.types import Command, Send
 from typing_extensions import TypedDict
+
+# Import MCP infrastructure (Feature 002)
+from agent.mcp import BioMCPClient, MCPConfig, SUKLMCPClient
 
 # Runtime import for State dataclass (required for LangGraph type resolution)
 from agent.models.drug_models import DrugQuery
+from agent.models.guideline_models import GuidelineQuery
 from agent.models.research_models import ResearchQuery
-
-# Import MCP infrastructure (Feature 002)
-from agent.mcp import SUKLMCPClient, BioMCPClient, MCPConfig
 
 # Import drug_agent_node (Feature 003)
 from agent.nodes import drug_agent_node
+from agent.nodes.guidelines_agent import guidelines_agent_node
 from agent.nodes.pubmed_agent import pubmed_agent_node
+
+# Import supervisor node (Feature 007)
+from agent.nodes.supervisor import supervisor_node
+
+# Import synthesizer node (Feature 009)
+from agent.nodes.synthesizer import synthesizer_node
 
 # Import translation and pubmed_agent nodes (Feature 005)
 from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
@@ -57,25 +66,31 @@ try:
     _sukl_client = SUKLMCPClient(
         base_url=_mcp_config.sukl_url,
         timeout=_mcp_config.sukl_timeout,
-        default_retry_config=_mcp_config.to_retry_config()
+        default_retry_config=_mcp_config.to_retry_config(),
     )
     print(f"[MCP] SÚKL client initialized: {_mcp_config.sukl_url}")
 except Exception as e:
-    print(f"[MCP] Failed to initialize SÚKL client: {e} - drug agent will be unavailable")
+    print(
+        f"[MCP] Failed to initialize SÚKL client: {e} - drug agent will be unavailable"
+    )
 
 try:
     _biomcp_client = BioMCPClient(
         base_url=_mcp_config.biomcp_url,
         timeout=_mcp_config.biomcp_timeout,
         max_results=_mcp_config.biomcp_max_results,
-        default_retry_config=_mcp_config.to_retry_config()
+        default_retry_config=_mcp_config.to_retry_config(),
     )
     print(f"[MCP] BioMCP client initialized: {_mcp_config.biomcp_url}")
 except Exception as e:
-    print(f"[MCP] Failed to initialize BioMCP client: {e} - PubMed agent will be unavailable")
+    print(
+        f"[MCP] Failed to initialize BioMCP client: {e} - PubMed agent will be unavailable"
+    )
 
 
-def get_mcp_clients(runtime: Runtime[Any]) -> tuple[SUKLMCPClient | None, BioMCPClient | None]:
+def get_mcp_clients(
+    runtime: Runtime[Any],
+) -> tuple[SUKLMCPClient | None, BioMCPClient | None]:
     """Get MCP clients from runtime context with fallback to module-level instances.
 
     Helper function for nodes to access MCP clients. Checks runtime.context first,
@@ -108,6 +123,31 @@ def get_mcp_clients(runtime: Runtime[Any]) -> tuple[SUKLMCPClient | None, BioMCP
     return sukl, biomcp
 
 
+def _keep_last(existing: str, new: str) -> str:
+    """Reducer for next field: keep last value (supports parallel agent updates)."""
+    return new
+
+
+def add_documents(
+    existing: Sequence[Document],
+    new: Sequence[Document],
+) -> list[Document]:
+    """Reducer for appending documents (similar to add_messages).
+
+    Appends new documents to existing list instead of replacing.
+    Used for parallel agent execution where multiple agents contribute
+    documents to state.retrieved_docs.
+
+    Args:
+        existing: Current documents in state.
+        new: New documents to append.
+
+    Returns:
+        Combined list of documents.
+    """
+    return list(existing) + list(new)
+
+
 class Context(TypedDict, total=False):
     """Runtime configuration for graph execution.
 
@@ -120,6 +160,9 @@ class Context(TypedDict, total=False):
         # MCP Clients (Feature 002)
         sukl_mcp_client: SUKLMCPClient - Czech pharmaceutical database client
         biomcp_client: BioMCPClient - International biomedical data client
+
+        # API Keys (Feature 006)
+        openai_api_key: OpenAI API key for embeddings (guidelines semantic search)
 
         # Conversation Tracking (BioAgents-inspired)
         conversation_context: Any  # ConversationContext - persistent state
@@ -150,6 +193,9 @@ class Context(TypedDict, total=False):
     sukl_mcp_client: Any
     biomcp_client: Any
 
+    # API Keys (Feature 006)
+    openai_api_key: str
+
     # Conversation persistence (typed in Feature 013)
     conversation_context: Any
 
@@ -168,15 +214,20 @@ class State:
         retrieved_docs: Documents retrieved by agents with citations.
         drug_query: Optional drug query for SÚKL agent (Feature 003).
         research_query: Optional research query for PubMed agent (Feature 005).
+        guideline_query: Optional guideline query for Guidelines agent (Feature 006).
     """
 
     messages: Annotated[list[AnyMessage], add_messages]
-    next: str = "__end__"
-    retrieved_docs: list[Document] = field(default_factory=list)
+    next: Annotated[str, _keep_last] = "__end__"
+    retrieved_docs: Annotated[list[Document], add_documents] = field(
+        default_factory=list
+    )
     # Feature 003: SÚKL Drug Agent
     drug_query: DrugQuery | None = None
     # Feature 005: BioMCP PubMed Agent
     research_query: ResearchQuery | None = None
+    # Feature 006: Guidelines Agent
+    guideline_query: GuidelineQuery | None = None
 
     def __post_init__(self) -> None:
         """Initialize mutable defaults.
@@ -187,7 +238,7 @@ class State:
         pass
 
 
-async def placeholder_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
+async def placeholder_node(state: State, runtime: Runtime[Context]) -> dict[str, Any]:
     """Echo user messages with configuration info.
 
     Processes input state and returns AI response using configured model.
@@ -264,7 +315,7 @@ DRUG_KEYWORDS = {
 
 # Research-related keywords for routing (Czech + English)
 RESEARCH_KEYWORDS = {
-    # Czech
+    # Czech - research terms
     "studie",
     "výzkum",
     "pubmed",
@@ -282,6 +333,29 @@ RESEARCH_KEYWORDS = {
     "evidence",
     "důkazy",
     "publikace",
+    # Czech - medical conditions & treatments (route to research)
+    "diabetes",
+    "diabetu",
+    "diabetem",
+    "cukrovka",
+    "cukrovkou",
+    "léčba",
+    "léčení",
+    "terapie",
+    "onemocnění",
+    "nemoc",
+    "choroba",
+    "syndrom",
+    "symptom",
+    "příznaky",
+    "diagnóza",
+    "diagnostika",
+    "prevence",
+    "prognóza",
+    "komplikace",
+    "riziko",
+    "účinnost",
+    "bezpečnost",
     # English fallback
     "study",
     "research",
@@ -293,22 +367,58 @@ RESEARCH_KEYWORDS = {
     "systematic review",
     "evidence",
     "publication",
+    "treatment",
+    "therapy",
+    "disease",
+    "diagnosis",
+}
+
+# Guidelines-related keywords for routing (Czech + English)
+GUIDELINES_KEYWORDS = {
+    # Czech
+    "guidelines",
+    "doporučené postupy",
+    "doporučení",
+    "standardy",
+    "standard",
+    "protokol",
+    "algoritmus",
+    "cls jep",
+    "cls-jep",
+    "esc",
+    "ers",
+    "léčebný postup",
+    "diagnostický postup",
+    "klinické doporučení",
+    # English fallback
+    "guideline",
+    "recommendation",
+    "protocol",
+    "algorithm",
+    "clinical practice",
 }
 
 
 def route_query(
     state: State,
-) -> Literal["drug_agent", "translate_cz_to_en", "placeholder"]:
+) -> Literal["drug_agent", "translate_cz_to_en", "guidelines_agent", "placeholder"]:
     """Route query to appropriate agent based on content.
 
     Simple keyword-based routing for MVP. Will be replaced by
     Feature 007-supervisor-orchestration with LLM-based intent classification.
 
+    Routing priority:
+    1. Explicit queries (drug_query, research_query, guideline_query)
+    2. Research keywords (highest - most specific)
+    3. Guidelines keywords
+    4. Drug keywords
+    5. Placeholder (fallback)
+
     Args:
         state: Current agent state with messages.
 
     Returns:
-        Node name to route to: "drug_agent", "translate_cz_to_en", or "placeholder".
+        Node name to route to: "drug_agent", "translate_cz_to_en", "guidelines_agent", or "placeholder".
     """
     # Check if explicit drug_query is set
     if state.drug_query is not None:
@@ -317,6 +427,10 @@ def route_query(
     # Check if explicit research_query is set
     if state.research_query is not None:
         return "translate_cz_to_en"
+
+    # Check if explicit guideline_query is set
+    if state.guideline_query is not None:
+        return "guidelines_agent"
 
     # Check last user message for keywords
     if state.messages:
@@ -341,10 +455,15 @@ def route_query(
 
         content_lower = content_text.lower() if content_text else ""
 
-        # Check for research keywords (higher priority - more specific)
+        # Check for research keywords (highest priority - most specific)
         for keyword in RESEARCH_KEYWORDS:
             if keyword in content_lower:
                 return "translate_cz_to_en"
+
+        # Check for guidelines keywords (higher priority than drug)
+        for keyword in GUIDELINES_KEYWORDS:
+            if keyword in content_lower:
+                return "guidelines_agent"
 
         # Check for drug keywords
         for keyword in DRUG_KEYWORDS:
@@ -355,33 +474,52 @@ def route_query(
     return "placeholder"
 
 
-# Build and compile graph with routing
+async def _supervisor_with_command(
+    state: State, runtime: Runtime[Context]
+) -> Command[str]:
+    """Convert supervisor_node Send returns to Command for graph compatibility.
+
+    supervisor_node returns Send | list[Send] for unit-test convenience,
+    but compiled LangGraph nodes must return dict or Command.
+    """
+    result = await supervisor_node(state, runtime)
+    if isinstance(result, list):
+        return Command(goto=result)
+    elif isinstance(result, Send):
+        return Command(goto=[result])
+    return result
+
+
+# Build and compile graph with Send API routing
 graph = (
     StateGraph(State, context_schema=Context)
     # Add nodes
+    # Feature 007: Supervisor orchestrator (LLM-based intent classification + Send API)
+    .add_node("supervisor", _supervisor_with_command)
     .add_node("placeholder", placeholder_node)
     .add_node("drug_agent", drug_agent_node)
     # Feature 005: PubMed research workflow (Sandwich Pattern: CZ→EN→PubMed→EN→CZ)
     .add_node("translate_cz_to_en", translate_cz_to_en_node)
     .add_node("pubmed_agent", pubmed_agent_node)
     .add_node("translate_en_to_cz", translate_en_to_cz_node)
-    # Route from start based on query content
-    .add_conditional_edges(
-        "__start__",
-        route_query,
-        {
-            "drug_agent": "drug_agent",
-            "translate_cz_to_en": "translate_cz_to_en",
-            "placeholder": "placeholder",
-        },
-    )
-    # Drug agent ends immediately
-    .add_edge("drug_agent", "__end__")
+    # Feature 006: Guidelines Agent
+    .add_node("guidelines_agent", guidelines_agent_node)
+    # Feature 009: Synthesizer (combines multi-agent responses)
+    .add_node("synthesizer", synthesizer_node)
+    # Entry point
+    .add_edge("__start__", "supervisor")
+    # Supervisor uses Send API for dynamic routing (no conditional edges needed)
+    # Agent edges route to synthesizer (Feature 009)
+    .add_edge("drug_agent", "synthesizer")
     # PubMed research workflow: CZ→EN→PubMed→EN→CZ (Sandwich Pattern)
     .add_edge("translate_cz_to_en", "pubmed_agent")
     .add_edge("pubmed_agent", "translate_en_to_cz")
-    .add_edge("translate_en_to_cz", "__end__")
-    # Placeholder ends immediately
-    .add_edge("placeholder", "__end__")
+    .add_edge("translate_en_to_cz", "synthesizer")
+    # Guidelines agent routes to synthesizer
+    .add_edge("guidelines_agent", "synthesizer")
+    # Placeholder routes to synthesizer
+    .add_edge("placeholder", "synthesizer")
+    # Synthesizer ends the graph
+    .add_edge("synthesizer", "__end__")
     .compile(name="Czech MedAI")
 )

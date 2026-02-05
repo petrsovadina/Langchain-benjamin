@@ -6,7 +6,7 @@ medical prompts for PubMed queries and abstracts.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.documents import Document
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 async def translate_cz_to_en_node(
     state: State, runtime: Runtime[Context]
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Translate Czech query to English for PubMed search.
 
     Uses LLM with specialized medical prompt to:
@@ -109,7 +109,7 @@ async def translate_cz_to_en_node(
 
 async def translate_en_to_cz_node(
     state: State, runtime: Runtime[Context]
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     r"""Translate English abstracts to Czech for display.
 
     Processes all retrieved_docs and translates English abstracts to

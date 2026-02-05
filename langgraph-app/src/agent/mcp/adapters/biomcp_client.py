@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 import aiohttp
 from pydantic import BaseModel, Field, ValidationError
@@ -36,7 +36,7 @@ class PubMedArticle(BaseModel):
     pmid: str
     title: str
     abstract: str | None = None
-    authors: List[str] = Field(default_factory=list)
+    authors: list[str] = Field(default_factory=list)
     publication_date: str | None = None
     doi: str | None = None
     journal: str | None = None
@@ -49,7 +49,7 @@ class ClinicalTrial(BaseModel):
     title: str
     status: str
     phase: str | None = None
-    conditions: List[str] = Field(default_factory=list)
+    conditions: list[str] = Field(default_factory=list)
 
 
 class BioMCPClient(IMCPClient):
@@ -113,7 +113,7 @@ class BioMCPClient(IMCPClient):
     async def call_tool(
         self,
         tool_name: str,
-        parameters: Dict[str, Any],
+        parameters: dict[str, Any],
         retry_config: RetryConfig | None = None,
     ) -> MCPResponse:
         """Call BioMCP tool with parameters.
@@ -259,7 +259,7 @@ class BioMCPClient(IMCPClient):
                 status="unavailable", error=f"Unexpected error: {str(e)}"
             )
 
-    async def list_tools(self) -> List[MCPToolMetadata]:
+    async def list_tools(self) -> list[MCPToolMetadata]:
         """List available BioMCP tools.
 
         Returns:
@@ -300,7 +300,7 @@ class BioMCPClient(IMCPClient):
 
     async def search_articles(
         self, query: str, max_results: int | None = None
-    ) -> List[PubMedArticle]:
+    ) -> list[PubMedArticle]:
         """Search PubMed articles (typed helper).
 
         Args:
@@ -355,7 +355,7 @@ class BioMCPClient(IMCPClient):
         full_text: str | None = data.get("full_text") or data.get("url")
         return full_text
 
-    async def search_trials(self, query: str) -> List[ClinicalTrial]:
+    async def search_trials(self, query: str) -> list[ClinicalTrial]:
         """Search clinical trials.
 
         Args:

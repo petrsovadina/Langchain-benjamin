@@ -5,7 +5,7 @@ and citation tracking with Czech translation support.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
@@ -31,7 +31,7 @@ class ResearchQuery(BaseModel):
     query_type: Literal["search", "pmid_lookup"] = Field(
         default="search", description="Type of research query"
     )
-    filters: Dict[str, Any] | None = Field(
+    filters: dict[str, Any] | None = Field(
         default=None,
         description="Optional search filters (date_range, article_type, journal, max_results)",
     )
@@ -47,8 +47,8 @@ class ResearchQuery(BaseModel):
     @field_validator("filters")
     @classmethod
     def validate_filters(
-        cls, v: Dict[str, Any] | None, info: ValidationInfo
-    ) -> Dict[str, Any] | None:
+        cls, v: dict[str, Any] | None, info: ValidationInfo
+    ) -> dict[str, Any] | None:
         """Validate filters structure and date format."""
         if v is None:
             return None
@@ -94,7 +94,7 @@ class PubMedArticle(BaseModel):
     )
     title: str = Field(..., min_length=1, description="Article title")
     abstract: str | None = Field(default=None, description="Article abstract")
-    authors: List[str] = Field(default_factory=list, description="Author names")
+    authors: list[str] = Field(default_factory=list, description="Author names")
     publication_date: str | None = Field(default=None, description="Publication date")
     journal: str | None = Field(default=None, description="Journal name")
     doi: str | None = Field(default=None, description="Digital Object Identifier")

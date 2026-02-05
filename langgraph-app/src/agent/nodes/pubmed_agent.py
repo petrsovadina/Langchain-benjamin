@@ -10,7 +10,7 @@ This module implements the pubmed_agent_node and helper functions for:
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.documents import Document
 from langgraph.runtime import Runtime
@@ -20,6 +20,7 @@ from agent.models.research_models import (
     PubMedArticle,
     ResearchQuery,
 )
+from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
     from agent.graph import Context, State
@@ -212,7 +213,7 @@ def format_citation(article: PubMedArticle, citation_num: int) -> CitationRefere
     )
 
 
-def _build_references_section(articles: List[PubMedArticle]) -> str:
+def _build_references_section(articles: list[PubMedArticle]) -> str:
     """Build References section with numbered citations.
 
     Creates formatted References section for response message with:
@@ -247,7 +248,7 @@ def _build_references_section(articles: List[PubMedArticle]) -> str:
 
 async def _search_pubmed_articles(
     query: ResearchQuery, biomcp_client: Any, max_results: int = 5
-) -> List[PubMedArticle]:
+) -> list[PubMedArticle]:
     """Search PubMed via BioMCP article_searcher.
 
     Args:
@@ -322,7 +323,8 @@ async def _get_article_by_pmid(pmid: str, biomcp_client: Any) -> PubMedArticle |
     )
 
 
-async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
+@with_timeout(timeout_seconds=10.0)
+async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str, Any]:
     """Search PubMed articles with BioMCP integration.
 
     Workflow:
@@ -380,6 +382,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str
 
     # Get MCP clients with fallback to module-level instances
     from agent.graph import get_mcp_clients
+
     _, biomcp_client = get_mcp_clients(runtime)
 
     if not biomcp_client:
@@ -408,6 +411,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str
                 articles = [article]
         else:
             # Search
+            context = runtime.context or {}
             max_results_raw = context.get("max_results", 5)
             max_results = (
                 int(max_results_raw) if isinstance(max_results_raw, (int, str)) else 5

@@ -59,3 +59,59 @@ For more advanced features and examples, refer to the [LangGraph documentation](
 
 LangGraph Studio also integrates with [LangSmith](https://smith.langchain.com/) for more in-depth tracing and collaboration with teammates, allowing you to analyze and optimize your chatbot's performance.
 
+## Guidelines Storage
+
+Czech MedAI používá pgvector pro ukládání a vyhledávání klinických guidelines.
+
+### Setup
+
+1. **Spustit migration**:
+   ```bash
+   psql -d your_database -f migrations/003_guidelines_schema.sql
+   ```
+
+2. **Nastavit environment variables**:
+   ```bash
+   # Option 1: Standard PostgreSQL
+   export DATABASE_URL="postgresql://user:pass@localhost:5432/dbname"
+
+   # Option 2: Supabase
+   export SUPABASE_URL="https://your-project.supabase.co"
+   export SUPABASE_KEY="your-service-role-key"
+   ```
+
+3. **Použití**:
+   ```python
+   from agent.utils.guidelines_storage import store_guideline, search_guidelines
+   from agent.models.guideline_models import GuidelineSection, GuidelineSource
+
+   # Store guideline
+   section = GuidelineSection(
+       guideline_id="CLS-JEP-2024-001",
+       title="Hypertenze",
+       section_name="Farmakologická léčba",
+       content="ACE inhibitory jsou...",
+       publication_date="2024-01-15",
+       source=GuidelineSource.CLS_JEP,
+       url="https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+       metadata={"embedding": [0.1] * 1536}
+   )
+   await store_guideline(section)
+
+   # Search guidelines
+   results = await search_guidelines(
+       query=[0.1] * 1536,  # Pre-computed embedding
+       limit=5,
+       source_filter="cls_jep"
+   )
+   ```
+
+### Testing
+
+```bash
+# Unit tests
+pytest tests/unit_tests/utils/test_guidelines_storage.py -v
+
+# Integration tests (requires database)
+pytest tests/integration_tests/test_guidelines_storage_integration.py -v
+```

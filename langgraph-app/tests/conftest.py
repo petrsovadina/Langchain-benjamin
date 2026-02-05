@@ -1,5 +1,6 @@
 """Pytest fixtures for Czech MedAI foundation tests."""
 
+from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock
 
@@ -13,10 +14,18 @@ from agent.models.drug_models import (
     DrugResult,
     QueryType,
 )
+from agent.models.guideline_models import (
+    GuidelineQuery,
+    GuidelineQueryType,
+    GuidelineSection,
+    GuidelineSource,
+)
 from agent.models.research_models import (
     PubMedArticle,
     ResearchQuery,
 )
+from agent.models.supervisor_models import IntentResult, IntentType
+from agent.utils.guidelines_storage import GuidelineNotFoundError
 
 
 @pytest.fixture(scope="session")
@@ -405,4 +414,323 @@ def sample_pubmed_articles() -> List[PubMedArticle]:
             journal="Nature Reviews Endocrinology",
             doi="10.1038/s41574-023-00456-7",
         ),
+    ]
+
+
+# =============================================================================
+# Feature 006: Guidelines Agent Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def sample_guideline_query() -> GuidelineQuery:
+    """Provide a sample GuidelineQuery for testing.
+
+    Returns:
+        GuidelineQuery: Search query for hypertension guidelines.
+    """
+    return GuidelineQuery(
+        query_text="léčba hypertenze",
+        query_type=GuidelineQueryType.SEARCH,
+        specialty_filter="cardiology",
+        limit=10,
+    )
+
+
+@pytest.fixture
+def sample_guideline_section() -> GuidelineSection:
+    """Provide a sample GuidelineSection for testing.
+
+    Returns:
+        GuidelineSection: Sample guideline section with content.
+    """
+    return GuidelineSection(
+        guideline_id="CLS-JEP-2024-001",
+        title="Doporučené postupy pro hypertenzi",
+        section_name="Farmakologická léčba",
+        content="""ACE inhibitory (ramipril, perindopril) jsou léky první volby
+u většiny pacientů s hypertenzí. Alternativou jsou sartany (losartan, valsartan)
+při nesnášenlivosti ACE inhibitorů. Při nedostatečné kontrole monoterapií se
+přidává blokátor kalciových kanálů (amlodipin) nebo thiazidové diuretikum.""",
+        publication_date="2024-01-15",
+        source=GuidelineSource.CLS_JEP,
+        url="https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+    )
+
+
+@pytest.fixture
+def sample_guideline_sections() -> List[GuidelineSection]:
+    """Provide multiple GuidelineSection objects for testing.
+
+    Returns:
+        List[GuidelineSection]: List of 3 sample guideline sections.
+    """
+    return [
+        GuidelineSection(
+            guideline_id="CLS-JEP-2024-001",
+            title="Doporučené postupy pro hypertenzi",
+            section_name="Definice a klasifikace",
+            content="Hypertenze je definována jako opakovaně naměřený krevní tlak ≥140/90 mmHg.",
+            publication_date="2024-01-15",
+            source=GuidelineSource.CLS_JEP,
+            url="https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+        ),
+        GuidelineSection(
+            guideline_id="CLS-JEP-2024-001",
+            title="Doporučené postupy pro hypertenzi",
+            section_name="Farmakologická léčba",
+            content="ACE inhibitory jsou léky první volby u většiny pacientů.",
+            publication_date="2024-01-15",
+            source=GuidelineSource.CLS_JEP,
+            url="https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+        ),
+        GuidelineSection(
+            guideline_id="ESC-2023-015",
+            title="ESC Guidelines for Diabetes Management",
+            section_name="Cardiovascular Risk Assessment",
+            content="All patients with diabetes should undergo cardiovascular risk assessment.",
+            publication_date="2023-09-01",
+            source=GuidelineSource.ESC,
+            url="https://www.escardio.org/Guidelines/diabetes-2023.pdf",
+        ),
+    ]
+
+
+@pytest.fixture
+def sample_pdf_path(tmp_path: Path) -> str:
+    """Create sample PDF for testing.
+
+    Returns:
+        str: Path to sample PDF file.
+    """
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+
+    pdf_path = tmp_path / "sample_guideline.pdf"
+
+    # Create a simple PDF with text using reportlab
+    c = canvas.Canvas(str(pdf_path), pagesize=letter)
+    c.setTitle("Test Guideline")
+    c.setAuthor("ČLS JEP")
+    c.drawString(100, 700, "Sample guideline content for testing")
+    c.save()
+
+    return str(pdf_path)
+
+
+@pytest.fixture
+def mock_openai_embeddings_client() -> MagicMock:
+    """Mock OpenAI client for embeddings.
+
+    Returns:
+        MagicMock: Mock client with preconfigured embedding responses.
+    """
+
+    class MockEmbedding:
+        def __init__(self):
+            self.embedding = [0.1] * 1536
+
+    class MockResponse:
+        def __init__(self, num_embeddings: int):
+            self.data = [MockEmbedding() for _ in range(num_embeddings)]
+
+    mock = MagicMock()
+    mock.embeddings = MagicMock()
+    mock.embeddings.create = AsyncMock(
+        side_effect=lambda input, model: MockResponse(len(input))
+    )
+    return mock
+
+
+@pytest.fixture
+def mock_guidelines_storage() -> MagicMock:
+    """Mock guidelines storage for testing.
+
+    Returns:
+        MagicMock: Mock with preconfigured search_guidelines and get_guideline_section.
+    """
+    mock = MagicMock()
+
+    # Mock search_guidelines (returns list of dicts)
+    async def search_guidelines_side_effect(
+        query: List[float],
+        limit: int = 10,
+        source_filter: str | None = None,
+        publication_date_from: str | None = None,
+        publication_date_to: str | None = None,
+        pool: Any = None,
+    ) -> List[Dict[str, Any]]:
+        # Return sample guideline sections
+        return [
+            {
+                "id": 1,
+                "guideline_id": "CLS-JEP-2024-001",
+                "title": "Doporučené postupy pro hypertenzi",
+                "section_name": "Farmakologická léčba",
+                "content": "ACE inhibitory jsou léky první volby...",
+                "publication_date": "2024-01-15",
+                "source": "cls_jep",
+                "url": "https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+                "metadata": {},
+                "similarity_score": 0.85,
+            },
+            {
+                "id": 2,
+                "guideline_id": "ESC-2023-015",
+                "title": "ESC Guidelines for Diabetes",
+                "section_name": "Cardiovascular Risk",
+                "content": "All patients with diabetes should undergo...",
+                "publication_date": "2023-09-01",
+                "source": "esc",
+                "url": "https://www.escardio.org/Guidelines/diabetes-2023.pdf",
+                "metadata": {},
+                "similarity_score": 0.78,
+            },
+        ]
+
+    # Mock get_guideline_section (returns single dict)
+    async def get_guideline_section_side_effect(
+        guideline_id: str,
+        section_name: str | None = None,
+        section_id: int | None = None,
+        pool: Any = None,
+    ) -> Dict[str, Any]:
+        if guideline_id == "CLS-JEP-2024-001":
+            return {
+                "id": 1,
+                "guideline_id": "CLS-JEP-2024-001",
+                "title": "Doporučené postupy pro hypertenzi",
+                "section_name": "Definice a klasifikace",
+                "content": "Hypertenze je definována jako...",
+                "publication_date": "2024-01-15",
+                "source": "cls_jep",
+                "url": "https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+                "metadata": {},
+            }
+        else:
+            raise GuidelineNotFoundError(f"Guideline {guideline_id} not found")
+
+    mock.search_guidelines = AsyncMock(side_effect=search_guidelines_side_effect)
+    mock.get_guideline_section = AsyncMock(
+        side_effect=get_guideline_section_side_effect
+    )
+
+    return mock
+
+
+# =============================================================================
+# Feature 007: Supervisor Intent Classifier Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def mock_llm() -> MagicMock:
+    """Mock ChatAnthropic LLM for testing.
+
+    Returns:
+        MagicMock: Mock LLM with preconfigured ainvoke method.
+    """
+    mock = MagicMock()
+    mock.ainvoke = AsyncMock()
+    return mock
+
+
+@pytest.fixture
+def create_mock_tool_call():
+    """Factory for creating mock Claude tool call responses.
+
+    Returns:
+        Callable: Factory function to create mock responses.
+
+    Example:
+        >>> response = create_mock_tool_call(
+        ...     intent_type="drug_info",
+        ...     confidence=0.95,
+        ...     agents_to_call=["drug_agent"],
+        ...     reasoning="Drug query detected"
+        ... )
+    """
+
+    def _create(
+        intent_type: str,
+        confidence: float,
+        agents_to_call: List[str],
+        reasoning: str,
+    ) -> MagicMock:
+        response = MagicMock()
+        response.tool_calls = [
+            {
+                "name": "classify_medical_intent",
+                "args": {
+                    "intent_type": intent_type,
+                    "confidence": confidence,
+                    "agents_to_call": agents_to_call,
+                    "reasoning": reasoning,
+                },
+            }
+        ]
+        return response
+
+    return _create
+
+
+@pytest.fixture
+def sample_intent_result() -> IntentResult:
+    """Provide a sample IntentResult for testing.
+
+    Returns:
+        IntentResult: Sample drug_info intent result.
+    """
+    return IntentResult(
+        intent_type=IntentType.DRUG_INFO,
+        confidence=0.95,
+        agents_to_call=["drug_agent"],
+        reasoning="Query asks about drug composition (Ibalgin)",
+    )
+
+
+@pytest.fixture
+def sample_compound_intent_result() -> IntentResult:
+    """Provide a sample compound IntentResult for testing.
+
+    Returns:
+        IntentResult: Sample compound_query intent result.
+    """
+    return IntentResult(
+        intent_type=IntentType.COMPOUND_QUERY,
+        confidence=0.92,
+        agents_to_call=["drug_agent", "guidelines_agent"],
+        reasoning="Query requires both drug info and guidelines",
+    )
+
+
+# =============================================================================
+# Feature 009: Synthesizer Node Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def sample_agent_messages() -> List[Dict[str, str]]:
+    """Messages from drug_agent and pubmed_agent for synthesis testing.
+
+    Returns:
+        List[Dict]: Two assistant messages with citations from different agents.
+    """
+    return [
+        {
+            "role": "assistant",
+            "content": (
+                "Ibalgin obsahuje ibuprofen [1].\n\n"
+                "## References\n"
+                "[1] SUKL - Ibalgin 400"
+            ),
+        },
+        {
+            "role": "assistant",
+            "content": (
+                "Studie prokázala účinnost ibuprofenu [1].\n\n"
+                "## References\n"
+                "[1] PMID: 12345678"
+            ),
+        },
     ]
