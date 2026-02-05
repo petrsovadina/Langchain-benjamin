@@ -1,7 +1,7 @@
-"""Unit tests for Supervisor Intent Classifier.
+"""Unit tests for Supervisor Intent Classifier and Supervisor Node.
 
-This module contains comprehensive tests for the IntentClassifier class
-and helper functions, covering all 8 intent types and edge cases.
+This module contains comprehensive tests for the IntentClassifier class,
+supervisor_node function, and helper functions.
 
 Test classes:
 - TestIntentType: Tests for IntentType enum
@@ -9,23 +9,30 @@ Test classes:
 - TestIntentClassification: Tests for all 8 intent types
 - TestEdgeCases: Tests for error handling and edge cases
 - TestHelperFunctions: Tests for helper functions
+- TestExtractMessageContent: Tests for message content extraction
+- TestAgentToNodeMap: Tests for agent-to-node mapping
+- TestSupervisorNode: Tests for supervisor_node routing
 
 Coverage target: ≥90%
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from agent.graph import State
 from agent.models.supervisor_models import (
     VALID_AGENT_NAMES,
     IntentResult,
     IntentType,
 )
 from agent.nodes.supervisor import (
+    AGENT_TO_NODE_MAP,
     IntentClassifier,
+    extract_message_content,
     fallback_to_keyword_routing,
     log_intent_classification,
+    supervisor_node,
     validate_agent_names,
 )
 
@@ -579,3 +586,337 @@ class TestPromptBuilding:
         assert len(enum_values) == 8
         assert "drug_info" in enum_values
         assert "out_of_scope" in enum_values
+
+
+class TestExtractMessageContent:
+    """Tests for extract_message_content helper."""
+
+    def test_extract_from_dict_message(self):
+        """Test extracting content from dict message."""
+        message = {"role": "user", "content": "Hello"}
+        assert extract_message_content(message) == "Hello"
+
+    def test_extract_from_message_object(self):
+        """Test extracting content from Message-like object."""
+        message = MagicMock()
+        message.content = "Hello from object"
+        assert extract_message_content(message) == "Hello from object"
+
+    def test_extract_from_multimodal_list_string(self):
+        """Test extracting content from multimodal list (string block)."""
+        message = {"role": "user", "content": ["Hello multimodal"]}
+        assert extract_message_content(message) == "Hello multimodal"
+
+    def test_extract_from_multimodal_list_dict(self):
+        """Test extracting content from multimodal list (dict block)."""
+        message = {"role": "user", "content": [{"type": "text", "text": "Hello dict"}]}
+        assert extract_message_content(message) == "Hello dict"
+
+    def test_extract_empty_content(self):
+        """Test extracting from empty content."""
+        message = {"role": "user", "content": ""}
+        assert extract_message_content(message) == ""
+
+    def test_extract_none_content(self):
+        """Test extracting from None content."""
+        message = {"role": "user", "content": None}
+        assert extract_message_content(message) == ""
+
+    def test_extract_empty_list_content(self):
+        """Test extracting from empty list content."""
+        message = {"role": "user", "content": []}
+        assert extract_message_content(message) == ""
+
+
+class TestAgentToNodeMap:
+    """Tests for AGENT_TO_NODE_MAP constant."""
+
+    def test_drug_agent_maps_to_drug_agent(self):
+        """Test drug_agent maps to drug_agent node."""
+        assert AGENT_TO_NODE_MAP["drug_agent"] == "drug_agent"
+
+    def test_pubmed_agent_maps_to_translate(self):
+        """Test pubmed_agent maps to translate_cz_to_en node."""
+        assert AGENT_TO_NODE_MAP["pubmed_agent"] == "translate_cz_to_en"
+
+    def test_guidelines_agent_maps_to_guidelines(self):
+        """Test guidelines_agent maps to guidelines_agent node."""
+        assert AGENT_TO_NODE_MAP["guidelines_agent"] == "guidelines_agent"
+
+    def test_placeholder_maps_to_placeholder(self):
+        """Test placeholder maps to placeholder node."""
+        assert AGENT_TO_NODE_MAP["placeholder"] == "placeholder"
+
+
+class TestSupervisorNode:
+    """Tests for supervisor_node function."""
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_drug_query(self, mock_runtime):
+        """Test supervisor routes drug query to drug_agent."""
+        state = State(
+            messages=[{"role": "user", "content": "Jaké je složení Ibalginu?"}],
+            next="__end__",
+            retrieved_docs=[],
+        )
+
+        with patch("agent.nodes.supervisor.IntentClassifier") as mock_cls:
+            mock_classifier = MagicMock()
+            mock_classifier.classify_intent = AsyncMock(
+                return_value=IntentResult(
+                    intent_type=IntentType.DRUG_INFO,
+                    confidence=0.95,
+                    agents_to_call=["drug_agent"],
+                    reasoning="Drug composition query",
+                )
+            )
+            mock_cls.return_value = mock_classifier
+
+            result = await supervisor_node(state, mock_runtime)
+
+            assert result["next"] == "drug_agent"
+            mock_classifier.classify_intent.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_guideline_query(self, mock_runtime):
+        """Test supervisor routes guideline query to guidelines_agent."""
+        state = State(
+            messages=[{"role": "user", "content": "Guidelines pro hypertenzi"}],
+            next="__end__",
+            retrieved_docs=[],
+        )
+
+        with patch("agent.nodes.supervisor.IntentClassifier") as mock_cls:
+            mock_classifier = MagicMock()
+            mock_classifier.classify_intent = AsyncMock(
+                return_value=IntentResult(
+                    intent_type=IntentType.GUIDELINE_LOOKUP,
+                    confidence=0.95,
+                    agents_to_call=["guidelines_agent"],
+                    reasoning="Guideline query",
+                )
+            )
+            mock_cls.return_value = mock_classifier
+
+            result = await supervisor_node(state, mock_runtime)
+
+            assert result["next"] == "guidelines_agent"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_research_query(self, mock_runtime):
+        """Test supervisor routes research query to translate_cz_to_en."""
+        state = State(
+            messages=[{"role": "user", "content": "Studie o diabetu"}],
+            next="__end__",
+            retrieved_docs=[],
+        )
+
+        with patch("agent.nodes.supervisor.IntentClassifier") as mock_cls:
+            mock_classifier = MagicMock()
+            mock_classifier.classify_intent = AsyncMock(
+                return_value=IntentResult(
+                    intent_type=IntentType.RESEARCH_QUERY,
+                    confidence=0.95,
+                    agents_to_call=["pubmed_agent"],
+                    reasoning="Research query",
+                )
+            )
+            mock_cls.return_value = mock_classifier
+
+            result = await supervisor_node(state, mock_runtime)
+
+            # pubmed_agent maps to translate_cz_to_en via AGENT_TO_NODE_MAP
+            assert result["next"] == "translate_cz_to_en"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_compound_query(self, mock_runtime):
+        """Test supervisor routes compound query to first agent."""
+        state = State(
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Metformin - guidelines a studie",
+                }
+            ],
+            next="__end__",
+            retrieved_docs=[],
+        )
+
+        with patch("agent.nodes.supervisor.IntentClassifier") as mock_cls:
+            mock_classifier = MagicMock()
+            mock_classifier.classify_intent = AsyncMock(
+                return_value=IntentResult(
+                    intent_type=IntentType.COMPOUND_QUERY,
+                    confidence=0.92,
+                    agents_to_call=["drug_agent", "guidelines_agent"],
+                    reasoning="Compound query",
+                )
+            )
+            mock_cls.return_value = mock_classifier
+
+            result = await supervisor_node(state, mock_runtime)
+
+            # Routes to first agent (compound execution in next phase)
+            assert result["next"] == "drug_agent"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_out_of_scope(self, mock_runtime):
+        """Test supervisor routes out_of_scope to placeholder."""
+        state = State(
+            messages=[{"role": "user", "content": "Jaké je počasí?"}],
+            next="__end__",
+            retrieved_docs=[],
+        )
+
+        with patch("agent.nodes.supervisor.IntentClassifier") as mock_cls:
+            mock_classifier = MagicMock()
+            mock_classifier.classify_intent = AsyncMock(
+                return_value=IntentResult(
+                    intent_type=IntentType.OUT_OF_SCOPE,
+                    confidence=0.98,
+                    agents_to_call=[],
+                    reasoning="Non-medical query",
+                )
+            )
+            mock_cls.return_value = mock_classifier
+
+            result = await supervisor_node(state, mock_runtime)
+
+            assert result["next"] == "placeholder"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_empty_messages(self, mock_runtime):
+        """Test supervisor handles empty messages with placeholder routing."""
+        state = State(
+            messages=[],
+            next="__end__",
+            retrieved_docs=[],
+        )
+
+        result = await supervisor_node(state, mock_runtime)
+
+        assert result["next"] == "placeholder"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_classification_error_fallback(self, mock_runtime):
+        """Test supervisor falls back to keyword routing on classification error."""
+        state = State(
+            messages=[{"role": "user", "content": "Najdi lék Ibalgin"}],
+            next="__end__",
+            retrieved_docs=[],
+        )
+
+        with patch("agent.nodes.supervisor.IntentClassifier") as mock_cls:
+            mock_classifier = MagicMock()
+            mock_classifier.classify_intent = AsyncMock(
+                side_effect=Exception("API error")
+            )
+            mock_cls.return_value = mock_classifier
+
+            result = await supervisor_node(state, mock_runtime)
+
+            # Fallback to route_query: "lék" is a drug keyword → drug_agent
+            assert result["next"] == "drug_agent"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_explicit_drug_query(self, mock_runtime):
+        """Test supervisor routes explicit drug_query directly."""
+        from agent.models.drug_models import DrugQuery, QueryType
+
+        state = State(
+            messages=[{"role": "user", "content": "anything"}],
+            next="__end__",
+            retrieved_docs=[],
+            drug_query=DrugQuery(query_text="Ibalgin", query_type=QueryType.SEARCH),
+        )
+
+        result = await supervisor_node(state, mock_runtime)
+
+        assert result["next"] == "drug_agent"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_explicit_research_query(self, mock_runtime):
+        """Test supervisor routes explicit research_query directly."""
+        from agent.models.research_models import ResearchQuery
+
+        state = State(
+            messages=[{"role": "user", "content": "anything"}],
+            next="__end__",
+            retrieved_docs=[],
+            research_query=ResearchQuery(query_text="diabetes", query_type="search"),
+        )
+
+        result = await supervisor_node(state, mock_runtime)
+
+        assert result["next"] == "translate_cz_to_en"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_explicit_guideline_query(self, mock_runtime):
+        """Test supervisor routes explicit guideline_query directly."""
+        from agent.models.guideline_models import GuidelineQuery, GuidelineQueryType
+
+        state = State(
+            messages=[{"role": "user", "content": "anything"}],
+            next="__end__",
+            retrieved_docs=[],
+            guideline_query=GuidelineQuery(
+                query_text="hypertenze",
+                query_type=GuidelineQueryType.SEARCH,
+            ),
+        )
+
+        result = await supervisor_node(state, mock_runtime)
+
+        assert result["next"] == "guidelines_agent"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_unavailable_drug_agent(self, mock_runtime):
+        """Test supervisor fallback when SUKL client unavailable."""
+        state = State(
+            messages=[{"role": "user", "content": "Složení Ibalginu"}],
+            next="__end__",
+            retrieved_docs=[],
+        )
+
+        with patch("agent.nodes.supervisor.IntentClassifier") as mock_cls:
+            mock_classifier = MagicMock()
+            mock_classifier.classify_intent = AsyncMock(
+                return_value=IntentResult(
+                    intent_type=IntentType.DRUG_INFO,
+                    confidence=0.95,
+                    agents_to_call=["drug_agent"],
+                    reasoning="Drug query",
+                )
+            )
+            mock_cls.return_value = mock_classifier
+
+            with patch("agent.graph.get_mcp_clients", return_value=(None, None)):
+                result = await supervisor_node(state, mock_runtime)
+
+        assert result["next"] == "placeholder"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_node_unavailable_pubmed_agent(self, mock_runtime):
+        """Test supervisor fallback when BioMCP client unavailable."""
+        state = State(
+            messages=[{"role": "user", "content": "Studie o diabetu"}],
+            next="__end__",
+            retrieved_docs=[],
+        )
+
+        with patch("agent.nodes.supervisor.IntentClassifier") as mock_cls:
+            mock_classifier = MagicMock()
+            mock_classifier.classify_intent = AsyncMock(
+                return_value=IntentResult(
+                    intent_type=IntentType.RESEARCH_QUERY,
+                    confidence=0.95,
+                    agents_to_call=["pubmed_agent"],
+                    reasoning="Research query",
+                )
+            )
+            mock_cls.return_value = mock_classifier
+
+            with patch("agent.graph.get_mcp_clients", return_value=(None, None)):
+                result = await supervisor_node(state, mock_runtime)
+
+        assert result["next"] == "placeholder"

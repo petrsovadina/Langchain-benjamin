@@ -31,6 +31,9 @@ from agent.nodes import drug_agent_node
 from agent.nodes.guidelines_agent import guidelines_agent_node
 from agent.nodes.pubmed_agent import pubmed_agent_node
 
+# Import supervisor node (Feature 007)
+from agent.nodes.supervisor import supervisor_node
+
 # Import translation and pubmed_agent nodes (Feature 005)
 from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
 
@@ -440,10 +443,38 @@ def route_query(
     return "placeholder"
 
 
+def route_from_supervisor(
+    state: State,
+) -> Literal["drug_agent", "translate_cz_to_en", "guidelines_agent", "placeholder"]:
+    """Route based on state.next set by supervisor_node.
+
+    Reads the next field from state (set by supervisor_node) and returns
+    the corresponding node name for conditional edge routing.
+
+    Args:
+        state: Current agent state with next field set by supervisor.
+
+    Returns:
+        Node name to route to.
+    """
+    next_node = state.next
+    valid_nodes = {
+        "drug_agent",
+        "translate_cz_to_en",
+        "guidelines_agent",
+        "placeholder",
+    }
+    if next_node in valid_nodes:
+        return next_node  # type: ignore[return-value]
+    return "placeholder"
+
+
 # Build and compile graph with routing
 graph = (
     StateGraph(State, context_schema=Context)
     # Add nodes
+    # Feature 007: Supervisor orchestrator (LLM-based intent classification)
+    .add_node("supervisor", supervisor_node)
     .add_node("placeholder", placeholder_node)
     .add_node("drug_agent", drug_agent_node)
     # Feature 005: PubMed research workflow (Sandwich Pattern: CZ→EN→PubMed→EN→CZ)
@@ -452,10 +483,11 @@ graph = (
     .add_node("translate_en_to_cz", translate_en_to_cz_node)
     # Feature 006: Guidelines Agent
     .add_node("guidelines_agent", guidelines_agent_node)
-    # Route from start based on query content
+    # Route via supervisor (LLM-based intent classification)
+    .add_edge("__start__", "supervisor")
     .add_conditional_edges(
-        "__start__",
-        route_query,
+        "supervisor",
+        route_from_supervisor,
         {
             "drug_agent": "drug_agent",
             "translate_cz_to_en": "translate_cz_to_en",

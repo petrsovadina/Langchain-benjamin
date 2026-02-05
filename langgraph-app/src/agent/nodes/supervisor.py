@@ -21,7 +21,10 @@ Example:
     IntentType.DRUG_INFO
 """
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING, Any
 
 from langchain_anthropic import ChatAnthropic
 
@@ -34,6 +37,11 @@ from agent.nodes.supervisor_prompts import (
     build_classification_prompt,
     build_function_schema,
 )
+
+if TYPE_CHECKING:
+    from langgraph.runtime import Runtime
+
+    from agent.graph import Context, State
 
 logger = logging.getLogger(__name__)
 
@@ -269,10 +277,163 @@ def log_intent_classification(result: IntentResult, message: str) -> None:
     logger.debug(f"[IntentClassifier] Reasoning: {result.reasoning}")
 
 
+# Map conceptual agent names to graph node names
+AGENT_TO_NODE_MAP: dict[str, str] = {
+    "drug_agent": "drug_agent",
+    "pubmed_agent": "translate_cz_to_en",  # PubMed via translation sandwich
+    "guidelines_agent": "guidelines_agent",
+    "placeholder": "placeholder",
+}
+
+
+def extract_message_content(message: Any) -> str:
+    """Extract text content from message (handles dict, Message, multimodal).
+
+    Args:
+        message: Message object (dict, AIMessage, HumanMessage, etc.).
+
+    Returns:
+        Extracted text content as string.
+    """
+    raw_content = (
+        message.get("content")
+        if isinstance(message, dict)
+        else getattr(message, "content", "")
+    )
+
+    # Handle string content
+    if isinstance(raw_content, str):
+        return raw_content
+
+    # Handle multimodal list format
+    if isinstance(raw_content, list) and raw_content:
+        first_block = raw_content[0]
+        if isinstance(first_block, str):
+            return first_block
+        elif isinstance(first_block, dict) and "text" in first_block:
+            return str(first_block["text"])
+
+    return ""
+
+
+async def supervisor_node(
+    state: State,
+    runtime: Runtime[Context],
+) -> dict[str, Any]:
+    """Route user query to appropriate agent using LLM-based intent classification.
+
+    Workflow:
+        1. Check for explicit queries (drug_query, research_query, guideline_query)
+        2. Extract last user message
+        3. Classify intent using IntentClassifier
+        4. Validate agents_to_call
+        5. Map agent name to graph node name
+        6. Fallback to keyword routing if classification fails
+
+    Args:
+        state: Current agent state with messages.
+        runtime: Runtime context with model configuration.
+
+    Returns:
+        Updated state dict with:
+            - next: Graph node name to route to
+    """
+    logger.info("[supervisor_node] Starting intent classification")
+
+    # Check explicit queries first (backward compatibility)
+    if state.drug_query is not None:
+        logger.info(
+            "[supervisor_node] Explicit drug_query detected, routing to drug_agent"
+        )
+        return {"next": "drug_agent"}
+    if state.research_query is not None:
+        logger.info(
+            "[supervisor_node] Explicit research_query detected, "
+            "routing to translate_cz_to_en"
+        )
+        return {"next": "translate_cz_to_en"}
+    if state.guideline_query is not None:
+        logger.info(
+            "[supervisor_node] Explicit guideline_query detected, "
+            "routing to guidelines_agent"
+        )
+        return {"next": "guidelines_agent"}
+
+    # Extract last user message
+    if not state.messages:
+        logger.warning("[supervisor_node] No messages in state")
+        return {"next": "placeholder"}
+
+    last_message = state.messages[-1]
+    content = extract_message_content(last_message)
+
+    if not content:
+        logger.warning("[supervisor_node] Empty message content")
+        return {"next": "placeholder"}
+
+    # Classify intent
+    context = runtime.context or {}
+    classifier = IntentClassifier(
+        model_name=context.get("model_name", "claude-sonnet-4-20250514"),
+        temperature=context.get("temperature", 0.0),
+    )
+
+    try:
+        result = await classifier.classify_intent(content)
+        logger.info(
+            f"[supervisor_node] Intent: {result.intent_type.value}, "
+            f"Confidence: {result.confidence:.2f}, "
+            f"Agents: {result.agents_to_call}"
+        )
+    except Exception as e:
+        logger.error(f"[supervisor_node] Classification failed: {e}")
+        # Fallback to keyword routing
+        from agent.graph import route_query
+
+        fallback_node = route_query(state)
+        logger.info(f"[supervisor_node] Fallback routing to: {fallback_node}")
+        return {"next": fallback_node}
+
+    # Validate agents
+    valid_agents = validate_agent_names(result.agents_to_call)
+
+    if not valid_agents:
+        logger.warning("[supervisor_node] No valid agents, routing to placeholder")
+        return {"next": "placeholder"}
+
+    # Single-agent routing (compound execution in next phase)
+    target_agent = valid_agents[0]
+
+    # Check agent availability (fallback if MCP client unavailable)
+    if target_agent in ("drug_agent", "pubmed_agent"):
+        from agent.graph import get_mcp_clients
+
+        sukl_client, biomcp_client = get_mcp_clients(runtime)
+        if target_agent == "drug_agent" and not sukl_client:
+            logger.warning(
+                "[supervisor_node] SUKL client unavailable, fallback to placeholder"
+            )
+            target_agent = "placeholder"
+        elif target_agent == "pubmed_agent" and not biomcp_client:
+            logger.warning(
+                "[supervisor_node] BioMCP client unavailable, fallback to placeholder"
+            )
+            target_agent = "placeholder"
+
+    # Map agent name to graph node name
+    target_node = AGENT_TO_NODE_MAP.get(target_agent, "placeholder")
+
+    logger.info(f"[supervisor_node] Routing to: {target_node}")
+    return {"next": target_node}
+
+
 # Export public API
 __all__ = [
     "IntentClassifier",
     "validate_agent_names",
     "fallback_to_keyword_routing",
     "log_intent_classification",
+    "extract_message_content",
+    "supervisor_node",
+    "AGENT_TO_NODE_MAP",
 ]
