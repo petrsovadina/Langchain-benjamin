@@ -27,6 +27,9 @@ dependencies = [
     "openai>=1.12.0",          # Embeddings API
     "tiktoken>=0.5.0",         # Token counting for chunking
     "asyncpg>=0.29.0",         # Async PostgreSQL driver for pgvector storage
+    # Feature 011: FastAPI Backend
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",  # ASGI server with websockets support
 ]
 
 
