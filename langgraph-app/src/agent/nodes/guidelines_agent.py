@@ -17,7 +17,7 @@ import logging
 import os
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.documents import Document
 
@@ -33,7 +33,7 @@ from agent.utils.guidelines_storage import (
     get_guideline_section,
     search_guidelines,
 )
-from agent.utils.timeout import with_timeout
+from agent.utils.timeout import DEFAULT_AGENT_TIMEOUT, with_timeout
 
 if TYPE_CHECKING:
     from langgraph.runtime import Runtime
@@ -45,8 +45,8 @@ logger = logging.getLogger(__name__)
 # Similarity threshold for filtering low-relevance results
 SIMILARITY_THRESHOLD = 0.7
 
-# Search timeout in seconds
-SEARCH_TIMEOUT = 10.0
+# Search timeout in seconds (uses shared default from timeout module)
+SEARCH_TIMEOUT = DEFAULT_AGENT_TIMEOUT
 
 
 # =============================================================================
@@ -171,7 +171,7 @@ def _map_specialty_to_source(specialty: str | None) -> str | None:
 # =============================================================================
 
 
-async def _create_query_embedding(query_text: str, api_key: str) -> List[float]:
+async def _create_query_embedding(query_text: str, api_key: str) -> list[float]:
     """Create embedding for query text using OpenAI.
 
     Args:
@@ -202,7 +202,7 @@ async def _create_query_embedding(query_text: str, api_key: str) -> List[float]:
 async def search_guidelines_semantic(
     query: GuidelineQuery,
     runtime: Runtime[Context],
-) -> List[dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Search guidelines using semantic similarity.
 
     Args:
@@ -265,7 +265,7 @@ async def search_guidelines_semantic(
 async def guidelines_agent_node(
     state: State,
     runtime: Runtime[Context],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Process guideline-related queries using pgvector semantic search.
 
     LangGraph node for querying clinical guidelines from ČLS JEP, ESC, ERS.
@@ -348,7 +348,7 @@ async def guidelines_agent_node(
         }
 
     # Process query based on type
-    documents: List[Document] = []
+    documents: list[Document] = []
     response_text = ""
 
     try:

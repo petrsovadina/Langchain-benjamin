@@ -9,7 +9,6 @@ Follows the same pattern as drug_models.py and guideline_models.py.
 """
 
 from enum import Enum
-from typing import List
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -69,7 +68,7 @@ class IntentResult(BaseModel):
 
     intent_type: IntentType = Field(description="Type of medical query intent")
     confidence: float = Field(ge=0.0, le=1.0, description="Confidence score (0.0-1.0)")
-    agents_to_call: List[str] = Field(
+    agents_to_call: list[str] = Field(
         default_factory=list, description="List of agent names to call"
     )
     reasoning: str = Field(min_length=1, description="Reasoning for classification")
@@ -84,7 +83,7 @@ class IntentResult(BaseModel):
 
     @field_validator("agents_to_call")
     @classmethod
-    def validate_agents_to_call(cls, v: List[str]) -> List[str]:
+    def validate_agents_to_call(cls, v: list[str]) -> list[str]:
         """Validate agent names against allowed list.
 
         Filters out invalid agent names and returns only valid ones.

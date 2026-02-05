@@ -10,7 +10,7 @@ This module implements the pubmed_agent_node and helper functions for:
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.documents import Document
 from langgraph.runtime import Runtime
@@ -213,7 +213,7 @@ def format_citation(article: PubMedArticle, citation_num: int) -> CitationRefere
     )
 
 
-def _build_references_section(articles: List[PubMedArticle]) -> str:
+def _build_references_section(articles: list[PubMedArticle]) -> str:
     """Build References section with numbered citations.
 
     Creates formatted References section for response message with:
@@ -248,7 +248,7 @@ def _build_references_section(articles: List[PubMedArticle]) -> str:
 
 async def _search_pubmed_articles(
     query: ResearchQuery, biomcp_client: Any, max_results: int = 5
-) -> List[PubMedArticle]:
+) -> list[PubMedArticle]:
     """Search PubMed via BioMCP article_searcher.
 
     Args:
@@ -324,7 +324,7 @@ async def _get_article_by_pmid(pmid: str, biomcp_client: Any) -> PubMedArticle |
 
 
 @with_timeout(timeout_seconds=10.0)
-async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
+async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str, Any]:
     """Search PubMed articles with BioMCP integration.
 
     Workflow:

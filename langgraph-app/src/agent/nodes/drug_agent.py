@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.documents import Document
 
@@ -297,7 +297,7 @@ def format_mcp_error(error: Exception) -> str:
         return f"Při zpracování dotazu došlo k chybě: {str(error)}"
 
 
-def _format_list(items: List[str]) -> str:
+def _format_list(items: list[str]) -> str:
     """Format list items as bullet points."""
     if not items:
         return "- Neuvedeno"
@@ -309,7 +309,7 @@ def _format_list(items: List[str]) -> str:
 # =============================================================================
 
 
-async def _search_drugs(client: SUKLMCPClient, query: DrugQuery) -> List[DrugResult]:
+async def _search_drugs(client: SUKLMCPClient, query: DrugQuery) -> list[DrugResult]:
     """Search drugs by name using SÚKL MCP.
 
     Args:
@@ -483,7 +483,7 @@ async def _check_availability(
 
 async def _search_by_atc(
     client: SUKLMCPClient, atc_code: str, limit: int = 10
-) -> List[DrugResult]:
+) -> list[DrugResult]:
     """Search drugs by ATC code.
 
     Args:
@@ -522,7 +522,7 @@ async def _search_by_atc(
 
 async def _search_by_ingredient(
     client: SUKLMCPClient, ingredient: str, limit: int = 10
-) -> List[DrugResult]:
+) -> list[DrugResult]:
     """Search drugs by active ingredient.
 
     Args:
@@ -568,7 +568,7 @@ async def _search_by_ingredient(
 async def drug_agent_node(
     state: State,
     runtime: Runtime[Context],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Process drug-related queries using SÚKL MCP.
 
     LangGraph node for querying Czech pharmaceutical database.
@@ -666,7 +666,7 @@ async def drug_agent_node(
         }
 
     # Process query based on type
-    documents: List[Document] = []
+    documents: list[Document] = []
     response_text = ""
 
     try:

@@ -13,7 +13,7 @@ Entities:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Literal
+from typing import Any, Literal
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class MCPResponse:
     success: bool
     data: Any = None
     error: str | None = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate business invariants.
@@ -150,5 +150,5 @@ class MCPToolMetadata:
 
     name: str
     description: str
-    parameters: Dict[str, Any] = field(default_factory=dict)
-    returns: Dict[str, Any] = field(default_factory=dict)
+    parameters: dict[str, Any] = field(default_factory=dict)
+    returns: dict[str, Any] = field(default_factory=dict)

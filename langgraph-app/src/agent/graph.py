@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Annotated, Any, Dict, Literal, Sequence
+from typing import Annotated, Any, Literal, Sequence
 
 from dotenv import load_dotenv
 from langchain_core.documents import Document
@@ -238,7 +238,7 @@ class State:
         pass
 
 
-async def placeholder_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
+async def placeholder_node(state: State, runtime: Runtime[Context]) -> dict[str, Any]:
     """Echo user messages with configuration info.
 
     Processes input state and returns AI response using configured model.

@@ -44,6 +44,10 @@ from agent.models.guideline_models import GuidelineSection, GuidelineSource
 
 logger = logging.getLogger(__name__)
 
+# Embedding dimension for text-embedding-ada-002 model.
+# Change this if switching to a different embedding model.
+EMBEDDING_DIMENSIONS = 1536
+
 
 # =============================================================================
 # Configuration
@@ -271,9 +275,12 @@ async def store_guideline(
         )
 
     # Validate embedding dimensions
-    if not isinstance(embedding, (list, tuple)) or len(embedding) != 1536:
+    if (
+        not isinstance(embedding, (list, tuple))
+        or len(embedding) != EMBEDDING_DIMENSIONS
+    ):
         raise EmbeddingMissingError(
-            f"Embedding must be a list/tuple of 1536 floats, got {type(embedding)} "
+            f"Embedding must be a list/tuple of {EMBEDDING_DIMENSIONS} floats, got {type(embedding)} "
             f"with length {len(embedding) if hasattr(embedding, '__len__') else 'N/A'}"
         )
 
@@ -386,13 +393,13 @@ async def search_guidelines(
     # Validate query
     if isinstance(query, str):
         raise ValueError(
-            "Query must be a pre-computed embedding vector (1536 dimensions). "
+            f"Query must be a pre-computed embedding vector ({EMBEDDING_DIMENSIONS} dimensions). "
             "Use create_embeddings() to convert text to embedding first."
         )
 
-    if not isinstance(query, (list, tuple)) or len(query) != 1536:
+    if not isinstance(query, (list, tuple)) or len(query) != EMBEDDING_DIMENSIONS:
         raise ValueError(
-            f"Query embedding must be a list/tuple of 1536 floats, "
+            f"Query embedding must be a list/tuple of {EMBEDDING_DIMENSIONS} floats, "
             f"got {type(query)} with length {len(query) if hasattr(query, '__len__') else 'N/A'}"
         )
 

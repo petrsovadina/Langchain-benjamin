@@ -17,7 +17,7 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # Czech Medical Abbreviation Dictionary
 # =============================================================================
 
-CZECH_MEDICAL_ABBREVIATIONS: Dict[str, str] = {
+CZECH_MEDICAL_ABBREVIATIONS: dict[str, str] = {
     "DM2T": "diabetes mellitus 2. typu",
     "DM1T": "diabetes mellitus 1. typu",
     "ICHS": "ischemická choroba srdeční",
@@ -54,7 +54,7 @@ CZECH_MEDICAL_ABBREVIATIONS: Dict[str, str] = {
 }
 
 # English abbreviations that should be replaced with Czech equivalents
-_ENGLISH_TO_CZECH: Dict[str, str] = {
+_ENGLISH_TO_CZECH: dict[str, str] = {
     "T2DM": "DM2T",
     "T1DM": "DM1T",
     "CHD": "ICHS",
@@ -66,21 +66,21 @@ _ENGLISH_TO_CZECH: Dict[str, str] = {
 }
 
 # Agent type detection keywords for compound query section mapping
-_AGENT_TYPE_KEYWORDS: Dict[str, List[str]] = {
+_AGENT_TYPE_KEYWORDS: dict[str, list[str]] = {
     "drug_agent": ["SÚKL", "SUKL", "registrační", "ATC"],
     "pubmed_agent": ["PubMed", "PMID", "studie", "RCT", "meta-analýz"],
     "guidelines_agent": ["ČLS JEP", "doporučený postup", "guidelines"],
 }
 
 # Fixed section headers for compound responses
-_AGENT_SECTION_HEADERS: Dict[str, str] = {
+_AGENT_SECTION_HEADERS: dict[str, str] = {
     "drug_agent": "**Lékové informace (SÚKL)**",
     "pubmed_agent": "**Výzkum (PubMed)**",
     "guidelines_agent": "**Doporučení (Guidelines)**",
 }
 
 # Keywords for splitting LLM combined text into agent-specific parts
-_AGENT_CONTENT_KEYWORDS: Dict[str, List[str]] = {
+_AGENT_CONTENT_KEYWORDS: dict[str, list[str]] = {
     "drug_agent": ["SÚKL", "SUKL", "lék", "registr", "ATC"],
     "pubmed_agent": ["PubMed", "PMID", "studie", "člán", "RCT"],
     "guidelines_agent": ["ČLS JEP", "guidelines", "doporučení", "klinick"],
@@ -112,7 +112,7 @@ class CitationInfo:
 # =============================================================================
 
 
-def extract_citations_from_message(message: str) -> Tuple[str, List[CitationInfo]]:
+def extract_citations_from_message(message: str) -> tuple[str, list[CitationInfo]]:
     r"""Parse message and extract inline citations and References section.
 
     Extracts [N] inline references and parses the References/Zdroj section
@@ -130,7 +130,7 @@ def extract_citations_from_message(message: str) -> Tuple[str, List[CitationInfo
         >>> len(citations)
         1
     """
-    citations: List[CitationInfo] = []
+    citations: list[CitationInfo] = []
 
     # Find References section (## References, ## Zdroje, ## Reference, or _Zdroj:)
     references_pattern = (
@@ -184,9 +184,9 @@ def extract_citations_from_message(message: str) -> Tuple[str, List[CitationInfo
 
 
 def renumber_citations(
-    messages: List[str],
-    citations: List[List[CitationInfo]],
-) -> Tuple[List[str], List[str]]:
+    messages: list[str],
+    citations: list[list[CitationInfo]],
+) -> tuple[list[str], list[str]]:
     """Assign global citation numbering across multiple agent messages.
 
     Takes messages from multiple agents, each with their own [1][2]... numbering,
@@ -209,13 +209,13 @@ def renumber_citations(
         >>> updated[1]
         'Study results [2][3]'
     """
-    updated_messages: List[str] = []
-    global_references: List[str] = []
+    updated_messages: list[str] = []
+    global_references: list[str] = []
     global_counter = 1
 
     for msg, msg_citations in zip(messages, citations):
         # Build mapping: original_num -> global_num
-        num_mapping: Dict[int, int] = {}
+        num_mapping: dict[int, int] = {}
         for citation in msg_citations:
             num_mapping[citation.original_num] = global_counter
             global_references.append(f"[{global_counter}] {citation.citation_text}")
@@ -241,7 +241,7 @@ def renumber_citations(
     return updated_messages, global_references
 
 
-def validate_czech_terminology(text: str) -> Dict[str, List[str]]:
+def validate_czech_terminology(text: str) -> dict[str, list[str]]:
     """Check correctness of Czech medical abbreviations in text.
 
     Validates that commonly used Czech medical abbreviations are used correctly.
@@ -263,8 +263,8 @@ def validate_czech_terminology(text: str) -> Dict[str, List[str]]:
         >>> len(result['warnings']) > 0
         True
     """
-    warnings: List[str] = []
-    suggestions: List[str] = []
+    warnings: list[str] = []
+    suggestions: list[str] = []
 
     # Check for English abbreviations that should be Czech
     for eng, cz in _ENGLISH_TO_CZECH.items():
@@ -295,7 +295,7 @@ def validate_czech_terminology(text: str) -> Dict[str, List[str]]:
 def format_response(
     combined_text: str,
     query_type: str,
-    agent_types: List[str] | None = None,
+    agent_types: list[str] | None = None,
 ) -> str:
     """Format the synthesized response based on query type.
 
@@ -333,7 +333,7 @@ def format_response(
     return combined_text + footer
 
 
-def _structure_compound_response(text: str, agent_types: List[str]) -> str:
+def _structure_compound_response(text: str, agent_types: list[str]) -> str:
     """Structure compound response with fixed section headers per agent type.
 
     Splits the LLM combined text by agent keywords and wraps each part
@@ -352,8 +352,8 @@ def _structure_compound_response(text: str, agent_types: List[str]) -> str:
         blocks = text.strip().split("\n\n")
 
     # Map blocks to agent types by keyword matching
-    agent_blocks: Dict[str, List[str]] = {at: [] for at in agent_types}
-    unmatched: List[str] = []
+    agent_blocks: dict[str, list[str]] = {at: [] for at in agent_types}
+    unmatched: list[str] = []
 
     for block in blocks:
         block = block.strip()
@@ -374,7 +374,7 @@ def _structure_compound_response(text: str, agent_types: List[str]) -> str:
             unmatched.append(block)
 
     # Build structured output with fixed section headers
-    result_parts: List[str] = []
+    result_parts: list[str] = []
     for at in agent_types:
         if at in _AGENT_SECTION_HEADERS and agent_blocks.get(at):
             header = _AGENT_SECTION_HEADERS[at]
@@ -391,7 +391,7 @@ def _structure_compound_response(text: str, agent_types: List[str]) -> str:
     return text
 
 
-def _detect_agent_types(messages: List[Any]) -> List[str]:
+def _detect_agent_types(messages: list[Any]) -> list[str]:
     """Detect agent types from message content keywords.
 
     Checks assistant message content for known agent-specific keywords
@@ -403,7 +403,7 @@ def _detect_agent_types(messages: List[Any]) -> List[str]:
     Returns:
         List of detected agent type strings.
     """
-    agent_types: List[str] = []
+    agent_types: list[str] = []
 
     for msg in messages:
         content = (
@@ -434,7 +434,7 @@ def _detect_agent_types(messages: List[Any]) -> List[str]:
 async def synthesizer_node(
     state: State,
     runtime: Runtime[Context],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Combine multi-agent responses into a coherent Czech medical answer.
 
     Post-processing node that merges responses from parallel agents,
@@ -551,8 +551,8 @@ async def synthesizer_node(
         }
 
     # Multiple agent messages - full synthesis
-    raw_messages: List[str] = []
-    all_citations: List[List[CitationInfo]] = []
+    raw_messages: list[str] = []
+    all_citations: list[list[CitationInfo]] = []
 
     for msg in agent_messages:
         content = _get_content(msg)

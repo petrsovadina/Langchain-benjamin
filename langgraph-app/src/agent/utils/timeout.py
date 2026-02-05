@@ -14,8 +14,14 @@ from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
+# Default timeout for agent nodes in seconds.
+# Individual agents can override when calling @with_timeout().
+DEFAULT_AGENT_TIMEOUT = 10.0
 
-def with_timeout(timeout_seconds: float = 10.0) -> Callable[..., Any]:
+
+def with_timeout(
+    timeout_seconds: float = DEFAULT_AGENT_TIMEOUT,
+) -> Callable[..., Any]:
     """Add timeout to async agent nodes.
 
     If agent exceeds timeout, returns graceful degradation response

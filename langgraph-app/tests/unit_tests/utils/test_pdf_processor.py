@@ -280,6 +280,35 @@ class TestChunkText:
         if len(sample_guideline_text) > 800:
             assert len(chunks) > 1
 
+    def test_chunk_text_no_content_loss(self) -> None:
+        """Test that chunking does not lose any words from the input."""
+        text = (
+            "# Sekce jedna\n"
+            + " ".join(f"slovo{i}" for i in range(200))
+            + "\n# Sekce dva\n"
+            + " ".join(f"text{i}" for i in range(150))
+            + "\n# Sekce tři\n"
+            + "Krátký obsah."
+        )
+        chunks = chunk_text(text, chunk_size=300, overlap=50, min_chunk_size=20)
+        combined = " ".join(chunks)
+
+        # Every unique content word from the input must appear in the output
+        for i in range(200):
+            assert f"slovo{i}" in combined, f"Lost word slovo{i}"
+        for i in range(150):
+            assert f"text{i}" in combined, f"Lost word text{i}"
+        assert "Krátký obsah." in combined
+
+    def test_chunk_text_no_content_loss_small_sections(self) -> None:
+        """Test that very small sections are not dropped."""
+        text = "# A\nKrátký.\n# B\nTaké krátký.\n# C\n" + "Dlouhý. " * 100
+        chunks = chunk_text(text, chunk_size=200, min_chunk_size=5)
+        combined = " ".join(chunks)
+
+        assert "Krátký." in combined
+        assert "Také krátký." in combined
+
 
 # =============================================================================
 # Test create_embeddings
