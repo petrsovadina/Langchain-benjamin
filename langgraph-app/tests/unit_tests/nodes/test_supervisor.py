@@ -19,6 +19,7 @@ Coverage target: ≥90%
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langgraph.types import Send
 
 from agent.graph import State
 from agent.models.supervisor_models import (
@@ -649,11 +650,11 @@ class TestAgentToNodeMap:
 
 
 class TestSupervisorNode:
-    """Tests for supervisor_node function."""
+    """Tests for supervisor_node function (Send API)."""
 
     @pytest.mark.asyncio
     async def test_supervisor_node_drug_query(self, mock_runtime):
-        """Test supervisor routes drug query to drug_agent."""
+        """Test supervisor routes drug query to drug_agent via Send."""
         state = State(
             messages=[{"role": "user", "content": "Jaké je složení Ibalginu?"}],
             next="__end__",
@@ -674,12 +675,13 @@ class TestSupervisorNode:
 
             result = await supervisor_node(state, mock_runtime)
 
-            assert result["next"] == "drug_agent"
+            assert isinstance(result, Send)
+            assert result.node == "drug_agent"
             mock_classifier.classify_intent.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_supervisor_node_guideline_query(self, mock_runtime):
-        """Test supervisor routes guideline query to guidelines_agent."""
+        """Test supervisor routes guideline query to guidelines_agent via Send."""
         state = State(
             messages=[{"role": "user", "content": "Guidelines pro hypertenzi"}],
             next="__end__",
@@ -700,11 +702,12 @@ class TestSupervisorNode:
 
             result = await supervisor_node(state, mock_runtime)
 
-            assert result["next"] == "guidelines_agent"
+            assert isinstance(result, Send)
+            assert result.node == "guidelines_agent"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_research_query(self, mock_runtime):
-        """Test supervisor routes research query to translate_cz_to_en."""
+        """Test supervisor routes research query to translate_cz_to_en via Send."""
         state = State(
             messages=[{"role": "user", "content": "Studie o diabetu"}],
             next="__end__",
@@ -726,11 +729,12 @@ class TestSupervisorNode:
             result = await supervisor_node(state, mock_runtime)
 
             # pubmed_agent maps to translate_cz_to_en via AGENT_TO_NODE_MAP
-            assert result["next"] == "translate_cz_to_en"
+            assert isinstance(result, Send)
+            assert result.node == "translate_cz_to_en"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_compound_query(self, mock_runtime):
-        """Test supervisor routes compound query to first agent."""
+        """Test supervisor routes compound query to multiple agents via Send."""
         state = State(
             messages=[
                 {
@@ -756,12 +760,16 @@ class TestSupervisorNode:
 
             result = await supervisor_node(state, mock_runtime)
 
-            # Routes to first agent (compound execution in next phase)
-            assert result["next"] == "drug_agent"
+            # Parallel execution: returns list of Send commands
+            assert isinstance(result, list)
+            assert len(result) == 2
+            node_names = {send.node for send in result}
+            assert "drug_agent" in node_names
+            assert "guidelines_agent" in node_names
 
     @pytest.mark.asyncio
     async def test_supervisor_node_out_of_scope(self, mock_runtime):
-        """Test supervisor routes out_of_scope to placeholder."""
+        """Test supervisor routes out_of_scope to placeholder via Send."""
         state = State(
             messages=[{"role": "user", "content": "Jaké je počasí?"}],
             next="__end__",
@@ -782,11 +790,12 @@ class TestSupervisorNode:
 
             result = await supervisor_node(state, mock_runtime)
 
-            assert result["next"] == "placeholder"
+            assert isinstance(result, Send)
+            assert result.node == "placeholder"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_empty_messages(self, mock_runtime):
-        """Test supervisor handles empty messages with placeholder routing."""
+        """Test supervisor handles empty messages with placeholder Send."""
         state = State(
             messages=[],
             next="__end__",
@@ -795,11 +804,12 @@ class TestSupervisorNode:
 
         result = await supervisor_node(state, mock_runtime)
 
-        assert result["next"] == "placeholder"
+        assert isinstance(result, Send)
+        assert result.node == "placeholder"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_classification_error_fallback(self, mock_runtime):
-        """Test supervisor falls back to keyword routing on classification error."""
+        """Test supervisor falls back to keyword routing Send on classification error."""
         state = State(
             messages=[{"role": "user", "content": "Najdi lék Ibalgin"}],
             next="__end__",
@@ -816,11 +826,12 @@ class TestSupervisorNode:
             result = await supervisor_node(state, mock_runtime)
 
             # Fallback to route_query: "lék" is a drug keyword → drug_agent
-            assert result["next"] == "drug_agent"
+            assert isinstance(result, Send)
+            assert result.node == "drug_agent"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_explicit_drug_query(self, mock_runtime):
-        """Test supervisor routes explicit drug_query directly."""
+        """Test supervisor routes explicit drug_query directly via Send."""
         from agent.models.drug_models import DrugQuery, QueryType
 
         state = State(
@@ -832,11 +843,12 @@ class TestSupervisorNode:
 
         result = await supervisor_node(state, mock_runtime)
 
-        assert result["next"] == "drug_agent"
+        assert isinstance(result, Send)
+        assert result.node == "drug_agent"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_explicit_research_query(self, mock_runtime):
-        """Test supervisor routes explicit research_query directly."""
+        """Test supervisor routes explicit research_query directly via Send."""
         from agent.models.research_models import ResearchQuery
 
         state = State(
@@ -848,11 +860,12 @@ class TestSupervisorNode:
 
         result = await supervisor_node(state, mock_runtime)
 
-        assert result["next"] == "translate_cz_to_en"
+        assert isinstance(result, Send)
+        assert result.node == "translate_cz_to_en"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_explicit_guideline_query(self, mock_runtime):
-        """Test supervisor routes explicit guideline_query directly."""
+        """Test supervisor routes explicit guideline_query directly via Send."""
         from agent.models.guideline_models import GuidelineQuery, GuidelineQueryType
 
         state = State(
@@ -867,7 +880,8 @@ class TestSupervisorNode:
 
         result = await supervisor_node(state, mock_runtime)
 
-        assert result["next"] == "guidelines_agent"
+        assert isinstance(result, Send)
+        assert result.node == "guidelines_agent"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_unavailable_drug_agent(self, mock_runtime):
@@ -890,10 +904,14 @@ class TestSupervisorNode:
             )
             mock_cls.return_value = mock_classifier
 
-            with patch("agent.graph.get_mcp_clients", return_value=(None, None)):
+            with patch(
+                "agent.graph.get_mcp_clients",
+                return_value=(None, None),
+            ):
                 result = await supervisor_node(state, mock_runtime)
 
-        assert result["next"] == "placeholder"
+        assert isinstance(result, Send)
+        assert result.node == "placeholder"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_unavailable_pubmed_agent(self, mock_runtime):
@@ -916,7 +934,11 @@ class TestSupervisorNode:
             )
             mock_cls.return_value = mock_classifier
 
-            with patch("agent.graph.get_mcp_clients", return_value=(None, None)):
+            with patch(
+                "agent.graph.get_mcp_clients",
+                return_value=(None, None),
+            ):
                 result = await supervisor_node(state, mock_runtime)
 
-        assert result["next"] == "placeholder"
+        assert isinstance(result, Send)
+        assert result.node == "placeholder"

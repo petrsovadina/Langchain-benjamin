@@ -27,6 +27,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from langchain_anthropic import ChatAnthropic
+from langgraph.types import Send
 
 from agent.models.supervisor_models import (
     VALID_AGENT_NAMES,
@@ -319,24 +320,27 @@ def extract_message_content(message: Any) -> str:
 async def supervisor_node(
     state: State,
     runtime: Runtime[Context],
-) -> dict[str, Any]:
-    """Route user query to appropriate agent using LLM-based intent classification.
+) -> Send | list[Send]:
+    """Route user query to appropriate agent(s) using LLM-based intent classification.
+
+    Uses LangGraph Send API for dynamic routing, enabling parallel execution
+    when multiple agents are needed (compound queries).
 
     Workflow:
         1. Check for explicit queries (drug_query, research_query, guideline_query)
         2. Extract last user message
         3. Classify intent using IntentClassifier
         4. Validate agents_to_call
-        5. Map agent name to graph node name
-        6. Fallback to keyword routing if classification fails
+        5. Check MCP client availability
+        6. Return Send commands for parallel agent execution
+        7. Fallback to keyword routing if classification fails
 
     Args:
         state: Current agent state with messages.
         runtime: Runtime context with model configuration.
 
     Returns:
-        Updated state dict with:
-            - next: Graph node name to route to
+        Send or list[Send] for dynamic routing to agent node(s).
     """
     logger.info("[supervisor_node] Starting intent classification")
 
@@ -345,31 +349,31 @@ async def supervisor_node(
         logger.info(
             "[supervisor_node] Explicit drug_query detected, routing to drug_agent"
         )
-        return {"next": "drug_agent"}
+        return Send("drug_agent", state)
     if state.research_query is not None:
         logger.info(
             "[supervisor_node] Explicit research_query detected, "
             "routing to translate_cz_to_en"
         )
-        return {"next": "translate_cz_to_en"}
+        return Send("translate_cz_to_en", state)
     if state.guideline_query is not None:
         logger.info(
             "[supervisor_node] Explicit guideline_query detected, "
             "routing to guidelines_agent"
         )
-        return {"next": "guidelines_agent"}
+        return Send("guidelines_agent", state)
 
     # Extract last user message
     if not state.messages:
         logger.warning("[supervisor_node] No messages in state")
-        return {"next": "placeholder"}
+        return Send("placeholder", state)
 
     last_message = state.messages[-1]
     content = extract_message_content(last_message)
 
     if not content:
         logger.warning("[supervisor_node] Empty message content")
-        return {"next": "placeholder"}
+        return Send("placeholder", state)
 
     # Classify intent
     context = runtime.context or {}
@@ -392,39 +396,57 @@ async def supervisor_node(
 
         fallback_node = route_query(state)
         logger.info(f"[supervisor_node] Fallback routing to: {fallback_node}")
-        return {"next": fallback_node}
+        return Send(fallback_node, state)
 
     # Validate agents
     valid_agents = validate_agent_names(result.agents_to_call)
 
     if not valid_agents:
         logger.warning("[supervisor_node] No valid agents, routing to placeholder")
-        return {"next": "placeholder"}
+        return Send("placeholder", state)
 
-    # Single-agent routing (compound execution in next phase)
-    target_agent = valid_agents[0]
+    # Multi-agent routing with Send API (parallel execution)
+    send_commands: list[Send] = []
 
-    # Check agent availability (fallback if MCP client unavailable)
-    if target_agent in ("drug_agent", "pubmed_agent"):
-        from agent.graph import get_mcp_clients
+    for agent_name in valid_agents:
+        # Check agent availability (fallback if MCP client unavailable)
+        if agent_name in ("drug_agent", "pubmed_agent"):
+            from agent.graph import get_mcp_clients
 
-        sukl_client, biomcp_client = get_mcp_clients(runtime)
-        if target_agent == "drug_agent" and not sukl_client:
-            logger.warning(
-                "[supervisor_node] SUKL client unavailable, fallback to placeholder"
-            )
-            target_agent = "placeholder"
-        elif target_agent == "pubmed_agent" and not biomcp_client:
-            logger.warning(
-                "[supervisor_node] BioMCP client unavailable, fallback to placeholder"
-            )
-            target_agent = "placeholder"
+            sukl_client, biomcp_client = get_mcp_clients(runtime)
 
-    # Map agent name to graph node name
-    target_node = AGENT_TO_NODE_MAP.get(target_agent, "placeholder")
+            if agent_name == "drug_agent" and not sukl_client:
+                logger.warning(
+                    f"[supervisor_node] SUKL client unavailable, skipping {agent_name}"
+                )
+                continue
+            elif agent_name == "pubmed_agent" and not biomcp_client:
+                logger.warning(
+                    f"[supervisor_node] BioMCP client unavailable, "
+                    f"skipping {agent_name}"
+                )
+                continue
 
-    logger.info(f"[supervisor_node] Routing to: {target_node}")
-    return {"next": target_node}
+        # Map agent name to graph node name
+        target_node = AGENT_TO_NODE_MAP.get(agent_name, "placeholder")
+
+        # Create Send command for this agent
+        send_commands.append(Send(target_node, state))
+        logger.info(f"[supervisor_node] Scheduling agent: {target_node}")
+
+    # Fallback if no valid agents after availability checks
+    if not send_commands:
+        logger.warning(
+            "[supervisor_node] No valid agents available, routing to placeholder"
+        )
+        return Send("placeholder", state)
+
+    logger.info(f"[supervisor_node] Parallel execution: {len(send_commands)} agent(s)")
+
+    # Return single Send or list for parallel execution
+    if len(send_commands) == 1:
+        return send_commands[0]
+    return send_commands
 
 
 # Export public API

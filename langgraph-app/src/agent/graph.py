@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Annotated, Any, Dict, Literal
+from typing import Annotated, Any, Dict, Literal, Sequence
 
 from dotenv import load_dotenv
 from langchain_core.documents import Document
@@ -16,6 +16,7 @@ from langchain_core.messages import AnyMessage
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.runtime import Runtime
+from langgraph.types import Command, Send
 from typing_extensions import TypedDict
 
 # Import MCP infrastructure (Feature 002)
@@ -119,6 +120,31 @@ def get_mcp_clients(
     return sukl, biomcp
 
 
+def _keep_last(existing: str, new: str) -> str:
+    """Reducer for next field: keep last value (supports parallel agent updates)."""
+    return new
+
+
+def add_documents(
+    existing: Sequence[Document],
+    new: Sequence[Document],
+) -> list[Document]:
+    """Reducer for appending documents (similar to add_messages).
+
+    Appends new documents to existing list instead of replacing.
+    Used for parallel agent execution where multiple agents contribute
+    documents to state.retrieved_docs.
+
+    Args:
+        existing: Current documents in state.
+        new: New documents to append.
+
+    Returns:
+        Combined list of documents.
+    """
+    return list(existing) + list(new)
+
+
 class Context(TypedDict, total=False):
     """Runtime configuration for graph execution.
 
@@ -189,8 +215,10 @@ class State:
     """
 
     messages: Annotated[list[AnyMessage], add_messages]
-    next: str = "__end__"
-    retrieved_docs: list[Document] = field(default_factory=list)
+    next: Annotated[str, _keep_last] = "__end__"
+    retrieved_docs: Annotated[list[Document], add_documents] = field(
+        default_factory=list
+    )
     # Feature 003: SÚKL Drug Agent
     drug_query: DrugQuery | None = None
     # Feature 005: BioMCP PubMed Agent
@@ -443,38 +471,26 @@ def route_query(
     return "placeholder"
 
 
-def route_from_supervisor(
-    state: State,
-) -> Literal["drug_agent", "translate_cz_to_en", "guidelines_agent", "placeholder"]:
-    """Route based on state.next set by supervisor_node.
+async def _supervisor_with_command(state: State, runtime: Runtime[Context]) -> Command[str]:
+    """Convert supervisor_node Send returns to Command for graph compatibility.
 
-    Reads the next field from state (set by supervisor_node) and returns
-    the corresponding node name for conditional edge routing.
-
-    Args:
-        state: Current agent state with next field set by supervisor.
-
-    Returns:
-        Node name to route to.
+    supervisor_node returns Send | list[Send] for unit-test convenience,
+    but compiled LangGraph nodes must return dict or Command.
     """
-    next_node = state.next
-    valid_nodes = {
-        "drug_agent",
-        "translate_cz_to_en",
-        "guidelines_agent",
-        "placeholder",
-    }
-    if next_node in valid_nodes:
-        return next_node  # type: ignore[return-value]
-    return "placeholder"
+    result = await supervisor_node(state, runtime)
+    if isinstance(result, list):
+        return Command(goto=result)
+    elif isinstance(result, Send):
+        return Command(goto=[result])
+    return result
 
 
-# Build and compile graph with routing
+# Build and compile graph with Send API routing
 graph = (
     StateGraph(State, context_schema=Context)
     # Add nodes
-    # Feature 007: Supervisor orchestrator (LLM-based intent classification)
-    .add_node("supervisor", supervisor_node)
+    # Feature 007: Supervisor orchestrator (LLM-based intent classification + Send API)
+    .add_node("supervisor", _supervisor_with_command)
     .add_node("placeholder", placeholder_node)
     .add_node("drug_agent", drug_agent_node)
     # Feature 005: PubMed research workflow (Sandwich Pattern: CZ→EN→PubMed→EN→CZ)
@@ -483,19 +499,10 @@ graph = (
     .add_node("translate_en_to_cz", translate_en_to_cz_node)
     # Feature 006: Guidelines Agent
     .add_node("guidelines_agent", guidelines_agent_node)
-    # Route via supervisor (LLM-based intent classification)
+    # Entry point
     .add_edge("__start__", "supervisor")
-    .add_conditional_edges(
-        "supervisor",
-        route_from_supervisor,
-        {
-            "drug_agent": "drug_agent",
-            "translate_cz_to_en": "translate_cz_to_en",
-            "guidelines_agent": "guidelines_agent",
-            "placeholder": "placeholder",
-        },
-    )
-    # Drug agent ends immediately
+    # Supervisor uses Send API for dynamic routing (no conditional edges needed)
+    # Agent edges remain the same
     .add_edge("drug_agent", "__end__")
     # PubMed research workflow: CZ→EN→PubMed→EN→CZ (Sandwich Pattern)
     .add_edge("translate_cz_to_en", "pubmed_agent")

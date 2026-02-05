@@ -33,6 +33,7 @@ from agent.utils.guidelines_storage import (
     get_guideline_section,
     search_guidelines,
 )
+from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
     from langgraph.runtime import Runtime
@@ -260,6 +261,7 @@ async def search_guidelines_semantic(
 # =============================================================================
 
 
+@with_timeout(timeout_seconds=10.0)
 async def guidelines_agent_node(
     state: State,
     runtime: Runtime[Context],

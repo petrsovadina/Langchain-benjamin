@@ -20,6 +20,7 @@ from agent.models.research_models import (
     PubMedArticle,
     ResearchQuery,
 )
+from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
     from agent.graph import Context, State
@@ -322,6 +323,7 @@ async def _get_article_by_pmid(pmid: str, biomcp_client: Any) -> PubMedArticle |
     )
 
 
+@with_timeout(timeout_seconds=10.0)
 async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     """Search PubMed articles with BioMCP integration.
 
@@ -380,6 +382,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str
 
     # Get MCP clients with fallback to module-level instances
     from agent.graph import get_mcp_clients
+
     _, biomcp_client = get_mcp_clients(runtime)
 
     if not biomcp_client:
@@ -408,6 +411,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> Dict[str
                 articles = [article]
         else:
             # Search
+            context = runtime.context or {}
             max_results_raw = context.get("max_results", 5)
             max_results = (
                 int(max_results_raw) if isinstance(max_results_raw, (int, str)) else 5

@@ -34,6 +34,7 @@ from agent.models.drug_models import (
     ReimbursementCategory,
     ReimbursementInfo,
 )
+from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
     from langgraph.runtime import Runtime
@@ -563,6 +564,7 @@ async def _search_by_ingredient(
 # =============================================================================
 
 
+@with_timeout(timeout_seconds=10.0)
 async def drug_agent_node(
     state: State,
     runtime: Runtime[Context],
@@ -600,6 +602,7 @@ async def drug_agent_node(
 
     # Get MCP clients with fallback to module-level instances
     from agent.graph import get_mcp_clients
+
     sukl_client, _ = get_mcp_clients(runtime)
 
     if not sukl_client:

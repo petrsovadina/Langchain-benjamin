@@ -6,6 +6,7 @@ Modules:
     translation_prompts: Translation prompt templates.
     pdf_processor: PDF processing and chunking utilities (Feature 006).
     guidelines_storage: Async storage utilities for guidelines with pgvector.
+    timeout: Timeout wrapper for async agent nodes (Feature 007).
 """
 
 from agent.utils.guidelines_storage import (
@@ -31,6 +32,7 @@ from agent.utils.pdf_processor import (
     load_pdf,
     split_on_headers,
 )
+from agent.utils.timeout import with_timeout
 
 __all__ = [
     # PDF processor
@@ -54,4 +56,6 @@ __all__ = [
     "search_guidelines",
     "get_guideline_section",
     "delete_guideline_section",
+    # Timeout (Feature 007)
+    "with_timeout",
 ]
