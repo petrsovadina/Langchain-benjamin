@@ -443,24 +443,43 @@ class TestGuidelinesAgentNode:
         mock_runtime = MagicMock()
         mock_runtime.context = {}
 
+        # Mock database connection pool and query
+        mock_row = {
+            "id": 1,
+            "guideline_id": "CLS-JEP-2024-001",
+            "title": "Doporučené postupy pro hypertenzi",
+            "section_name": "Definice",
+            "content": "Hypertenze je definována...",
+            "publication_date": "2024-01-15",
+            "source": "cls_jep",
+            "url": "https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+            "metadata": {},
+        }
+
+        # Create mock connection with fetchrow
+        mock_conn = MagicMock()
+        mock_conn.fetchrow = AsyncMock(return_value=mock_row)
+
+        # Create mock context manager for pool.acquire()
+        mock_acquire_cm = AsyncMock()
+        mock_acquire_cm.__aenter__.return_value = mock_conn
+        mock_acquire_cm.__aexit__.return_value = None
+
+        # Create mock pool
+        mock_pool = MagicMock()
+        mock_pool.acquire.return_value = mock_acquire_cm
+
         with patch(
-            "agent.nodes.guidelines_agent.get_guideline_section", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = {
-                "guideline_id": "CLS-JEP-2024-001",
-                "title": "Doporučené postupy pro hypertenzi",
-                "section_name": "Definice",
-                "content": "Hypertenze je definována...",
-                "publication_date": "2024-01-15",
-                "source": "cls_jep",
-                "url": "https://www.cls.cz/guidelines/hypertenze-2024.pdf",
-            }
+            "agent.nodes.guidelines_agent.get_pool", new_callable=AsyncMock
+        ) as mock_get_pool:
+            # get_pool() is async, so return_value is what await returns
+            mock_get_pool.return_value = mock_pool
 
             result = await guidelines_agent_node(sample_state, mock_runtime)
 
             assert "CLS-JEP-2024-001" in result["messages"][0]["content"]
             assert len(result["retrieved_docs"]) == 1
-            mock_get.assert_called_once()
+            mock_conn.fetchrow.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_guidelines_agent_node_uses_explicit_query(
@@ -641,10 +660,21 @@ class TestNoResults:
         mock_runtime = MagicMock()
         mock_runtime.context = {}
 
+        # Mock database connection pool that returns no results
+        mock_conn = MagicMock()
+        mock_conn.fetchrow = AsyncMock(return_value=None)  # No results found
+
+        mock_acquire_cm = AsyncMock()
+        mock_acquire_cm.__aenter__.return_value = mock_conn
+        mock_acquire_cm.__aexit__.return_value = None
+
+        mock_pool = MagicMock()
+        mock_pool.acquire.return_value = mock_acquire_cm
+
         with patch(
-            "agent.nodes.guidelines_agent.get_guideline_section", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.side_effect = GuidelineNotFoundError("Not found")
+            "agent.nodes.guidelines_agent.get_pool", new_callable=AsyncMock
+        ) as mock_get_pool:
+            mock_get_pool.return_value = mock_pool
 
             result = await guidelines_agent_node(sample_state, mock_runtime)
 
