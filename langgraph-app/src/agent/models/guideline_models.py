@@ -104,7 +104,9 @@ class GuidelineSection(BaseModel):
         [0.1, 0.2, ...]
     """
 
-    guideline_id: str = Field(..., min_length=1, description="Unique guideline identifier")
+    guideline_id: str = Field(
+        ..., min_length=1, description="Unique guideline identifier"
+    )
     title: str = Field(..., min_length=1, description="Guideline title")
     section_name: str = Field(..., description="Section name")
     content: str = Field(..., min_length=1, description="Section text content")

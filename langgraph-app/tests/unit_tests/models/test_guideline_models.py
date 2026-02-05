@@ -326,7 +326,9 @@ class TestGuidelineSection:
             source=GuidelineSource.ESC,
             url="https://example.com",
         )
-        assert section.guideline_url == "https://www.escardio.org/Guidelines/ESC-2023-042"
+        assert (
+            section.guideline_url == "https://www.escardio.org/Guidelines/ESC-2023-042"
+        )
 
     def test_guideline_url_ers(self):
         """Test guideline_url computed field for ERS source."""

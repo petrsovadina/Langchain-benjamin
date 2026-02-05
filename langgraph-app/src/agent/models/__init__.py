@@ -17,18 +17,18 @@ from agent.models.drug_models import (
     ReimbursementCategory,
     ReimbursementInfo,
 )
-from agent.models.research_models import (
-    CitationReference,
-    PubMedArticle,
-    ResearchQuery,
-    TranslatedArticle,
-)
 from agent.models.guideline_models import (
     GuidelineDocument,
     GuidelineQuery,
     GuidelineQueryType,
     GuidelineSection,
     GuidelineSource,
+)
+from agent.models.research_models import (
+    CitationReference,
+    PubMedArticle,
+    ResearchQuery,
+    TranslatedArticle,
 )
 
 __all__: list[str] = [

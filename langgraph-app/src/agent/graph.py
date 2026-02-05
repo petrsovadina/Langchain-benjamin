@@ -35,6 +35,9 @@ from agent.nodes.pubmed_agent import pubmed_agent_node
 # Import supervisor node (Feature 007)
 from agent.nodes.supervisor import supervisor_node
 
+# Import synthesizer node (Feature 009)
+from agent.nodes.synthesizer import synthesizer_node
+
 # Import translation and pubmed_agent nodes (Feature 005)
 from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
 
@@ -471,7 +474,9 @@ def route_query(
     return "placeholder"
 
 
-async def _supervisor_with_command(state: State, runtime: Runtime[Context]) -> Command[str]:
+async def _supervisor_with_command(
+    state: State, runtime: Runtime[Context]
+) -> Command[str]:
     """Convert supervisor_node Send returns to Command for graph compatibility.
 
     supervisor_node returns Send | list[Send] for unit-test convenience,
@@ -499,18 +504,22 @@ graph = (
     .add_node("translate_en_to_cz", translate_en_to_cz_node)
     # Feature 006: Guidelines Agent
     .add_node("guidelines_agent", guidelines_agent_node)
+    # Feature 009: Synthesizer (combines multi-agent responses)
+    .add_node("synthesizer", synthesizer_node)
     # Entry point
     .add_edge("__start__", "supervisor")
     # Supervisor uses Send API for dynamic routing (no conditional edges needed)
-    # Agent edges remain the same
-    .add_edge("drug_agent", "__end__")
+    # Agent edges route to synthesizer (Feature 009)
+    .add_edge("drug_agent", "synthesizer")
     # PubMed research workflow: CZ→EN→PubMed→EN→CZ (Sandwich Pattern)
     .add_edge("translate_cz_to_en", "pubmed_agent")
     .add_edge("pubmed_agent", "translate_en_to_cz")
-    .add_edge("translate_en_to_cz", "__end__")
-    # Guidelines agent ends immediately
-    .add_edge("guidelines_agent", "__end__")
-    # Placeholder ends immediately
-    .add_edge("placeholder", "__end__")
+    .add_edge("translate_en_to_cz", "synthesizer")
+    # Guidelines agent routes to synthesizer
+    .add_edge("guidelines_agent", "synthesizer")
+    # Placeholder routes to synthesizer
+    .add_edge("placeholder", "synthesizer")
+    # Synthesizer ends the graph
+    .add_edge("synthesizer", "__end__")
     .compile(name="Czech MedAI")
 )

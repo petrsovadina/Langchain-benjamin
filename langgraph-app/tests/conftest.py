@@ -702,3 +702,35 @@ def sample_compound_intent_result() -> IntentResult:
         agents_to_call=["drug_agent", "guidelines_agent"],
         reasoning="Query requires both drug info and guidelines",
     )
+
+
+# =============================================================================
+# Feature 009: Synthesizer Node Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def sample_agent_messages() -> List[Dict[str, str]]:
+    """Messages from drug_agent and pubmed_agent for synthesis testing.
+
+    Returns:
+        List[Dict]: Two assistant messages with citations from different agents.
+    """
+    return [
+        {
+            "role": "assistant",
+            "content": (
+                "Ibalgin obsahuje ibuprofen [1].\n\n"
+                "## References\n"
+                "[1] SUKL - Ibalgin 400"
+            ),
+        },
+        {
+            "role": "assistant",
+            "content": (
+                "Studie prokázala účinnost ibuprofenu [1].\n\n"
+                "## References\n"
+                "[1] PMID: 12345678"
+            ),
+        },
+    ]
