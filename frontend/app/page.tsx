@@ -44,6 +44,7 @@ export default function HomePage() {
                 timestamp={msg.timestamp}
                 latency_ms={msg.latency_ms}
                 isLoading={!msg.content && isLoading}
+                retrieved_docs={msg.retrieved_docs}
               />
             )
           )}
