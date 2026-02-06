@@ -4,7 +4,10 @@ Tests:
     - Server startup
     - Health check endpoint
     - CORS headers
+    - Consult endpoint with SSE streaming
 """
+
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -55,8 +58,12 @@ def test_health_check_mcp_status(client: TestClient):
     sukl_status = data["mcp_servers"]["sukl"]
     biomcp_status = data["mcp_servers"]["biomcp"]
 
-    assert sukl_status in ["available", "unavailable"] or sukl_status.startswith("error:")
-    assert biomcp_status in ["available", "unavailable"] or biomcp_status.startswith("error:")
+    assert sukl_status in ["available", "unavailable"] or sukl_status.startswith(
+        "error:"
+    )
+    assert biomcp_status in ["available", "unavailable"] or biomcp_status.startswith(
+        "error:"
+    )
 
 
 def test_health_check_database_status(client: TestClient):
@@ -115,3 +122,117 @@ def test_openapi_docs_available(client: TestClient):
     data = response.json()
     assert data["info"]["title"] == "Czech MedAI API"
     assert data["info"]["version"] == "0.1.0"
+
+
+def test_consult_endpoint_quick_mode(client: TestClient):
+    """Test /api/v1/consult endpoint with quick mode."""
+    response = client.post(
+        "/api/v1/consult",
+        json={"query": "Jaké jsou kontraindikace metforminu?", "mode": "quick"},
+        headers={"Accept": "text/event-stream"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
+
+    # Parse SSE events
+    events = []
+    for line in response.iter_lines():
+        line = line.decode("utf-8")
+        if line.startswith("data: "):
+            data = json.loads(line[6:])  # Remove "data: " prefix
+            events.append(data)
+
+    # Verify event sequence
+    assert len(events) > 0
+
+    # Check for final event
+    final_events = [e for e in events if e.get("type") == "final"]
+    assert len(final_events) == 1
+
+    final = final_events[0]
+    assert "answer" in final
+    assert "retrieved_docs" in final
+    assert "latency_ms" in final
+    assert isinstance(final["answer"], str)
+    assert isinstance(final["retrieved_docs"], list)
+    assert final["latency_ms"] > 0
+
+
+def test_consult_endpoint_deep_mode(client: TestClient):
+    """Test /api/v1/consult endpoint with deep mode."""
+    response = client.post(
+        "/api/v1/consult",
+        json={"query": "Nejnovější studie o SGLT2 inhibitorech", "mode": "deep"},
+        headers={"Accept": "text/event-stream"},
+    )
+
+    assert response.status_code == 200
+
+    # Parse events
+    events = []
+    for line in response.iter_lines():
+        line = line.decode("utf-8")
+        if line.startswith("data: "):
+            data = json.loads(line[6:])
+            events.append(data)
+
+    # Verify agent_start events
+    agent_starts = [e for e in events if e.get("type") == "agent_start"]
+    assert len(agent_starts) > 0  # At least supervisor + 1 agent
+
+
+def test_consult_endpoint_validation_error(client: TestClient):
+    """Test /api/v1/consult with invalid request."""
+    # Empty query
+    response = client.post("/api/v1/consult", json={"query": "", "mode": "quick"})
+    assert response.status_code == 422  # Validation error
+
+    # Query too long
+    response = client.post(
+        "/api/v1/consult", json={"query": "a" * 1001, "mode": "quick"}
+    )
+    assert response.status_code == 400  # Bad request
+
+
+def test_consult_endpoint_rate_limiting(client: TestClient):
+    """Test rate limiting (10 req/min)."""
+    # Send 11 requests rapidly
+    for i in range(11):
+        response = client.post(
+            "/api/v1/consult",
+            json={"query": f"Test query {i}", "mode": "quick"},
+        )
+
+        if i < 10:
+            assert response.status_code == 200
+        else:
+            # 11th request should be rate limited
+            assert response.status_code == 429
+
+
+def test_consult_endpoint_retrieved_docs_format(client: TestClient):
+    """Test retrieved_docs are properly formatted."""
+    response = client.post(
+        "/api/v1/consult",
+        json={"query": "Ibalgin", "mode": "quick"},
+        headers={"Accept": "text/event-stream"},
+    )
+
+    # Parse final event
+    events = []
+    for line in response.iter_lines():
+        line = line.decode("utf-8")
+        if line.startswith("data: "):
+            data = json.loads(line[6:])
+            events.append(data)
+
+    final = [e for e in events if e.get("type") == "final"][0]
+    docs = final["retrieved_docs"]
+
+    # Verify document structure
+    if docs:
+        doc = docs[0]
+        assert "page_content" in doc
+        assert "metadata" in doc
+        assert "source" in doc["metadata"]
