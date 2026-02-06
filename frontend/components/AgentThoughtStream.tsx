@@ -1,5 +1,4 @@
 import { type AgentStatus } from "@/hooks/useConsult";
-import { Loader2 } from "lucide-react";
 
 interface AgentThoughtStreamProps {
   agents: AgentStatus[];
@@ -19,15 +18,24 @@ export function AgentThoughtStream({ agents }: AgentThoughtStreamProps) {
   return (
     <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
       <div className="bg-slate-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg">
-        <div className="flex items-center gap-2 font-mono text-xs">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          {agents
-            .filter((a) => a.status === "running")
-            .map((agent) => (
-              <span key={agent.name}>
+        <div className="space-y-2">
+          {agents.map((agent) => (
+            <div key={agent.name} className="flex items-center gap-2 font-mono text-xs">
+              {agent.status === "running" && (
+                <div className="flex gap-1">
+                  <span className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+              )}
+              {agent.status === "complete" && (
+                <span className="text-green-500">{"\u2713"}</span>
+              )}
+              <span className="text-slate-300">
                 {AGENT_LABELS[agent.name] || agent.name}
               </span>
-            ))}
+            </div>
+          ))}
         </div>
       </div>
     </div>

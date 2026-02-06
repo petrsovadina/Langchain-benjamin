@@ -3,6 +3,7 @@ import { Bot } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CitedResponse } from "./CitedResponse";
+import { MessageSkeleton } from "./MessageSkeleton";
 import type { RetrievedDocument } from "@/lib/api";
 
 interface AssistantMessageProps {
@@ -20,15 +21,27 @@ export function AssistantMessage({
   isLoading,
   retrieved_docs = [],
 }: AssistantMessageProps) {
+  if (isLoading && !content) {
+    return <MessageSkeleton />;
+  }
+
   return (
-    <div className="flex items-start gap-3" data-testid="assistant-message">
+    <div
+      className="flex items-start gap-3"
+      data-testid="assistant-message"
+      role="article"
+      aria-label="Odpověď asistenta"
+      aria-live={isLoading ? "polite" : "off"}
+      aria-busy={isLoading}
+    >
       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
-        <Bot className="h-4 w-4 text-white" />
+        <Bot className="h-4 w-4 text-white" aria-hidden="true" />
       </div>
       <Card className="max-w-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 px-4 py-3">
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <div className="animate-pulse">Zpracovavam dotaz...</div>
+            <div className="sr-only">Načítám odpověď...</div>
           </div>
         ) : (
           <>

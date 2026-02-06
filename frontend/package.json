@@ -10,7 +10,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "analyze": "ANALYZE=true next build",
+    "build:analyze": "ANALYZE=true next build",
+    "lighthouse": "lhci autorun",
+    "lighthouse:view": "lighthouse http://localhost:3000 --view --preset=desktop",
+    "bundle-size": "next build && node scripts/check-bundle-size.js",
+    "check:bundle": "node scripts/check-bundle-size.js"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -26,6 +32,9 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@lhci/cli": "^0.15.0",
+    "@next/bundle-analyzer": "^14.2.0",
     "@playwright/test": "^1.58.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
