@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # FastAPI backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: czech-medai-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/czech_medai
+      - LOG_LEVEL=INFO
+    env_file:
+      - .env.production
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+    networks:
+      - czech-medai-network
+    volumes:
+      - ./logs:/app/logs  # Persist logs
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: czech-medai-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    networks:
+      - czech-medai-network
+    volumes:
+      - redis-data:/data
+
+  # PostgreSQL database (pgvector)
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: czech-medai-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=czech_medai
+    restart: unless-stopped
+    networks:
+      - czech-medai-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+networks:
+  czech-medai-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:

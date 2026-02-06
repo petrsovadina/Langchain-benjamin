@@ -3,6 +3,7 @@
 Modely požadavků a odpovědí pro Czech MedAI API s validací.
 """
 
+import re
 from typing import Dict, List, Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -40,11 +41,50 @@ class ConsultRequest(BaseModel):
 
     @field_validator("query")
     @classmethod
-    def validate_query_not_empty(cls, v: str) -> str:
-        """Ensure query is not just whitespace."""
-        if not v.strip():
+    def sanitize_query(cls, v: str) -> str:
+        """Sanitize query input.
+
+        - Remove leading/trailing whitespace
+        - Remove control characters
+        - Remove excessive whitespace
+        - Block SQL injection patterns
+        - Block XSS patterns
+        """
+        # Remove control characters
+        v = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', v)
+
+        # Remove excessive whitespace
+        v = re.sub(r'\s+', ' ', v)
+
+        # Strip
+        v = v.strip()
+
+        # Ensure not empty
+        if not v:
             raise ValueError("Query cannot be empty or whitespace")
-        return v.strip()
+
+        # Block SQL injection patterns (basic)
+        sql_patterns = [
+            r"(\bUNION\b.*\bSELECT\b)",
+            r"(\bDROP\b.*\bTABLE\b)",
+            r"(\bINSERT\b.*\bINTO\b)",
+            r"(\bDELETE\b.*\bFROM\b)",
+        ]
+        for pattern in sql_patterns:
+            if re.search(pattern, v, re.IGNORECASE):
+                raise ValueError("Invalid query: potential SQL injection")
+
+        # Block XSS patterns (basic)
+        xss_patterns = [
+            r"<script[^>]*>.*?</script>",
+            r"javascript:",
+            r"on\w+\s*=",
+        ]
+        for pattern in xss_patterns:
+            if re.search(pattern, v, re.IGNORECASE):
+                raise ValueError("Invalid query: potential XSS")
+
+        return v
 
 
 class DocumentMetadata(BaseModel):

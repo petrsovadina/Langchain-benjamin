@@ -32,6 +32,11 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",  # ASGI server with websockets support
     "slowapi>=0.1.9",  # Rate limiting for FastAPI
     "sse-starlette>=2.1.3",  # SSE streaming helper
+    # Feature 011: Production readiness
+    "redis[hiredis]>=5.0.0",  # Redis client with C parser for caching
+    "python-json-logger>=2.0.7",  # JSON logging for production
+    "structlog>=24.1.0",  # Structured logging
+    "pydantic-settings>=2.0.0",  # Settings management from environment
 ]
 
 
@@ -41,6 +46,7 @@ dev = [
     "ruff>=0.6.1",
     "aioresponses>=0.7.6",  # HTTP mocking for MCP client tests
     "reportlab>=4.0.0",     # For creating test PDFs
+    "locust>=2.20.0",       # Load testing for production readiness
 ]
 
 [build-system]

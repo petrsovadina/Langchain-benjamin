@@ -18,6 +18,7 @@ from slowapi.util import get_remote_address
 
 from agent.graph import Context, graph
 from agent.utils.guidelines_storage import get_pool
+from api.cache import get_cached_response, set_cached_response
 from api.dependencies import transform_documents
 from api.schemas import ConsultRequest, HealthCheckResponse
 
@@ -105,6 +106,47 @@ async def health_check() -> HealthCheckResponse:
         database=database_status,
         version="0.1.0",
     )
+
+
+async def consult_stream_generator_with_cache(
+    query: str,
+    mode: str,
+    user_id: str | None,
+) -> AsyncGenerator[str, None]:
+    """Generate SSE events with caching support.
+
+    Wrapper around consult_stream_generator that caches quick mode responses.
+
+    Args:
+        query: User query text.
+        mode: Execution mode ("quick" or "deep").
+        user_id: Optional user identifier.
+
+    Yields:
+        SSE-formatted strings with caching metadata.
+    """
+    # Capture final response for caching
+    final_response_data = None
+
+    async for event in consult_stream_generator(query, mode, user_id):
+        # Intercept final response for caching
+        if "event: message" in event and "type" in event:
+            try:
+                # Extract data from SSE event
+                lines = event.split("\n")
+                for line in lines:
+                    if line.startswith("data: "):
+                        data = json.loads(line[6:])
+                        if data.get("type") == "final":
+                            final_response_data = data
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+        yield event
+
+    # Cache final response (quick mode only)
+    if mode == "quick" and final_response_data:
+        await set_cached_response(query, mode, final_response_data)
 
 
 async def consult_stream_generator(
@@ -317,10 +359,10 @@ async def consult_endpoint(
     request: Request,
     consult_request: ConsultRequest,
 ) -> StreamingResponse:
-    """Consult endpoint with SSE streaming.
+    """Consult endpoint with SSE streaming and Redis caching.
 
     Processes medical query through LangGraph multi-agent system and
-    streams execution events in real-time.
+    streams execution events in real-time. Caches quick mode responses.
 
     Args:
         request: FastAPI Request (for rate limiting).
@@ -345,9 +387,43 @@ async def consult_endpoint(
             status_code=400, detail="Query too long (max 1000 characters)"
         )
 
-    # Create SSE stream
+    # Log request
+    logger.info("Processing consult request", extra={
+        "request_id": getattr(request.state, "request_id", "unknown"),
+        "query_length": len(consult_request.query),
+        "mode": consult_request.mode,
+    })
+
+    # Check cache first (only for quick mode)
+    if consult_request.mode == "quick":
+        cached = await get_cached_response(
+            consult_request.query,
+            consult_request.mode,
+        )
+        if cached:
+            # Return cached response as SSE stream
+            async def cached_stream():
+                yield "event: message\n"
+                yield f"data: {json.dumps({'type': 'cache_hit'})}\n\n"
+                yield "event: message\n"
+                yield f"data: {json.dumps(cached)}\n\n"
+                yield "event: done\n"
+                yield "data: {}\n\n"
+
+            return StreamingResponse(
+                cached_stream(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                    "X-Cache": "HIT",
+                },
+            )
+
+    # Create SSE stream with caching
     return StreamingResponse(
-        consult_stream_generator(
+        consult_stream_generator_with_cache(
             query=consult_request.query,
             mode=consult_request.mode,
             user_id=consult_request.user_id,
@@ -356,6 +432,7 @@ async def consult_endpoint(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Disable nginx buffering
+            "X-Accel-Buffering": "no",
+            "X-Cache": "MISS",
         },
     )
