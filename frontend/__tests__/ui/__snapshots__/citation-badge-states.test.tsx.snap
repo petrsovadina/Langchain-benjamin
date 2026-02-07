@@ -1,0 +1,21 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CitationBadge States > Snapshots > default state 1`] = `
+<div>
+  <span
+    aria-haspopup="dialog"
+    aria-label="Citace 1: Smith et al. (2024)"
+    class="rounded-full border font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive overflow-hidden [a&]:hover:bg-accent [a&]:hover:text-accent-foreground cursor-pointer mx-0.5 text-xs md:text-sm px-2 py-1 md:px-3 md:py-1.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-citation-badge-text border-citation-badge-text/30 hover:bg-citation-badge-hover hover:border-citation-badge-text hover:scale-105 active:bg-citation-badge-active active:scale-95 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:border-citation-badge-text data-[state=open]:bg-citation-badge-active data-[state=open]:ring-2 data-[state=open]:ring-citation-badge-text transition-all duration-200"
+    data-slot="hover-card-trigger"
+    data-state="closed"
+    data-testid="citation-badge"
+    data-variant="outline"
+    role="button"
+    tabindex="0"
+  >
+    [
+    1
+    ]
+  </span>
+</div>
+`;
