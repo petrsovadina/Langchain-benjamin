@@ -19,7 +19,7 @@ export function CitationBadge({ citation, onClick }: CitationBadgeProps) {
       <HoverCardTrigger asChild>
         <Badge
           variant="outline"
-          className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900 active:bg-blue-100 dark:active:bg-blue-800 mx-0.5 text-xs md:text-sm px-2 py-1 md:px-3 md:py-1.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-blue-600 dark:text-blue-400"
+          className="cursor-pointer hover:bg-citation-badge-hover active:bg-citation-badge-active mx-0.5 text-xs md:text-sm px-2 py-1 md:px-3 md:py-1.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-citation-badge-text"
           data-testid="citation-badge"
           onClick={onClick}
           onKeyDown={(e) => {
@@ -39,7 +39,7 @@ export function CitationBadge({ citation, onClick }: CitationBadgeProps) {
       <HoverCardContent className="w-80">
         <div className="space-y-2">
           <p className="text-sm font-medium">{citation.shortCitation}</p>
-          <p className="text-xs text-slate-600 dark:text-slate-400">
+          <p className="text-xs text-muted-foreground">
             {citation.fullCitation}
           </p>
           {"url" in citation.metadata && citation.metadata.url && (
@@ -47,7 +47,7 @@ export function CitationBadge({ citation, onClick }: CitationBadgeProps) {
               href={citation.metadata.url as string}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs text-citation-link hover:underline"
             >
               Otevrit zdroj &rarr;
             </a>

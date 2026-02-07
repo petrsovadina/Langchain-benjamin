@@ -10,6 +10,12 @@ const config: Config = {
         md: "768px",  // Tablet
         lg: "1024px", // Desktop
       },
+      colors: {
+        "citation-badge-hover": "var(--citation-badge-hover)",
+        "citation-badge-active": "var(--citation-badge-active)",
+        "citation-badge-text": "var(--citation-badge-text)",
+        "citation-link": "var(--citation-link)",
+      },
       padding: {
         safe: "env(safe-area-inset-bottom)",
       },

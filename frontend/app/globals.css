@@ -45,6 +45,10 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --color-citation-badge-hover: var(--citation-badge-hover);
+  --color-citation-badge-active: var(--citation-badge-active);
+  --color-citation-badge-text: var(--citation-badge-text);
+  --color-citation-link: var(--citation-link);
 }
 
 :root {
@@ -80,6 +84,10 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+  --citation-badge-hover: oklch(0.95 0.02 240);
+  --citation-badge-active: oklch(0.90 0.04 240);
+  --citation-badge-text: oklch(0.45 0.15 240);
+  --citation-link: oklch(0.45 0.15 240);
 }
 
 .dark {
@@ -114,6 +122,10 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+  --citation-badge-hover: oklch(0.20 0.08 240);
+  --citation-badge-active: oklch(0.25 0.10 240);
+  --citation-badge-text: oklch(0.65 0.12 240);
+  --citation-link: oklch(0.65 0.12 240);
 }
 
 @layer base {
