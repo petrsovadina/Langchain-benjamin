@@ -14,11 +14,11 @@ const AGENT_LABELS: Record<string, string> = {
 };
 
 const AGENT_COLORS: Record<string, string> = {
-  supervisor: "text-purple-500",
-  drug_agent: "text-blue-500",
-  pubmed_agent: "text-green-500",
-  guidelines_agent: "text-orange-500",
-  synthesizer: "text-pink-500",
+  supervisor: "text-agent-supervisor",
+  drug_agent: "text-agent-drug",
+  pubmed_agent: "text-agent-pubmed",
+  guidelines_agent: "text-agent-guidelines",
+  synthesizer: "text-agent-synthesizer",
 };
 
 const ALL_AGENTS = ["supervisor", "drug_agent", "pubmed_agent", "guidelines_agent", "synthesizer"];
@@ -40,7 +40,7 @@ export function AgentThoughtStream({ agents }: AgentThoughtStreamProps) {
       role="status"
       aria-label="Stav agent\u016F"
     >
-      <div className="bg-slate-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg">
+      <div className="bg-surface-elevated/90 backdrop-blur-sm text-primary px-4 py-2 rounded-lg shadow-lg">
         <div className="space-y-2">
           {displayAgents.map((agent) => (
             <div
@@ -53,7 +53,7 @@ export function AgentThoughtStream({ agents }: AgentThoughtStreamProps) {
               data-status={agent.status}
             >
               {agent.status === "idle" && (
-                <span className="h-2 w-2 bg-slate-400 rounded-full" />
+                <span className="h-2 w-2 bg-agent-idle rounded-full" />
               )}
               {agent.status === "running" && (
                 <div className="flex gap-1">
@@ -63,10 +63,10 @@ export function AgentThoughtStream({ agents }: AgentThoughtStreamProps) {
                 </div>
               )}
               {agent.status === "complete" && (
-                <span className="text-green-500 animate-in fade-in duration-300">{"\u2713"}</span>
+                <span className="text-agent-complete animate-in fade-in duration-300">{"\u2713"}</span>
               )}
               <span className={cn(
-                "text-slate-300",
+                "text-secondary",
                 agent.status === "running" && "font-semibold",
                 AGENT_COLORS[agent.name]
               )}>

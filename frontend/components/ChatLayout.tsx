@@ -17,7 +17,7 @@ export function ChatLayout({ children, isZenMode, onSwipeDown }: ChatLayoutProps
 
   return (
     <div
-      className="h-screen flex flex-col bg-slate-50 dark:bg-slate-950"
+      className="h-screen flex flex-col bg-surface"
       data-testid="chat-container"
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
@@ -29,8 +29,8 @@ export function ChatLayout({ children, isZenMode, onSwipeDown }: ChatLayoutProps
         Přeskočit na hlavní obsah
       </a>
 
-      <header className="border-b border-slate-200 dark:border-slate-800 px-4 md:px-6 py-4">
-        <h1 className="text-lg md:text-xl font-semibold text-slate-900 dark:text-slate-100">
+      <header className="border-b border-default px-4 md:px-6 py-4">
+        <h1 className="text-lg md:text-xl font-semibold text-primary">
           Czech MedAI
         </h1>
       </header>

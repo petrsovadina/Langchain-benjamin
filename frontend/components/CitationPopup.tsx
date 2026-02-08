@@ -27,14 +27,14 @@ export function CitationPopup({ citation, open, onClose }: CitationPopupProps) {
 
         <div className="space-y-4">
           <div>
-            <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <h4 className="text-sm font-medium text-secondary">
               Kratka citace
             </h4>
             <p className="text-sm">{citation.shortCitation}</p>
           </div>
 
           <div>
-            <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <h4 className="text-sm font-medium text-secondary">
               Uplna citace
             </h4>
             <p className="text-sm">{citation.fullCitation}</p>
@@ -47,7 +47,7 @@ export function CitationPopup({ citation, open, onClose }: CitationPopupProps) {
               href={citation.metadata.url as string}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
+              className="inline-flex items-center gap-2 text-sm text-citation-link hover:underline"
             >
               <ExternalLink className="h-4 w-4" />
               Otevrit zdroj
@@ -65,7 +65,7 @@ function SourceDetails({ citation }: { citation: Citation }) {
   if (metadata.source === "sukl") {
     return (
       <div>
-        <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <h4 className="text-sm font-medium text-secondary">
           SUKL Detaily
         </h4>
         <dl className="text-sm space-y-1">
@@ -87,7 +87,7 @@ function SourceDetails({ citation }: { citation: Citation }) {
   if (metadata.source === "PubMed") {
     return (
       <div>
-        <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <h4 className="text-sm font-medium text-secondary">
           PubMed Detaily
         </h4>
         <dl className="text-sm space-y-1">
@@ -126,7 +126,7 @@ function SourceDetails({ citation }: { citation: Citation }) {
   };
   return (
     <div>
-      <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">
+      <h4 className="text-sm font-medium text-secondary">
         Guidelines Detaily
       </h4>
       <dl className="text-sm space-y-1">

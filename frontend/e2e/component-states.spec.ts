@@ -146,4 +146,47 @@ test.describe("Component States Visual Regression", () => {
       await expect(omnibox).toHaveScreenshot("omnibox-dark.png");
     });
   });
+
+  test.describe("Theme Switching", () => {
+    test("should render correctly in light theme", async ({ page }) => {
+      await page.goto("/");
+      await page.evaluate(() => {
+        document.documentElement.classList.remove("dark");
+      });
+
+      const omnibox = page.locator('[data-testid="omnibox"]');
+      await expect(omnibox).toBeVisible();
+      await expect(omnibox).toHaveScreenshot("omnibox-light-theme.png");
+
+      const container = page.locator('[data-testid="chat-container"]');
+      await expect(container).toBeVisible();
+      await expect(container).toHaveScreenshot("chat-container-light.png");
+    });
+
+    test("should render correctly in dark theme", async ({ page }) => {
+      await page.goto("/");
+      await page.evaluate(() => {
+        document.documentElement.classList.add("dark");
+      });
+
+      const omnibox = page.locator('[data-testid="omnibox"]');
+      await expect(omnibox).toBeVisible();
+      await expect(omnibox).toHaveScreenshot("omnibox-dark-theme.png");
+
+      const container = page.locator('[data-testid="chat-container"]');
+      await expect(container).toBeVisible();
+      await expect(container).toHaveScreenshot("chat-container-dark.png");
+    });
+
+    test("should toggle theme on design system page", async ({ page }) => {
+      await page.goto("/design-system");
+
+      const switcher = page.getByRole("button", { name: /Light|Dark/ });
+      await expect(switcher).toBeVisible();
+
+      await switcher.click();
+      await page.waitForTimeout(300);
+      await expect(page.locator("html")).toHaveScreenshot("design-system-toggled.png");
+    });
+  });
 });

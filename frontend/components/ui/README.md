@@ -78,6 +78,31 @@ All colors use OKLCH color space defined in `globals.css`:
 - Dark theme: `.dark` block
 - Tailwind mapping: `@theme inline` block
 
+### Using Semantic Colors
+
+**Prefer semantic tokens over hardcoded colors:**
+
+```tsx
+// BAD - Hardcoded colors
+<div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+
+// GOOD - Semantic tokens
+<div className="bg-surface-elevated text-primary">
+```
+
+### Available Semantic Tokens
+
+| Token | Light | Dark | Usage |
+|-------|-------|------|-------|
+| `bg-surface` | slate-50 | slate-950 | Page background |
+| `bg-surface-elevated` | white | slate-900 | Cards, modals |
+| `bg-surface-muted` | slate-100 | slate-800 | Disabled, skeleton |
+| `text-primary` | slate-900 | slate-50 | Headings, body text |
+| `text-secondary` | slate-600 | slate-400 | Labels, captions |
+| `text-tertiary` | slate-500 | slate-500 | Placeholders, hints |
+| `border-default` | slate-200 | white/10% | Default borders |
+| `border-strong` | slate-300 | white/15% | Emphasized borders |
+
 ### Citation-specific tokens
 | Token | Light | Dark |
 |-------|-------|------|
@@ -85,6 +110,18 @@ All colors use OKLCH color space defined in `globals.css`:
 | `--citation-badge-active` | `oklch(0.90 0.04 240)` | `oklch(0.25 0.10 240)` |
 | `--citation-badge-text` | `oklch(0.45 0.15 240)` | `oklch(0.65 0.12 240)` |
 | `--citation-link` | `oklch(0.45 0.15 240)` | `oklch(0.65 0.12 240)` |
+
+### Slate Palette
+
+The slate palette auto-inverts in dark theme via CSS variables:
+
+```tsx
+// Slate palette auto-inverts in dark theme
+<div className="bg-slate-100 text-slate-900">
+  {/* Light: bg=#f1f5f9, text=#0f172a */}
+  {/* Dark: bg=#0f172a, text=#f1f5f9 */}
+</div>
+```
 
 ## Testing
 
@@ -97,8 +134,11 @@ npm run test -- --coverage __tests__/ui/
 
 # Run accessibility tests only
 npm run test -- __tests__/ui/accessibility.test.tsx
+
+# Run theme switching E2E tests
+npm run test:e2e -- component-states.spec.ts
 ```
 
 ## Visual Documentation
 
-Visit `/design-system` route for interactive component showcase with theme switcher.
+Visit `/design-system` route for interactive component showcase with theme switcher, color palette, semantic tokens, and border tokens.

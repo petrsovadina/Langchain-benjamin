@@ -255,6 +255,151 @@ export default function DesignSystemPage() {
           </div>
         </section>
 
+        {/* Color Palette */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-bold">Color Palette - Slate</h2>
+          <p className="text-muted-foreground">
+            OKLCH color space, auto-inverted for dark theme
+          </p>
+          <div className="grid grid-cols-5 md:grid-cols-11 gap-4">
+            {[50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((shade) => (
+              <div key={shade} className="space-y-2">
+                <div
+                  className="h-16 rounded-lg border border-default"
+                  style={{ backgroundColor: `var(--slate-${shade})` }}
+                />
+                <span className="text-xs text-muted-foreground block text-center">
+                  {shade}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Semantic Colors */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-bold">Semantic Colors</h2>
+          <p className="text-muted-foreground">
+            Theme-aware semantic tokens for consistent UI
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <div className="h-16 rounded-lg bg-surface border border-default" />
+              <h3 className="text-sm font-medium">surface</h3>
+              <code className="text-xs text-muted-foreground">bg-surface</code>
+            </div>
+            <div className="space-y-2">
+              <div className="h-16 rounded-lg bg-surface-elevated border border-default" />
+              <h3 className="text-sm font-medium">surface-elevated</h3>
+              <code className="text-xs text-muted-foreground">bg-surface-elevated</code>
+            </div>
+            <div className="space-y-2">
+              <div className="h-16 rounded-lg bg-surface-muted border border-default" />
+              <h3 className="text-sm font-medium">surface-muted</h3>
+              <code className="text-xs text-muted-foreground">bg-surface-muted</code>
+            </div>
+            <div className="space-y-2">
+              <div className="h-16 rounded-lg bg-background border border-default flex items-center justify-center">
+                <span className="text-primary font-medium">Aa</span>
+              </div>
+              <h3 className="text-sm font-medium">text-primary</h3>
+              <code className="text-xs text-muted-foreground">text-primary</code>
+            </div>
+            <div className="space-y-2">
+              <div className="h-16 rounded-lg bg-background border border-default flex items-center justify-center">
+                <span className="text-secondary font-medium">Aa</span>
+              </div>
+              <h3 className="text-sm font-medium">text-secondary</h3>
+              <code className="text-xs text-muted-foreground">text-secondary</code>
+            </div>
+            <div className="space-y-2">
+              <div className="h-16 rounded-lg bg-background border border-default flex items-center justify-center">
+                <span className="text-tertiary font-medium">Aa</span>
+              </div>
+              <h3 className="text-sm font-medium">text-tertiary</h3>
+              <code className="text-xs text-muted-foreground">text-tertiary</code>
+            </div>
+          </div>
+        </section>
+
+        {/* Border Tokens */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-bold">Border Tokens</h2>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <div className="h-16 rounded-lg border-2 border-default bg-background" />
+              <h3 className="text-sm font-medium">border-default</h3>
+              <code className="text-xs text-muted-foreground">border-default</code>
+            </div>
+            <div className="space-y-2">
+              <div className="h-16 rounded-lg border-2 border-strong bg-background" />
+              <h3 className="text-sm font-medium">border-strong</h3>
+              <code className="text-xs text-muted-foreground">border-strong</code>
+            </div>
+          </div>
+        </section>
+
+        {/* Light/Dark Comparison */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-bold">Light/Dark Theme Comparison</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4 p-6 rounded-lg border border-default bg-background">
+              <h3 className="text-lg font-semibold">Current Theme</h3>
+              <div className="space-y-2">
+                <div className="p-4 rounded bg-surface border border-default">
+                  <p className="text-primary">Primary text</p>
+                  <p className="text-secondary text-sm">Secondary text</p>
+                  <p className="text-tertiary text-xs">Tertiary text</p>
+                </div>
+                <div className="p-4 rounded bg-surface-elevated border border-default">
+                  <p className="text-primary">Elevated surface</p>
+                </div>
+                <div className="p-4 rounded bg-surface-muted border border-default">
+                  <p className="text-primary">Muted surface</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 p-6 rounded-lg border border-default bg-background">
+              <h3 className="text-lg font-semibold">Token Mapping</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between p-2 rounded bg-surface-muted">
+                  <code className="text-secondary">bg-surface</code>
+                  <span className="text-tertiary">Page background</span>
+                </div>
+                <div className="flex justify-between p-2 rounded bg-surface-muted">
+                  <code className="text-secondary">bg-surface-elevated</code>
+                  <span className="text-tertiary">Cards, modals</span>
+                </div>
+                <div className="flex justify-between p-2 rounded bg-surface-muted">
+                  <code className="text-secondary">bg-surface-muted</code>
+                  <span className="text-tertiary">Disabled, skeleton</span>
+                </div>
+                <div className="flex justify-between p-2 rounded bg-surface-muted">
+                  <code className="text-secondary">text-primary</code>
+                  <span className="text-tertiary">Headings, body</span>
+                </div>
+                <div className="flex justify-between p-2 rounded bg-surface-muted">
+                  <code className="text-secondary">text-secondary</code>
+                  <span className="text-tertiary">Labels, captions</span>
+                </div>
+                <div className="flex justify-between p-2 rounded bg-surface-muted">
+                  <code className="text-secondary">text-tertiary</code>
+                  <span className="text-tertiary">Placeholders</span>
+                </div>
+                <div className="flex justify-between p-2 rounded bg-surface-muted">
+                  <code className="text-secondary">border-default</code>
+                  <span className="text-tertiary">Default borders</span>
+                </div>
+                <div className="flex justify-between p-2 rounded bg-surface-muted">
+                  <code className="text-secondary">border-strong</code>
+                  <span className="text-tertiary">Emphasized borders</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Footer */}
         <footer className="border-t pt-6 text-sm text-muted-foreground">
           <p>

@@ -90,8 +90,8 @@ export function Omnibox({ onSubmit, isLoading, isActive, error, onRetry }: Omnib
       <div
         className={cn(
           "relative flex items-center gap-1 md:gap-2",
-          "bg-white dark:bg-slate-900 rounded-full shadow-lg",
-          "border border-slate-200 dark:border-slate-700",
+          "bg-surface-elevated rounded-full shadow-lg",
+          "border border-default",
           "px-4 py-3 transition-all duration-200",
           "focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/20"
         )}
@@ -119,7 +119,7 @@ export function Omnibox({ onSubmit, isLoading, isActive, error, onRetry }: Omnib
             type="button"
             variant="ghost"
             size="icon"
-            className="text-slate-400 hover:text-slate-600 active:bg-slate-100 dark:active:bg-slate-800 min-h-[44px] min-w-[44px]"
+            className="text-tertiary hover:text-secondary active:bg-surface-muted min-h-[44px] min-w-[44px]"
             disabled={isLoading}
             aria-label="Hlasový vstup"
           >
@@ -130,7 +130,7 @@ export function Omnibox({ onSubmit, isLoading, isActive, error, onRetry }: Omnib
             type="button"
             variant="ghost"
             size="icon"
-            className="text-slate-400 hover:text-slate-600 active:bg-slate-100 dark:active:bg-slate-800 min-h-[44px] min-w-[44px]"
+            className="text-tertiary hover:text-secondary active:bg-surface-muted min-h-[44px] min-w-[44px]"
             disabled={isLoading}
             aria-label="Přiložit soubor"
           >

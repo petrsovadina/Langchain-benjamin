@@ -38,22 +38,22 @@ export function AssistantMessage({
       aria-busy={isLoading || isStreaming}
     >
       <div className={cn(
-        "flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center",
+        "flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center",
         isStreaming && "animate-pulse"
       )}>
-        <Bot className="h-4 w-4 text-white" aria-hidden="true" />
+        <Bot className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
       </div>
       <Card className={cn(
-        "max-w-2xl bg-white dark:bg-slate-900 px-4 py-3",
-        "border-slate-200 dark:border-slate-700",
+        "max-w-2xl bg-surface-elevated px-4 py-3",
+        "border-default",
         !isLoading && !isStreaming && retrieved_docs.length > 0
           ? "border-l-4 border-l-citation-badge-text"
           : !isLoading && !isStreaming
-            ? "border-l-4 border-l-slate-300 dark:border-l-slate-600"
+            ? "border-l-4 border-l-strong"
             : ""
       )}>
         {isStreaming ? (
-          <div className="flex items-center gap-2 text-sm text-slate-500" data-testid="streaming-indicator">
+          <div className="flex items-center gap-2 text-sm text-tertiary" data-testid="streaming-indicator">
             <div className="flex gap-1">
               <span className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
               <span className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -63,7 +63,7 @@ export function AssistantMessage({
             <span className="sr-only">Asistent píše odpověď</span>
           </div>
         ) : isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-slate-500">
+          <div className="flex items-center gap-2 text-sm text-tertiary">
             <div className="animate-pulse">Zpracovávám dotaz...</div>
             <div className="sr-only">Načítám odpověď...</div>
           </div>
@@ -78,7 +78,7 @@ export function AssistantMessage({
                 </ReactMarkdown>
               </div>
             )}
-            <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-2 mt-2 text-xs text-tertiary">
               <time>
                 {timestamp.toLocaleTimeString("cs-CZ", {
                   hour: "2-digit",

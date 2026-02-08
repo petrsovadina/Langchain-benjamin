@@ -49,6 +49,52 @@
   --color-citation-badge-active: var(--citation-badge-active);
   --color-citation-badge-text: var(--citation-badge-text);
   --color-citation-link: var(--citation-link);
+
+  /* Agent colors */
+  --color-agent-supervisor: var(--agent-supervisor);
+  --color-agent-drug: var(--agent-drug);
+  --color-agent-pubmed: var(--agent-pubmed);
+  --color-agent-guidelines: var(--agent-guidelines);
+  --color-agent-synthesizer: var(--agent-synthesizer);
+  --color-agent-idle: var(--agent-idle);
+  --color-agent-complete: var(--agent-complete);
+
+  /* Slate palette */
+  --color-slate-50: var(--slate-50);
+  --color-slate-100: var(--slate-100);
+  --color-slate-200: var(--slate-200);
+  --color-slate-300: var(--slate-300);
+  --color-slate-400: var(--slate-400);
+  --color-slate-500: var(--slate-500);
+  --color-slate-600: var(--slate-600);
+  --color-slate-700: var(--slate-700);
+  --color-slate-800: var(--slate-800);
+  --color-slate-900: var(--slate-900);
+  --color-slate-950: var(--slate-950);
+
+  /* Semantic surface colors */
+  --color-surface: var(--color-surface);
+  --color-surface-elevated: var(--color-surface-elevated);
+  --color-surface-muted: var(--color-surface-muted);
+
+  /* Semantic text colors */
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-tertiary: var(--color-text-tertiary);
+
+  /* Semantic border colors */
+  --color-border-default: var(--color-border-default);
+  --color-border-strong: var(--color-border-strong);
+
+  /* Font sizes */
+  --font-size-xs: var(--font-size-xs);
+  --font-size-sm: var(--font-size-sm);
+  --font-size-base: var(--font-size-base);
+  --font-size-lg: var(--font-size-lg);
+  --font-size-xl: var(--font-size-xl);
+  --font-size-2xl: var(--font-size-2xl);
+  --font-size-3xl: var(--font-size-3xl);
+  --font-size-4xl: var(--font-size-4xl);
 }
 
 :root {
@@ -88,6 +134,88 @@
   --citation-badge-active: oklch(0.90 0.04 240);
   --citation-badge-text: oklch(0.45 0.15 240);
   --citation-link: oklch(0.45 0.15 240);
+
+  /* Agent colors - Light theme */
+  --agent-supervisor: oklch(0.553 0.252 292.11);
+  --agent-drug: oklch(0.546 0.245 262.88);
+  --agent-pubmed: oklch(0.723 0.219 149.58);
+  --agent-guidelines: oklch(0.705 0.213 47.60);
+  --agent-synthesizer: oklch(0.656 0.241 354.31);
+  --agent-idle: var(--slate-400);
+  --agent-complete: oklch(0.723 0.219 149.58);
+
+  /* Spacing scale */
+  --spacing-0: 0;
+  --spacing-px: 1px;
+  --spacing-0-5: 0.125rem;
+  --spacing-1: 0.25rem;
+  --spacing-1-5: 0.375rem;
+  --spacing-2: 0.5rem;
+  --spacing-2-5: 0.625rem;
+  --spacing-3: 0.75rem;
+  --spacing-3-5: 0.875rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-7: 1.75rem;
+  --spacing-8: 2rem;
+  --spacing-9: 2.25rem;
+  --spacing-10: 2.5rem;
+  --spacing-11: 2.75rem;
+  --spacing-12: 3rem;
+  --spacing-14: 3.5rem;
+  --spacing-16: 4rem;
+  --spacing-20: 5rem;
+  --spacing-24: 6rem;
+  --spacing-32: 8rem;
+  --spacing-40: 10rem;
+  --spacing-48: 12rem;
+  --spacing-56: 14rem;
+  --spacing-64: 16rem;
+  --spacing-72: 18rem;
+  --spacing-80: 20rem;
+  --spacing-96: 24rem;
+
+  /* Font sizes */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+
+  /* Line heights */
+  --line-height-none: 1;
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
+
+  /* Slate palette - Light theme */
+  --slate-50: oklch(0.984 0.003 247.858);
+  --slate-100: oklch(0.968 0.007 247.896);
+  --slate-200: oklch(0.929 0.013 255.508);
+  --slate-300: oklch(0.870 0.015 252.894);
+  --slate-400: oklch(0.704 0.040 256.788);
+  --slate-500: oklch(0.554 0.046 257.417);
+  --slate-600: oklch(0.446 0.043 257.281);
+  --slate-700: oklch(0.354 0.040 257.287);
+  --slate-800: oklch(0.279 0.041 260.031);
+  --slate-900: oklch(0.208 0.042 265.755);
+  --slate-950: oklch(0.129 0.042 264.695);
+
+  /* Semantic color aliases - Light theme */
+  --color-surface: var(--slate-50);
+  --color-surface-elevated: oklch(1 0 0);
+  --color-surface-muted: var(--slate-100);
+  --color-text-primary: var(--slate-900);
+  --color-text-secondary: var(--slate-600);
+  --color-text-tertiary: var(--slate-500);
+  --color-border-default: var(--slate-200);
+  --color-border-strong: var(--slate-300);
 }
 
 .dark {
@@ -126,6 +254,38 @@
   --citation-badge-active: oklch(0.25 0.10 240);
   --citation-badge-text: oklch(0.65 0.12 240);
   --citation-link: oklch(0.65 0.12 240);
+
+  /* Agent colors - Dark theme */
+  --agent-supervisor: oklch(0.670 0.237 292.06);
+  --agent-drug: oklch(0.610 0.238 264.05);
+  --agent-pubmed: oklch(0.792 0.209 151.71);
+  --agent-guidelines: oklch(0.750 0.183 55.93);
+  --agent-synthesizer: oklch(0.718 0.236 349.76);
+  --agent-idle: var(--slate-400);
+  --agent-complete: oklch(0.792 0.209 151.71);
+
+  /* Slate palette - Dark theme (inverted) */
+  --slate-50: oklch(0.129 0.042 264.695);
+  --slate-100: oklch(0.208 0.042 265.755);
+  --slate-200: oklch(0.279 0.041 260.031);
+  --slate-300: oklch(0.354 0.040 257.287);
+  --slate-400: oklch(0.446 0.043 257.281);
+  --slate-500: oklch(0.554 0.046 257.417);
+  --slate-600: oklch(0.704 0.040 256.788);
+  --slate-700: oklch(0.870 0.015 252.894);
+  --slate-800: oklch(0.929 0.013 255.508);
+  --slate-900: oklch(0.968 0.007 247.896);
+  --slate-950: oklch(0.984 0.003 247.858);
+
+  /* Semantic color aliases - Dark theme */
+  --color-surface: var(--slate-50);
+  --color-surface-elevated: oklch(0.208 0.042 265.755);
+  --color-surface-muted: oklch(0.279 0.041 260.031);
+  --color-text-primary: oklch(0.984 0.003 247.858);
+  --color-text-secondary: oklch(0.704 0.040 256.788);
+  --color-text-tertiary: oklch(0.554 0.046 257.417);
+  --color-border-default: oklch(1 0 0 / 10%);
+  --color-border-strong: oklch(1 0 0 / 15%);
 }
 
 @layer base {

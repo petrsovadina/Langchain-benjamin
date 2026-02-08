@@ -94,6 +94,36 @@
 - [x] ARIA label with citation number and short text
 - [x] aria-haspopup="dialog"
 
+## Design Token System
+
+### Color Tokens
+- [x] OKLCH color space for perceptual uniformity
+- [x] Light theme (:root) - 11 slate shades + semantic tokens
+- [x] Dark theme (.dark) - inverted slate shades + semantic tokens
+- [x] Semantic surface tokens (surface, surface-elevated, surface-muted)
+- [x] Semantic text tokens (text-primary, text-secondary, text-tertiary)
+- [x] Semantic border tokens (border-default, border-strong)
+- [x] Citation-specific tokens (4 variables)
+
+### Spacing Tokens
+- [x] Tailwind default spacing scale (0-96)
+- [x] Safe-area padding support (pb-safe)
+- [x] WCAG touch target minimum (44px = spacing-11)
+
+### Font Size Tokens
+- [x] 8 font sizes (xs to 4xl)
+- [x] Line height tokens (none, tight, snug, normal, relaxed, loose)
+
+### Border Radius Tokens
+- [x] 7 radius sizes (sm to 4xl)
+- [x] Based on --radius CSS variable (0.625rem)
+
+### Component Compliance
+- [x] All components use semantic tokens (no hardcoded colors)
+- [x] Full light/dark theme support
+- [x] No bg-white, bg-slate-*, text-slate-* hardcoded classes
+- [x] Backwards compatible (bg-slate-200 still works via CSS variables)
+
 ## Design System Infrastructure
 
 ### CSS Variables
@@ -107,15 +137,21 @@
 - [x] Custom breakpoints (xs: 375px)
 - [x] Safe-area padding support
 - [x] Citation color tokens in theme.extend.colors
+- [x] Semantic color tokens (surface, text, border)
+- [x] Slate palette via CSS variables
+- [x] Font size tokens with line heights
+- [x] Border radius tokens
 
 ### Testing Infrastructure
 - [x] Vitest + React Testing Library
 - [x] jest-axe for accessibility auditing
 - [x] Snapshot testing for visual regression
 - [x] userEvent for keyboard interaction testing
+- [x] Theme switching E2E tests (light/dark)
 
 ### Documentation
 - [x] components/ui/README.md - Component reference
 - [x] PENCIL_COMPLIANCE.md - This compliance checklist
-- [x] /design-system page - Interactive visual documentation
+- [x] DESIGN_TOKENS.md - Design tokens cheat sheet
+- [x] /design-system page - Interactive visual documentation with color palette
 - [x] Visual regression tests (Playwright)
