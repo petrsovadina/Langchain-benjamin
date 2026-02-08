@@ -39,7 +39,6 @@ export function ProgressBar({
 
   useEffect(() => {
     if (!isLoading) {
-      setProgress(0);
       return;
     }
 

@@ -80,6 +80,34 @@ describe("Dialog", () => {
     expect(closeButtons).toHaveLength(0);
   });
 
+  test("renders dialog content with default variant", () => {
+    const { container } = render(
+      <Dialog open>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Default Dialog</DialogTitle>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+    const content = container.ownerDocument.querySelector('[data-slot="dialog-content"]');
+    expect(content).toHaveAttribute("data-variant", "default");
+  });
+
+  test("renders dialog content with centered variant", () => {
+    const { container } = render(
+      <Dialog open>
+        <DialogContent variant="centered">
+          <DialogHeader>
+            <DialogTitle>Centered Dialog</DialogTitle>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+    const content = container.ownerDocument.querySelector('[data-slot="dialog-content"]');
+    expect(content).toHaveAttribute("data-variant", "centered");
+  });
+
   test("renders all sub-components", () => {
     const { container } = render(
       <Dialog open>

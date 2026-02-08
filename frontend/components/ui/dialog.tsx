@@ -59,9 +59,14 @@ const dialogContentVariants = cva(
         xl: "sm:max-w-xl",
         full: "sm:max-w-[90vw]",
       },
+      variant: {
+        default: "",
+        centered: "items-center text-center",
+      },
     },
     defaultVariants: {
       size: "lg",
+      variant: "default",
     },
   }
 )
@@ -77,6 +82,7 @@ function DialogContent({
   children,
   showCloseButton = true,
   size = "lg",
+  variant = "default",
   ...props
 }: DialogContentProps) {
   return (
@@ -85,7 +91,8 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         data-size={size}
-        className={cn(dialogContentVariants({ size }), className)}
+        data-variant={variant}
+        className={cn(dialogContentVariants({ size, variant }), className)}
         {...props}
       >
         {children}
