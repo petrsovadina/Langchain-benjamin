@@ -2,11 +2,16 @@
 
 import { Component, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  variant?: "default" | "minimal";
+  onReset?: () => void;
+  className?: string;
 }
 
 interface State {
@@ -28,18 +33,75 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error("ErrorBoundary caught:", error, errorInfo);
   }
 
+  handleReset = () => {
+    this.setState({ hasError: false, error: undefined });
+    this.props.onReset?.();
+  };
+
   render() {
     if (this.state.hasError) {
-      return this.props.fallback || (
-        <div className="flex flex-col items-center justify-center min-h-screen p-4">
-          <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Něco se pokazilo</h2>
-          <p className="text-muted-foreground mb-4 text-center max-w-md">
-            Omlouváme se, došlo k neočekávané chybě. Zkuste prosím obnovit stránku.
-          </p>
-          <Button onClick={() => window.location.reload()}>
-            Obnovit stránku
-          </Button>
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      const { variant = "default", className } = this.props;
+
+      if (variant === "minimal") {
+        return (
+          <div
+            data-slot="error-boundary"
+            data-variant="minimal"
+            className={cn("p-4 text-center", className)}
+            role="alert"
+          >
+            <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+            <p className="text-sm text-secondary mb-2">Došlo k chybě</p>
+            <Button size="sm" onClick={this.handleReset}>
+              Zkusit znovu
+            </Button>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          data-slot="error-boundary"
+          data-variant="default"
+          className={cn("flex items-center justify-center min-h-screen p-4", className)}
+          role="alert"
+        >
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-8 w-8 text-destructive shrink-0" />
+                <CardTitle>Něco se pokazilo</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-secondary">
+                Omlouváme se, došlo k neočekávané chybě. Zkuste prosím obnovit stránku nebo se
+                vrátit na hlavní stránku.
+              </p>
+              {process.env.NODE_ENV === "development" && this.state.error && (
+                <details className="mt-4 p-3 bg-surface-muted rounded-md text-xs">
+                  <summary className="cursor-pointer font-medium">Technické detaily</summary>
+                  <pre className="mt-2 overflow-auto">{this.state.error.message}</pre>
+                </details>
+              )}
+            </CardContent>
+            <CardFooter className="flex gap-2">
+              <Button onClick={this.handleReset} className="flex-1">
+                Zkusit znovu
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+                className="flex-1"
+              >
+                Obnovit stránku
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
       );
     }

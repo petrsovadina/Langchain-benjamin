@@ -1,12 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
 
-interface ProgressBarProps {
+const progressBarVariants = cva(
+  "fixed left-0 right-0 h-1 bg-surface-muted z-50 transition-opacity duration-300",
+  {
+    variants: {
+      variant: {
+        primary: "[&>div]:bg-primary",
+        secondary: "[&>div]:bg-secondary",
+      },
+      position: {
+        top: "top-0",
+        bottom: "bottom-0",
+      },
+    },
+    defaultVariants: {
+      variant: "primary",
+      position: "top",
+    },
+  }
+);
+
+interface ProgressBarProps extends VariantProps<typeof progressBarVariants> {
   isLoading: boolean;
+  className?: string;
 }
 
-export function ProgressBar({ isLoading }: ProgressBarProps) {
+export function ProgressBar({
+  isLoading,
+  variant = "primary",
+  position = "top",
+  className,
+}: ProgressBarProps) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -17,7 +45,7 @@ export function ProgressBar({ isLoading }: ProgressBarProps) {
 
     const interval = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 90) return prev; // Cap at 90% until done
+        if (prev >= 90) return prev;
         return prev + Math.random() * 10;
       });
     }, 300);
@@ -35,9 +63,19 @@ export function ProgressBar({ isLoading }: ProgressBarProps) {
   if (progress === 0) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-1 bg-surface-muted z-50">
+    <div
+      data-slot="progress-bar"
+      data-variant={variant}
+      data-position={position}
+      className={cn(progressBarVariants({ variant, position }), className)}
+      role="progressbar"
+      aria-valuenow={Math.round(progress)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Průběh načítání"
+    >
       <div
-        className="h-full bg-primary transition-all duration-300 ease-out"
+        className="h-full transition-all duration-300 ease-out"
         style={{ width: `${progress}%` }}
       />
     </div>

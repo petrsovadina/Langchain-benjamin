@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Mic, Paperclip, Send, RefreshCw, Loader2, AlertCircle, WifiOff } from "lucide-react";
+import { Mic, Paperclip, Send, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 interface OmniboxProps {
   onSubmit: (query: string) => void;
@@ -52,16 +53,7 @@ export function Omnibox({ onSubmit, isLoading, isActive, error, onRetry }: Omnib
         ${isActive ? "fixed bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 z-40" : ""}
       `}
     >
-      {!isOnline && (
-        <div
-          className="mb-2 bg-destructive/10 border border-destructive rounded-lg px-4 py-2 text-sm text-destructive flex items-center gap-2 animate-pulse animate-in slide-in-from-top-2"
-          role="alert"
-          aria-live="polite"
-        >
-          <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
-          Jste offline. Připojte se k internetu pro odeslání dotazu.
-        </div>
-      )}
+      {!isOnline && <OfflineBanner className="mb-2" />}
 
       {error && (
         <div
