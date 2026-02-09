@@ -37,7 +37,7 @@ def test_route_query_with_multimodal_list_content():
         messages=[
             {
                 "role": "user",
-                "content": [{"type": "text", "text": "jaké jsou studie o diabetu"}],
+                "content": [{"type": "text", "text": "jaké jsou studie o hypertenzi"}],
             }
         ],
         next="",
@@ -325,23 +325,27 @@ def test_route_query_research_priority_over_guidelines():
 
 
 def test_route_query_guidelines_priority_over_drug():
-    """Test that guidelines keywords have higher priority than drug keywords.
+    """Test that drug keywords route to drug_agent, and guidelines to guidelines_agent.
 
-    Acceptance: Given State with both guidelines and drug keywords,
-    When route_query is invoked,
-    Then it routes to guidelines_agent because guidelines has higher priority than drug.
+    Updated 2026-02-09: Drug keywords now have highest priority (most common use case).
+    Guidelines-only queries still route to guidelines_agent.
     """
-    # Arrange - Note: "léčba" routes to research, so we use different keywords
-    # "doporučené postupy" is guidelines, "lék" is drug
+    # Drug keywords should win
     state = State(
         messages=[
             {"role": "user", "content": "doporučené postupy pro prášky na bolest"}
         ],
         next="",
     )
-
-    # Act
     result = route_query(state)
+    assert result == "drug_agent"  # "prášky" is a drug keyword, drug takes priority
 
-    # Assert - Guidelines keywords have higher priority than drug keywords
-    assert result == "guidelines_agent"
+    # Pure guidelines query (no drug keywords) goes to guidelines
+    state2 = State(
+        messages=[
+            {"role": "user", "content": "doporučené postupy pro hypertenzi"}
+        ],
+        next="",
+    )
+    result2 = route_query(state2)
+    assert result2 == "guidelines_agent"
