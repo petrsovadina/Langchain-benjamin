@@ -29,7 +29,7 @@ const MOCK_SSE_EVENTS = [
 
 test.describe("Component States Visual Regression", () => {
   test.beforeEach(async ({ page }) => {
-    await page.route("**/api/consult", (route) =>
+    await page.route("**/api/v1/consult", (route) =>
       route.fulfill({
         status: 200,
         contentType: "text/event-stream",
@@ -55,7 +55,7 @@ test.describe("Component States Visual Regression", () => {
     });
 
     test("error state", async ({ page }) => {
-      await page.route("**/api/consult", (route) =>
+      await page.route("**/api/v1/consult", (route) =>
         route.fulfill({
           status: 500,
           contentType: "application/json",
