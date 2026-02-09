@@ -69,7 +69,7 @@ class IntentClassifier:
 
     def __init__(
         self,
-        model_name: str = "claude-sonnet-4-20250514",
+        model_name: str | None = None,
         temperature: float = 0.0,
         llm: ChatAnthropic | None = None,
     ) -> None:
@@ -83,7 +83,8 @@ class IntentClassifier:
                  classify_intent call (avoids requiring ANTHROPIC_API_KEY
                  at import/construction time).
         """
-        self.model_name = model_name
+        import os
+        self.model_name = model_name or os.getenv("DEFAULT_MODEL_NAME", "claude-sonnet-4-20250514")
         self.temperature = temperature
         self.llm = llm
 

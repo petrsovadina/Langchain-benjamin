@@ -315,7 +315,7 @@ DRUG_KEYWORDS = {
 
 # Research-related keywords for routing (Czech + English)
 RESEARCH_KEYWORDS = {
-    # Czech - research terms
+    # Czech - research-SPECIFIC terms (must clearly indicate research intent)
     "studie",
     "výzkum",
     "pubmed",
@@ -328,35 +328,11 @@ RESEARCH_KEYWORDS = {
     "klinický výzkum",
     "randomizovaná studie",
     "meta-analýza",
-    "přehled",
     "review",
     "evidence",
     "důkazy",
     "publikace",
-    # Czech - medical conditions & treatments (route to research)
-    "diabetes",
-    "diabetu",
-    "diabetem",
-    "cukrovka",
-    "cukrovkou",
-    "léčba",
-    "léčení",
-    "terapie",
-    "onemocnění",
-    "nemoc",
-    "choroba",
-    "syndrom",
-    "symptom",
-    "příznaky",
-    "diagnóza",
-    "diagnostika",
-    "prevence",
-    "prognóza",
-    "komplikace",
-    "riziko",
-    "účinnost",
-    "bezpečnost",
-    # English fallback
+    # English fallback - research specific
     "study",
     "research",
     "article",
@@ -365,13 +341,16 @@ RESEARCH_KEYWORDS = {
     "clinical trial",
     "meta-analysis",
     "systematic review",
-    "evidence",
     "publication",
-    "treatment",
-    "therapy",
-    "disease",
-    "diagnosis",
 }
+
+# Generic medical terms - these alone DON'T indicate research intent.
+# They're used by the LLM classifier (supervisor) for context, NOT keyword routing.
+# Moved OUT of RESEARCH_KEYWORDS to fix routing overlap:
+# "léčba", "léčení", "terapie", "onemocnění", "nemoc", "choroba",
+# "syndrom", "symptom", "příznaky", "diagnóza", "diagnostika",
+# "prevence", "prognóza", "komplikace", "riziko", "účinnost",
+# "bezpečnost", "diabetes", "diabetu", "cukrovka", etc.
 
 # Guidelines-related keywords for routing (Czech + English)
 GUIDELINES_KEYWORDS = {
@@ -455,20 +434,20 @@ def route_query(
 
         content_lower = content_text.lower() if content_text else ""
 
-        # Check for research keywords (highest priority - most specific)
+        # Check for drug keywords FIRST (most common use case)
+        for keyword in DRUG_KEYWORDS:
+            if keyword in content_lower:
+                return "drug_agent"
+
+        # Check for research keywords (now trimmed to research-specific terms)
         for keyword in RESEARCH_KEYWORDS:
             if keyword in content_lower:
                 return "translate_cz_to_en"
 
-        # Check for guidelines keywords (higher priority than drug)
+        # Check for guidelines keywords
         for keyword in GUIDELINES_KEYWORDS:
             if keyword in content_lower:
                 return "guidelines_agent"
-
-        # Check for drug keywords
-        for keyword in DRUG_KEYWORDS:
-            if keyword in content_lower:
-                return "drug_agent"
 
     # Default to placeholder for non-specific queries
     return "placeholder"
