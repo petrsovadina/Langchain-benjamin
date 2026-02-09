@@ -1,0 +1,309 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AgentThoughtStream > Snapshots > all complete 1`] = `
+<div>
+  <div
+    aria-label="Stav agent\\u016F"
+    class="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-300"
+    data-testid="agent-thought-stream"
+    role="status"
+  >
+    <div
+      class="bg-slate-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg"
+    >
+      <div
+        class="space-y-2"
+      >
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300"
+          data-status="complete"
+          data-testid="agent-supervisor"
+        >
+          <span
+            class="text-green-500 animate-in fade-in duration-300"
+          >
+            ✓
+          </span>
+          <span
+            class="text-purple-500"
+          >
+            🧠 Supervisor - Klasifikuji dotaz
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300"
+          data-status="complete"
+          data-testid="agent-drug_agent"
+        >
+          <span
+            class="text-green-500 animate-in fade-in duration-300"
+          >
+            ✓
+          </span>
+          <span
+            class="text-blue-500"
+          >
+            💊 Drug Agent - Prohledávám SÚKL
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300"
+          data-status="complete"
+          data-testid="agent-pubmed_agent"
+        >
+          <span
+            class="text-green-500 animate-in fade-in duration-300"
+          >
+            ✓
+          </span>
+          <span
+            class="text-green-500"
+          >
+            🌍 PubMed Agent - Prohledávám PubMed
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300"
+          data-status="complete"
+          data-testid="agent-guidelines_agent"
+        >
+          <span
+            class="text-green-500 animate-in fade-in duration-300"
+          >
+            ✓
+          </span>
+          <span
+            class="text-orange-500"
+          >
+            📖 Guidelines Agent - Prohledávám ČLS JEP
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300"
+          data-status="complete"
+          data-testid="agent-synthesizer"
+        >
+          <span
+            class="text-green-500 animate-in fade-in duration-300"
+          >
+            ✓
+          </span>
+          <span
+            class="text-pink-500"
+          >
+            📝 Synthesizer - Formátuji odpověď
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`AgentThoughtStream > Snapshots > mixed states 1`] = `
+<div>
+  <div
+    aria-label="Stav agent\\u016F"
+    class="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-300"
+    data-testid="agent-thought-stream"
+    role="status"
+  >
+    <div
+      class="bg-slate-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg"
+    >
+      <div
+        class="space-y-2"
+      >
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300"
+          data-status="complete"
+          data-testid="agent-supervisor"
+        >
+          <span
+            class="text-green-500 animate-in fade-in duration-300"
+          >
+            ✓
+          </span>
+          <span
+            class="text-purple-500"
+          >
+            🧠 Supervisor - Klasifikuji dotaz
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300"
+          data-status="running"
+          data-testid="agent-drug_agent"
+        >
+          <div
+            class="flex gap-1"
+          >
+            <span
+              class="h-2 w-2 bg-primary rounded-full animate-bounce shadow-lg shadow-primary/50"
+              style="animation-delay: 0ms;"
+            />
+            <span
+              class="h-2 w-2 bg-primary rounded-full animate-bounce shadow-lg shadow-primary/50"
+              style="animation-delay: 150ms;"
+            />
+            <span
+              class="h-2 w-2 bg-primary rounded-full animate-bounce shadow-lg shadow-primary/50"
+              style="animation-delay: 300ms;"
+            />
+          </div>
+          <span
+            class="font-semibold text-blue-500"
+          >
+            💊 Drug Agent - Prohledávám SÚKL
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300 opacity-50"
+          data-status="idle"
+          data-testid="agent-pubmed_agent"
+        >
+          <span
+            class="h-2 w-2 bg-slate-400 rounded-full"
+          />
+          <span
+            class="text-green-500"
+          >
+            🌍 PubMed Agent - Prohledávám PubMed
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300 opacity-50"
+          data-status="idle"
+          data-testid="agent-guidelines_agent"
+        >
+          <span
+            class="h-2 w-2 bg-slate-400 rounded-full"
+          />
+          <span
+            class="text-orange-500"
+          >
+            📖 Guidelines Agent - Prohledávám ČLS JEP
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300 opacity-50"
+          data-status="idle"
+          data-testid="agent-synthesizer"
+        >
+          <span
+            class="h-2 w-2 bg-slate-400 rounded-full"
+          />
+          <span
+            class="text-pink-500"
+          >
+            📝 Synthesizer - Formátuji odpověď
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`AgentThoughtStream > Snapshots > single running agent 1`] = `
+<div>
+  <div
+    aria-label="Stav agent\\u016F"
+    class="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-300"
+    data-testid="agent-thought-stream"
+    role="status"
+  >
+    <div
+      class="bg-slate-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg"
+    >
+      <div
+        class="space-y-2"
+      >
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300"
+          data-status="running"
+          data-testid="agent-supervisor"
+        >
+          <div
+            class="flex gap-1"
+          >
+            <span
+              class="h-2 w-2 bg-primary rounded-full animate-bounce shadow-lg shadow-primary/50"
+              style="animation-delay: 0ms;"
+            />
+            <span
+              class="h-2 w-2 bg-primary rounded-full animate-bounce shadow-lg shadow-primary/50"
+              style="animation-delay: 150ms;"
+            />
+            <span
+              class="h-2 w-2 bg-primary rounded-full animate-bounce shadow-lg shadow-primary/50"
+              style="animation-delay: 300ms;"
+            />
+          </div>
+          <span
+            class="font-semibold text-purple-500"
+          >
+            🧠 Supervisor - Klasifikuji dotaz
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300 opacity-50"
+          data-status="idle"
+          data-testid="agent-drug_agent"
+        >
+          <span
+            class="h-2 w-2 bg-slate-400 rounded-full"
+          />
+          <span
+            class="text-blue-500"
+          >
+            💊 Drug Agent - Prohledávám SÚKL
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300 opacity-50"
+          data-status="idle"
+          data-testid="agent-pubmed_agent"
+        >
+          <span
+            class="h-2 w-2 bg-slate-400 rounded-full"
+          />
+          <span
+            class="text-green-500"
+          >
+            🌍 PubMed Agent - Prohledávám PubMed
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300 opacity-50"
+          data-status="idle"
+          data-testid="agent-guidelines_agent"
+        >
+          <span
+            class="h-2 w-2 bg-slate-400 rounded-full"
+          />
+          <span
+            class="text-orange-500"
+          >
+            📖 Guidelines Agent - Prohledávám ČLS JEP
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2 font-mono text-xs transition-opacity duration-300 opacity-50"
+          data-status="idle"
+          data-testid="agent-synthesizer"
+        >
+          <span
+            class="h-2 w-2 bg-slate-400 rounded-full"
+          />
+          <span
+            class="text-pink-500"
+          >
+            📝 Synthesizer - Formátuji odpověď
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

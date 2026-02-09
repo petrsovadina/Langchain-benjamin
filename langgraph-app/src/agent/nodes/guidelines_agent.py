@@ -30,7 +30,7 @@ from agent.utils.guidelines_storage import (
     GuidelineNotFoundError,
     GuidelineSearchError,
     GuidelinesStorageError,
-    get_guideline_section,
+    get_pool,
     search_guidelines,
 )
 from agent.utils.timeout import DEFAULT_AGENT_TIMEOUT, with_timeout
@@ -363,18 +363,51 @@ async def guidelines_agent_node(
             if match:
                 guideline_id = match.group(1).upper()
                 try:
-                    # Get first section of the guideline
-                    section = await get_guideline_section(
-                        guideline_id=guideline_id,
-                        section_name=None,
-                        section_id=None,
-                    )
-                    documents = [guideline_to_document(section)]
-                    response_text = f"Nalezena sekce guidelines {guideline_id}:\n\n"
-                    response_text += (
-                        f"**{section['title']}** - {section['section_name']}\n\n"
-                    )
-                    response_text += f"{section['content'][:500]}..."
+                    # Query database for first section of this guideline
+                    pool = await get_pool()
+                    async with pool.acquire() as conn:
+                        row = await conn.fetchrow(
+                            """
+                            SELECT
+                                id,
+                                guideline_id,
+                                title,
+                                section_name,
+                                content,
+                                publication_date,
+                                source,
+                                url,
+                                metadata
+                            FROM guidelines
+                            WHERE guideline_id = $1
+                            ORDER BY id
+                            LIMIT 1
+                            """,
+                            guideline_id,
+                        )
+
+                    if row:
+                        section = {
+                            "id": row["id"],
+                            "guideline_id": row["guideline_id"],
+                            "title": row["title"],
+                            "section_name": row["section_name"],
+                            "content": row["content"],
+                            "publication_date": row["publication_date"],
+                            "source": row["source"],
+                            "url": row["url"],
+                            "metadata": row["metadata"],
+                        }
+                        documents = [guideline_to_document(section)]
+                        response_text = f"Nalezena sekce guidelines {guideline_id}:\n\n"
+                        response_text += (
+                            f"**{section['title']}** - {section['section_name']}\n\n"
+                        )
+                        response_text += f"{section['content'][:500]}..."
+                    else:
+                        raise GuidelineNotFoundError(
+                            f"Guideline {guideline_id} not found"
+                        )
                 except GuidelineNotFoundError:
                     response_text = f"Guidelines s ID {guideline_id} nebyly nalezeny."
             else:

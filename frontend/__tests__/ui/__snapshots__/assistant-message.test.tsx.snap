@@ -1,0 +1,259 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AssistantMessage > Snapshots > default state 1`] = `
+<div>
+  <div
+    aria-label="Odpověď asistenta"
+    aria-live="off"
+    class="flex items-start gap-3"
+    data-testid="assistant-message"
+    role="article"
+  >
+    <div
+      class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-bot h-4 w-4 text-white"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M12 8V4H8"
+        />
+        <rect
+          height="12"
+          rx="2"
+          width="16"
+          x="4"
+          y="8"
+        />
+        <path
+          d="M2 14h2"
+        />
+        <path
+          d="M20 14h2"
+        />
+        <path
+          d="M15 13v2"
+        />
+        <path
+          d="M9 13v2"
+        />
+      </svg>
+    </div>
+    <div
+      class="text-card-foreground flex flex-col gap-6 rounded-xl border shadow-sm max-w-2xl bg-white dark:bg-slate-900 px-4 py-3 border-slate-200 dark:border-slate-700 border-l-4 border-l-slate-300 dark:border-l-slate-600"
+      data-slot="card"
+    >
+      <div
+        class="prose prose-sm dark:prose-invert max-w-none"
+      >
+        <div
+          data-testid="markdown"
+        >
+          Test response content
+        </div>
+      </div>
+      <div
+        class="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400"
+      >
+        <time>
+          12:00
+        </time>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`AssistantMessage > Snapshots > loading state 1`] = `
+<div>
+  <div
+    class="space-y-3 animate-pulse"
+  >
+    <div
+      class="flex items-start gap-3"
+    >
+      <div
+        class="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700"
+      />
+      <div
+        class="flex-1 space-y-2"
+      >
+        <div
+          class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"
+        />
+        <div
+          class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`AssistantMessage > Snapshots > streaming state 1`] = `
+<div>
+  <div
+    aria-busy="true"
+    aria-label="Odpověď asistenta"
+    aria-live="polite"
+    class="flex items-start gap-3"
+    data-testid="assistant-message"
+    role="article"
+  >
+    <div
+      class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center animate-pulse"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-bot h-4 w-4 text-white"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M12 8V4H8"
+        />
+        <rect
+          height="12"
+          rx="2"
+          width="16"
+          x="4"
+          y="8"
+        />
+        <path
+          d="M2 14h2"
+        />
+        <path
+          d="M20 14h2"
+        />
+        <path
+          d="M15 13v2"
+        />
+        <path
+          d="M9 13v2"
+        />
+      </svg>
+    </div>
+    <div
+      class="text-card-foreground flex flex-col gap-6 rounded-xl border shadow-sm max-w-2xl bg-white dark:bg-slate-900 px-4 py-3 border-slate-200 dark:border-slate-700"
+      data-slot="card"
+    >
+      <div
+        class="flex items-center gap-2 text-sm text-slate-500"
+        data-testid="streaming-indicator"
+      >
+        <div
+          class="flex gap-1"
+        >
+          <span
+            class="h-2 w-2 bg-primary rounded-full animate-bounce"
+            style="animation-delay: 0ms;"
+          />
+          <span
+            class="h-2 w-2 bg-primary rounded-full animate-bounce"
+            style="animation-delay: 150ms;"
+          />
+          <span
+            class="h-2 w-2 bg-primary rounded-full animate-bounce"
+            style="animation-delay: 300ms;"
+          />
+        </div>
+        <span>
+          Píšu odpověď...
+        </span>
+        <span
+          class="sr-only"
+        >
+          Asistent píše odpověď
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`AssistantMessage > Snapshots > with citations 1`] = `
+<div>
+  <div
+    aria-label="Odpověď asistenta"
+    aria-live="off"
+    class="flex items-start gap-3"
+    data-testid="assistant-message"
+    role="article"
+  >
+    <div
+      class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-bot h-4 w-4 text-white"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M12 8V4H8"
+        />
+        <rect
+          height="12"
+          rx="2"
+          width="16"
+          x="4"
+          y="8"
+        />
+        <path
+          d="M2 14h2"
+        />
+        <path
+          d="M20 14h2"
+        />
+        <path
+          d="M15 13v2"
+        />
+        <path
+          d="M9 13v2"
+        />
+      </svg>
+    </div>
+    <div
+      class="text-card-foreground flex flex-col gap-6 rounded-xl border shadow-sm max-w-2xl bg-white dark:bg-slate-900 px-4 py-3 border-slate-200 dark:border-slate-700 border-l-4 border-l-citation-badge-text"
+      data-slot="card"
+    >
+      <div
+        data-testid="cited-response"
+      >
+        Test response content
+      </div>
+      <div
+        class="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400"
+      >
+        <time>
+          12:00
+        </time>
+      </div>
+    </div>
+  </div>
+</div>
+`;
