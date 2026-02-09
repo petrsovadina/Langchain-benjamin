@@ -59,12 +59,12 @@ TOOL_NAME_MAP = {
 # Parameter mapping: internal param names → MCP server param names
 PARAM_MAP = {
     "search-medicine": {"query": "query", "limit": "limit"},
-    "get-medicine-details": {"registration_number": "suklCode"},
+    "get-medicine-details": {"registration_number": "sukl_code"},
     "get-atc-info": {"atc_code": "code"},
-    "get-reimbursement": {"registration_number": "suklCode"},
-    "check-availability": {"registration_number": "suklCode", "include_alternatives": None},
-    "get-pil-content": {"registration_number": "suklCode"},
-    "get-spc-content": {"registration_number": "suklCode"},
+    "get-reimbursement": {"registration_number": "sukl_code"},
+    "check-availability": {"registration_number": "sukl_code", "include_alternatives": None},
+    "get-pil-content": {"registration_number": "sukl_code"},
+    "get-spc-content": {"registration_number": "sukl_code"},
     "find-pharmacies": {"city": "city", "postal_code": "postalCode"},
 }
 
