@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { RetrievedDocument } from "@/lib/api";
@@ -21,7 +21,15 @@ export function CitedResponse({ answer, retrievedDocs }: CitedResponseProps) {
   );
   const [popupOpen, setPopupOpen] = useState(false);
 
-  const { segments, citations } = parseCitations(answer, retrievedDocs);
+  const { segments, citations } = useMemo(
+    () => parseCitations(answer, retrievedDocs),
+    [answer, retrievedDocs]
+  );
+
+  const citationMap = useMemo(
+    () => new Map(citations.map((c) => [c.number, c])),
+    [citations]
+  );
 
   const handleCitationClick = (citation: Citation) => {
     setSelectedCitation(citation);
@@ -40,9 +48,7 @@ export function CitedResponse({ answer, retrievedDocs }: CitedResponseProps) {
             );
           }
 
-          const citation = citations.find(
-            (c) => c.number === segment.citationNumber
-          );
+          const citation = citationMap.get(segment.citationNumber);
           if (!citation) return null;
 
           return (

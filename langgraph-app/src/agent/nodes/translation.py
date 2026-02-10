@@ -6,6 +6,7 @@ medical prompts for PubMed queries and abstracts.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from langchain_anthropic import ChatAnthropic
@@ -18,6 +19,8 @@ from agent.utils.translation_prompts import CZ_TO_EN_PROMPT, EN_TO_CZ_PROMPT
 
 if TYPE_CHECKING:
     from agent.graph import Context, State
+
+logger = logging.getLogger(__name__)
 
 
 async def translate_cz_to_en_node(
@@ -61,8 +64,7 @@ async def translate_cz_to_en_node(
     if not czech_query:
         raise ValueError("Last message has no content")
 
-    # Log translation
-    print(f"[translate_cz_to_en] Translating: {czech_query[:100]}...")
+    logger.info("Translating CZ→EN: %s...", czech_query[:100])
 
     # Initialize LLM
     context = runtime.context or {}
@@ -82,7 +84,7 @@ async def translate_cz_to_en_node(
         else str(english_query_raw).strip()
     )
 
-    print(f"[translate_cz_to_en] English: {english_query[:100]}...")
+    logger.info("Translated to EN: %s...", english_query[:100])
 
     # Create ResearchQuery
     # Import classify_research_query for query type detection
@@ -130,10 +132,10 @@ async def translate_en_to_cz_node(
         >>> assert "Abstract (CZ):" in result["retrieved_docs"][0].page_content
     """
     if not state.retrieved_docs:
-        print("[translate_en_to_cz] No documents to translate")
+        logger.info("No documents to translate")
         return {"retrieved_docs": []}
 
-    print(f"[translate_en_to_cz] Translating {len(state.retrieved_docs)} abstracts...")
+    logger.info("Translating %d abstracts EN→CZ", len(state.retrieved_docs))
 
     # Initialize LLM
     context = runtime.context or {}
@@ -166,8 +168,9 @@ async def translate_en_to_cz_node(
             else str(czech_abstract_raw).strip()
         )
 
-        print(
-            f"[translate_en_to_cz] Doc {i + 1}/{len(state.retrieved_docs)}: Translated {len(english_abstract)} → {len(czech_abstract)} chars"
+        logger.debug(
+            "Doc %d/%d: Translated %d → %d chars",
+            i + 1, len(state.retrieved_docs), len(english_abstract), len(czech_abstract),
         )
 
         # Update page_content with Czech abstract
@@ -185,8 +188,6 @@ async def translate_en_to_cz_node(
 
         translated_docs.append(translated_doc)
 
-    print(
-        f"[translate_en_to_cz] Translation complete: {len(translated_docs)} documents"
-    )
+    logger.info("Translation complete: %d documents", len(translated_docs))
 
     return {"retrieved_docs": translated_docs}

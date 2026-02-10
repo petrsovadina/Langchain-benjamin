@@ -38,6 +38,7 @@ from agent.nodes.supervisor_prompts import (
     build_classification_prompt,
     build_function_schema,
 )
+from agent.utils.message_utils import extract_message_content
 
 if TYPE_CHECKING:
     from langgraph.runtime import Runtime
@@ -171,9 +172,11 @@ class IntentClassifier:
 
             return result
 
+        except (ValueError, KeyError, TypeError) as e:
+            logger.warning("[IntentClassifier] Classification parse error: %s", e)
+            return fallback_to_keyword_routing(message)
         except Exception as e:
-            logger.error(f"[IntentClassifier] Classification failed: {e}")
-            logger.info("[IntentClassifier] Falling back to keyword routing")
+            logger.error("[IntentClassifier] Classification failed: %s", e)
             return fallback_to_keyword_routing(message)
 
 
@@ -288,36 +291,6 @@ AGENT_TO_NODE_MAP: dict[str, str] = {
 }
 
 
-def extract_message_content(message: Any) -> str:
-    """Extract text content from message (handles dict, Message, multimodal).
-
-    Args:
-        message: Message object (dict, AIMessage, HumanMessage, etc.).
-
-    Returns:
-        Extracted text content as string.
-    """
-    raw_content = (
-        message.get("content")
-        if isinstance(message, dict)
-        else getattr(message, "content", "")
-    )
-
-    # Handle string content
-    if isinstance(raw_content, str):
-        return raw_content
-
-    # Handle multimodal list format
-    if isinstance(raw_content, list) and raw_content:
-        first_block = raw_content[0]
-        if isinstance(first_block, str):
-            return first_block
-        elif isinstance(first_block, dict) and "text" in first_block:
-            return str(first_block["text"])
-
-    return ""
-
-
 async def supervisor_node(
     state: State,
     runtime: Runtime[Context],
@@ -390,13 +363,13 @@ async def supervisor_node(
             f"Confidence: {result.confidence:.2f}, "
             f"Agents: {result.agents_to_call}"
         )
-    except Exception as e:
-        logger.error(f"[supervisor_node] Classification failed: {e}")
+    except (ValueError, KeyError, TypeError, OSError) as e:
+        logger.error("[supervisor_node] Classification failed: %s", e)
         # Fallback to keyword routing
         from agent.graph import route_query
 
         fallback_node = route_query(state)
-        logger.info(f"[supervisor_node] Fallback routing to: {fallback_node}")
+        logger.info("[supervisor_node] Fallback routing to: %s", fallback_node)
         return Send(fallback_node, state)
 
     # Validate agents

@@ -6,6 +6,7 @@ Implements Constitution Principles I-V.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal, Sequence
@@ -24,6 +25,7 @@ from agent.mcp import BioMCPClient, MCPConfig, SUKLMCPClient
 
 # Runtime import for State dataclass (required for LangGraph type resolution)
 from agent.models.drug_models import DrugQuery
+from agent.utils.message_utils import extract_message_content
 from agent.models.guideline_models import GuidelineQuery
 from agent.models.research_models import ResearchQuery
 
@@ -44,18 +46,18 @@ from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_
 # Load environment variables (LangSmith tracing)
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 # Initialize LangSmith tracing with graceful degradation
 try:
     langsmith_api_key = os.getenv("LANGSMITH_API_KEY")
     if langsmith_api_key:
         os.environ.setdefault("LANGSMITH_TRACING", "true")
-        print("[LangSmith] Tracing enabled")
+        logger.info("LangSmith tracing enabled")
     else:
-        print("[LangSmith] No API key found - tracing disabled (graceful degradation)")
-except Exception as e:
-    print(
-        f"[LangSmith] Tracing initialization warning: {e} - continuing without tracing"
-    )
+        logger.info("LangSmith: No API key found - tracing disabled (graceful degradation)")
+except (ImportError, OSError, ValueError) as e:
+    logger.warning("LangSmith tracing initialization warning: %s - continuing without tracing", e)
 
 # Initialize MCP clients for dev server (Feature 002)
 _mcp_config = MCPConfig.from_env()
@@ -68,11 +70,9 @@ try:
         timeout=_mcp_config.sukl_timeout,
         default_retry_config=_mcp_config.to_retry_config(),
     )
-    print(f"[MCP] SÚKL client initialized: {_mcp_config.sukl_url}")
-except Exception as e:
-    print(
-        f"[MCP] Failed to initialize SÚKL client: {e} - drug agent will be unavailable"
-    )
+    logger.info("SÚKL MCP client initialized: %s", _mcp_config.sukl_url)
+except (OSError, ConnectionError, ValueError) as e:
+    logger.warning("Failed to initialize SÚKL client: %s - drug agent will be unavailable", e)
 
 try:
     _biomcp_client = BioMCPClient(
@@ -81,11 +81,9 @@ try:
         max_results=_mcp_config.biomcp_max_results,
         default_retry_config=_mcp_config.to_retry_config(),
     )
-    print(f"[MCP] BioMCP client initialized: {_mcp_config.biomcp_url}")
-except Exception as e:
-    print(
-        f"[MCP] Failed to initialize BioMCP client: {e} - PubMed agent will be unavailable"
-    )
+    logger.info("BioMCP client initialized: %s", _mcp_config.biomcp_url)
+except (OSError, ConnectionError, ValueError) as e:
+    logger.warning("Failed to initialize BioMCP client: %s - PubMed agent will be unavailable", e)
 
 
 def get_mcp_clients(
@@ -259,18 +257,12 @@ async def placeholder_node(state: State, runtime: Runtime[Context]) -> dict[str,
     context = runtime.context or {}
     model = context.get("model_name", "default")
 
-    # Log for debugging
-    print(f"[placeholder_node] Executing with model={model}")
+    logger.debug("placeholder_node executing with model=%s", model)
 
     # Echo last user message
     last_message = state.messages[-1] if state.messages else None
     if last_message:
-        # Handle both dict and Message object formats
-        content = (
-            last_message.get("content")
-            if isinstance(last_message, dict)
-            else last_message.content
-        )
+        content = extract_message_content(last_message)
         response = f"Echo: {content}"
     else:
         response = "No input"
@@ -414,24 +406,7 @@ def route_query(
     # Check last user message for keywords
     if state.messages:
         last_message = state.messages[-1]
-        raw_content = (
-            last_message.get("content", "")
-            if isinstance(last_message, dict)
-            else getattr(last_message, "content", "")
-        )
-
-        # Normalize content to string (handle multimodal list format from LangGraph Studio)
-        content_text: str = ""
-        if isinstance(raw_content, str):
-            content_text = raw_content
-        elif isinstance(raw_content, list) and raw_content:
-            # Handle multimodal content blocks
-            first_block = raw_content[0]
-            if isinstance(first_block, str):
-                content_text = first_block
-            elif isinstance(first_block, dict) and "text" in first_block:
-                content_text = str(first_block["text"])
-
+        content_text = extract_message_content(last_message)
         content_lower = content_text.lower() if content_text else ""
 
         # Check for drug keywords FIRST (most common use case)
