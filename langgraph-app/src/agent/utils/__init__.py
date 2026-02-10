@@ -32,9 +32,12 @@ from agent.utils.pdf_processor import (
     load_pdf,
     split_on_headers,
 )
+from agent.utils.message_utils import extract_message_content
 from agent.utils.timeout import with_timeout
 
 __all__ = [
+    # Message utilities
+    "extract_message_content",
     # PDF processor
     "PDFReadError",
     "load_pdf",

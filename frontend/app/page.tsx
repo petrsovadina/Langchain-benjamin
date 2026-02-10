@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Omnibox } from "@/components/Omnibox";
+import type { OmniboxHandle } from "@/components/Omnibox";
 import { ChatLayout } from "@/components/ChatLayout";
 import { UserMessage } from "@/components/UserMessage";
 import { AssistantMessage } from "@/components/AssistantMessage";
@@ -19,20 +20,18 @@ const AgentThoughtStream = dynamic(
 
 export default function HomePage() {
   const { messages, isLoading, error, agentStatuses, sendQuery, retry } = useConsult();
+  const omniboxRef = useRef<OmniboxHandle>(null);
 
   const isZenMode = messages.length === 0;
 
   const handleSwipeDown = useCallback(() => {
-    const input = document.querySelector<HTMLInputElement>(
-      'input[aria-label="Zadejte lékařský dotaz"]'
-    );
-    input?.focus();
+    omniboxRef.current?.focus();
   }, []);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !isZenMode) {
-        console.log("Escape pressed");
+        omniboxRef.current?.focus();
       }
     };
 
@@ -70,6 +69,7 @@ export default function HomePage() {
         )}
 
         <Omnibox
+          ref={omniboxRef}
           onSubmit={sendQuery}
           isLoading={isLoading}
           isActive={!isZenMode}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Mic, Paperclip, Send, RefreshCw, Loader2, AlertCircle } from "lucide-react";
@@ -16,9 +16,20 @@ interface OmniboxProps {
   onRetry?: () => void;
 }
 
-export function Omnibox({ onSubmit, isLoading, isActive, error, onRetry }: OmniboxProps) {
+export interface OmniboxHandle {
+  focus: () => void;
+}
+
+export const Omnibox = forwardRef<OmniboxHandle, OmniboxProps>(function Omnibox(
+  { onSubmit, isLoading, isActive, error, onRetry },
+  ref,
+) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus(),
+  }));
   const isOnline = useOnlineStatus();
 
   useEffect(() => {
@@ -147,4 +158,4 @@ export function Omnibox({ onSubmit, isLoading, isActive, error, onRetry }: Omnib
       </div>
     </form>
   );
-}
+});

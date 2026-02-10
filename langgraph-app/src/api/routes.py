@@ -67,10 +67,10 @@ async def health_check() -> HealthCheckResponse:
             mcp_status["sukl"] = "unavailable"
             overall_status = "degraded"
             logger.warning("SÚKL MCP client: unavailable")
-    except Exception as e:
+    except (ImportError, AttributeError) as e:
         mcp_status["sukl"] = f"error: {str(e)}"
         overall_status = "degraded"
-        logger.error(f"SÚKL MCP client check failed: {e}")
+        logger.error("SÚKL MCP client check failed: %s", e)
 
     # Check BioMCP client
     try:
@@ -83,10 +83,10 @@ async def health_check() -> HealthCheckResponse:
             mcp_status["biomcp"] = "unavailable"
             overall_status = "degraded"
             logger.warning("BioMCP client: unavailable")
-    except Exception as e:
+    except (ImportError, AttributeError) as e:
         mcp_status["biomcp"] = f"error: {str(e)}"
         overall_status = "degraded"
-        logger.error(f"BioMCP client check failed: {e}")
+        logger.error("BioMCP client check failed: %s", e)
 
     # Database connectivity check
     database_status = "available"
@@ -95,10 +95,14 @@ async def health_check() -> HealthCheckResponse:
         async with pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
         logger.debug("Database: available")
+    except (OSError, ConnectionRefusedError, asyncio.TimeoutError) as e:
+        database_status = f"error: {str(e)}"
+        overall_status = "degraded"
+        logger.error("Database check failed: %s", e)
     except Exception as e:
         database_status = f"error: {str(e)}"
         overall_status = "degraded"
-        logger.error(f"Database check failed: {e}")
+        logger.error("Unexpected database check error: %s", e)
 
     return HealthCheckResponse(
         status=overall_status,

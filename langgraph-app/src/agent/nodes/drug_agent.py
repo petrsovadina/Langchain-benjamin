@@ -34,6 +34,7 @@ from agent.models.drug_models import (
     ReimbursementCategory,
     ReimbursementInfo,
 )
+from agent.utils.message_utils import extract_message_content
 from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
@@ -344,8 +345,8 @@ async def _search_drugs(client: SUKLMCPClient, query: DrugQuery) -> list[DrugRes
                 match_score=drug_data.get("match_score"),
             )
             results.append(result)
-        except Exception as e:
-            logger.warning(f"[drug_agent] Invalid drug data: {e}")
+        except (ValueError, TypeError, KeyError) as e:
+            logger.warning("[drug_agent] Invalid drug data: %s", e)
             continue
 
     logger.info(f"[drug_agent] Found {len(results)} drugs")
@@ -389,8 +390,8 @@ async def _get_drug_details(
             pharmaceutical_form=data.get("pharmaceutical_form"),
             atc_code=data.get("atc_code", ""),
         )
-    except Exception as e:
-        logger.warning(f"[drug_agent] Invalid details data: {e}")
+    except (ValueError, TypeError, KeyError) as e:
+        logger.warning("[drug_agent] Invalid details data: %s", e)
         return None
 
 
@@ -629,22 +630,7 @@ async def drug_agent_node(
     # Priority 2: Parse from last user message
     if not query and state.messages:
         last_message = state.messages[-1]
-        raw_content = (
-            last_message.get("content")
-            if isinstance(last_message, dict)
-            else last_message.content
-        )
-        # Ensure content is a string
-        content: str | None = None
-        if isinstance(raw_content, str):
-            content = raw_content
-        elif isinstance(raw_content, list) and raw_content:
-            # Handle list of content blocks (e.g., multimodal)
-            first_block = raw_content[0]
-            if isinstance(first_block, str):
-                content = first_block
-            elif isinstance(first_block, dict) and "text" in first_block:
-                content = str(first_block["text"])
+        content = extract_message_content(last_message) or None
         if content:
             query_type = classify_drug_query(content)
             query = DrugQuery(query_text=content, query_type=query_type)

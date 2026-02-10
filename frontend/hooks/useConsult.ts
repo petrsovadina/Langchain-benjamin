@@ -1,10 +1,11 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   sendMessage,
   type ConsultRequest,
   type SSEEvent,
   type RetrievedDocument,
 } from "@/lib/api";
+import { useRetry } from "./useRetry";
 
 export interface Message {
   id: string;
@@ -20,40 +21,21 @@ export interface AgentStatus {
   status: "idle" | "running" | "complete";
 }
 
-const MAX_RETRIES = 3;
-
-function isRetryableError(err: Error): boolean {
-  const msg = err.message.toLowerCase();
-  return (
-    msg.includes("network") ||
-    msg.includes("fetch") ||
-    msg.includes("timeout") ||
-    msg.includes("failed to fetch") ||
-    msg.includes("503") ||
-    msg.includes("502") ||
-    msg.includes("429")
-  );
-}
-
 export function useConsult() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>([]);
-  const retryCountRef = useRef(0);
   const lastQueryRef = useRef<{ query: string; mode: "quick" | "deep" } | null>(null);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isAutoRetryingRef = useRef(false);
 
-  useEffect(() => {
-    return () => {
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    };
-  }, []);
+  const { isAutoRetrying, scheduleRetry, resetRetry, shouldRetry } = useRetry({
+    maxRetries: 3,
+    baseDelayMs: 1000,
+    maxDelayMs: 8000,
+  });
 
   const executeQuery = useCallback(
     async (query: string, mode: "quick" | "deep", assistantMessageId: string) => {
-      isAutoRetryingRef.current = false;
       const request: ConsultRequest = { query, mode };
 
       await sendMessage(
@@ -71,7 +53,7 @@ export function useConsult() {
               )
             );
           } else if (event.type === "final") {
-            retryCountRef.current = 0;
+            resetRetry();
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === assistantMessageId
@@ -84,24 +66,19 @@ export function useConsult() {
                   : msg
               )
             );
-          } else if (event.type === "cache_hit") {
-            console.log("Cache hit");
           }
         },
         (err: Error) => {
-          if (isRetryableError(err) && retryCountRef.current < MAX_RETRIES) {
-            retryCountRef.current += 1;
-            isAutoRetryingRef.current = true;
-            const delay = Math.min(1000 * 2 ** (retryCountRef.current - 1), 8000);
+          if (shouldRetry(err)) {
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === assistantMessageId ? { ...msg, content: "" } : msg
               )
             );
             setAgentStatuses([]);
-            retryTimerRef.current = setTimeout(() => {
+            scheduleRetry(() => {
               executeQuery(query, mode, assistantMessageId);
-            }, delay);
+            });
           } else {
             setError(err);
             setIsLoading(false);
@@ -116,14 +93,14 @@ export function useConsult() {
           }
         },
         () => {
-          if (!isAutoRetryingRef.current) {
+          if (!isAutoRetrying) {
             setIsLoading(false);
             setAgentStatuses([]);
           }
         }
       );
     },
-    []
+    [resetRetry, shouldRetry, scheduleRetry, isAutoRetrying]
   );
 
   const sendQuery = useCallback(
@@ -131,7 +108,7 @@ export function useConsult() {
       setIsLoading(true);
       setError(null);
       setAgentStatuses([]);
-      retryCountRef.current = 0;
+      resetRetry();
       lastQueryRef.current = { query, mode };
 
       const userMessage: Message = {
@@ -153,17 +130,17 @@ export function useConsult() {
 
       await executeQuery(query, mode, assistantMessageId);
     },
-    [executeQuery]
+    [executeQuery, resetRetry]
   );
 
   const retry = useCallback(() => {
     if (lastQueryRef.current) {
       setMessages((prev) => prev.slice(0, -2));
-      retryCountRef.current = 0;
+      resetRetry();
       setError(null);
       sendQuery(lastQueryRef.current.query, lastQueryRef.current.mode);
     }
-  }, [sendQuery]);
+  }, [sendQuery, resetRetry]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
