@@ -1,0 +1,28 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Card > snapshot test 1`] = `
+<div
+  class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border shadow-lg py-4"
+  data-padding="compact"
+  data-slot="card"
+  data-variant="elevated"
+>
+  <div
+    class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6"
+    data-slot="card-header"
+  >
+    <div
+      class="leading-none font-semibold"
+      data-slot="card-title"
+    >
+      Test
+    </div>
+  </div>
+  <div
+    class="px-6"
+    data-slot="card-content"
+  >
+    Content
+  </div>
+</div>
+`;

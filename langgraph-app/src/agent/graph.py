@@ -25,7 +25,6 @@ from agent.mcp import BioMCPClient, MCPConfig, SUKLMCPClient
 
 # Runtime import for State dataclass (required for LangGraph type resolution)
 from agent.models.drug_models import DrugQuery
-from agent.utils.message_utils import extract_message_content
 from agent.models.guideline_models import GuidelineQuery
 from agent.models.research_models import ResearchQuery
 
@@ -42,6 +41,7 @@ from agent.nodes.synthesizer import synthesizer_node
 
 # Import translation and pubmed_agent nodes (Feature 005)
 from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
+from agent.utils.message_utils import extract_message_content
 
 # Load environment variables (LangSmith tracing)
 load_dotenv()

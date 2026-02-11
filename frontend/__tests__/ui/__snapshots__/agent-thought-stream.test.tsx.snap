@@ -9,7 +9,7 @@ exports[`AgentThoughtStream > Snapshots > all complete 1`] = `
     role="status"
   >
     <div
-      class="bg-slate-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg"
+      class="bg-surface-elevated/90 backdrop-blur-sm text-primary px-4 py-2 rounded-lg shadow-lg"
     >
       <div
         class="space-y-2"
@@ -20,12 +20,12 @@ exports[`AgentThoughtStream > Snapshots > all complete 1`] = `
           data-testid="agent-supervisor"
         >
           <span
-            class="text-green-500 animate-in fade-in duration-300"
+            class="text-agent-complete animate-in fade-in duration-300"
           >
             ✓
           </span>
           <span
-            class="text-purple-500"
+            class="text-agent-supervisor"
           >
             🧠 Supervisor - Klasifikuji dotaz
           </span>
@@ -36,12 +36,12 @@ exports[`AgentThoughtStream > Snapshots > all complete 1`] = `
           data-testid="agent-drug_agent"
         >
           <span
-            class="text-green-500 animate-in fade-in duration-300"
+            class="text-agent-complete animate-in fade-in duration-300"
           >
             ✓
           </span>
           <span
-            class="text-blue-500"
+            class="text-agent-drug"
           >
             💊 Drug Agent - Prohledávám SÚKL
           </span>
@@ -52,12 +52,12 @@ exports[`AgentThoughtStream > Snapshots > all complete 1`] = `
           data-testid="agent-pubmed_agent"
         >
           <span
-            class="text-green-500 animate-in fade-in duration-300"
+            class="text-agent-complete animate-in fade-in duration-300"
           >
             ✓
           </span>
           <span
-            class="text-green-500"
+            class="text-agent-pubmed"
           >
             🌍 PubMed Agent - Prohledávám PubMed
           </span>
@@ -68,12 +68,12 @@ exports[`AgentThoughtStream > Snapshots > all complete 1`] = `
           data-testid="agent-guidelines_agent"
         >
           <span
-            class="text-green-500 animate-in fade-in duration-300"
+            class="text-agent-complete animate-in fade-in duration-300"
           >
             ✓
           </span>
           <span
-            class="text-orange-500"
+            class="text-agent-guidelines"
           >
             📖 Guidelines Agent - Prohledávám ČLS JEP
           </span>
@@ -84,12 +84,12 @@ exports[`AgentThoughtStream > Snapshots > all complete 1`] = `
           data-testid="agent-synthesizer"
         >
           <span
-            class="text-green-500 animate-in fade-in duration-300"
+            class="text-agent-complete animate-in fade-in duration-300"
           >
             ✓
           </span>
           <span
-            class="text-pink-500"
+            class="text-agent-synthesizer"
           >
             📝 Synthesizer - Formátuji odpověď
           </span>
@@ -109,7 +109,7 @@ exports[`AgentThoughtStream > Snapshots > mixed states 1`] = `
     role="status"
   >
     <div
-      class="bg-slate-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg"
+      class="bg-surface-elevated/90 backdrop-blur-sm text-primary px-4 py-2 rounded-lg shadow-lg"
     >
       <div
         class="space-y-2"
@@ -120,12 +120,12 @@ exports[`AgentThoughtStream > Snapshots > mixed states 1`] = `
           data-testid="agent-supervisor"
         >
           <span
-            class="text-green-500 animate-in fade-in duration-300"
+            class="text-agent-complete animate-in fade-in duration-300"
           >
             ✓
           </span>
           <span
-            class="text-purple-500"
+            class="text-agent-supervisor"
           >
             🧠 Supervisor - Klasifikuji dotaz
           </span>
@@ -152,7 +152,7 @@ exports[`AgentThoughtStream > Snapshots > mixed states 1`] = `
             />
           </div>
           <span
-            class="font-semibold text-blue-500"
+            class="font-semibold text-agent-drug"
           >
             💊 Drug Agent - Prohledávám SÚKL
           </span>
@@ -163,10 +163,10 @@ exports[`AgentThoughtStream > Snapshots > mixed states 1`] = `
           data-testid="agent-pubmed_agent"
         >
           <span
-            class="h-2 w-2 bg-slate-400 rounded-full"
+            class="h-2 w-2 bg-agent-idle rounded-full"
           />
           <span
-            class="text-green-500"
+            class="text-agent-pubmed"
           >
             🌍 PubMed Agent - Prohledávám PubMed
           </span>
@@ -177,10 +177,10 @@ exports[`AgentThoughtStream > Snapshots > mixed states 1`] = `
           data-testid="agent-guidelines_agent"
         >
           <span
-            class="h-2 w-2 bg-slate-400 rounded-full"
+            class="h-2 w-2 bg-agent-idle rounded-full"
           />
           <span
-            class="text-orange-500"
+            class="text-agent-guidelines"
           >
             📖 Guidelines Agent - Prohledávám ČLS JEP
           </span>
@@ -191,10 +191,10 @@ exports[`AgentThoughtStream > Snapshots > mixed states 1`] = `
           data-testid="agent-synthesizer"
         >
           <span
-            class="h-2 w-2 bg-slate-400 rounded-full"
+            class="h-2 w-2 bg-agent-idle rounded-full"
           />
           <span
-            class="text-pink-500"
+            class="text-agent-synthesizer"
           >
             📝 Synthesizer - Formátuji odpověď
           </span>
@@ -214,7 +214,7 @@ exports[`AgentThoughtStream > Snapshots > single running agent 1`] = `
     role="status"
   >
     <div
-      class="bg-slate-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg"
+      class="bg-surface-elevated/90 backdrop-blur-sm text-primary px-4 py-2 rounded-lg shadow-lg"
     >
       <div
         class="space-y-2"
@@ -241,7 +241,7 @@ exports[`AgentThoughtStream > Snapshots > single running agent 1`] = `
             />
           </div>
           <span
-            class="font-semibold text-purple-500"
+            class="font-semibold text-agent-supervisor"
           >
             🧠 Supervisor - Klasifikuji dotaz
           </span>
@@ -252,10 +252,10 @@ exports[`AgentThoughtStream > Snapshots > single running agent 1`] = `
           data-testid="agent-drug_agent"
         >
           <span
-            class="h-2 w-2 bg-slate-400 rounded-full"
+            class="h-2 w-2 bg-agent-idle rounded-full"
           />
           <span
-            class="text-blue-500"
+            class="text-agent-drug"
           >
             💊 Drug Agent - Prohledávám SÚKL
           </span>
@@ -266,10 +266,10 @@ exports[`AgentThoughtStream > Snapshots > single running agent 1`] = `
           data-testid="agent-pubmed_agent"
         >
           <span
-            class="h-2 w-2 bg-slate-400 rounded-full"
+            class="h-2 w-2 bg-agent-idle rounded-full"
           />
           <span
-            class="text-green-500"
+            class="text-agent-pubmed"
           >
             🌍 PubMed Agent - Prohledávám PubMed
           </span>
@@ -280,10 +280,10 @@ exports[`AgentThoughtStream > Snapshots > single running agent 1`] = `
           data-testid="agent-guidelines_agent"
         >
           <span
-            class="h-2 w-2 bg-slate-400 rounded-full"
+            class="h-2 w-2 bg-agent-idle rounded-full"
           />
           <span
-            class="text-orange-500"
+            class="text-agent-guidelines"
           >
             📖 Guidelines Agent - Prohledávám ČLS JEP
           </span>
@@ -294,10 +294,10 @@ exports[`AgentThoughtStream > Snapshots > single running agent 1`] = `
           data-testid="agent-synthesizer"
         >
           <span
-            class="h-2 w-2 bg-slate-400 rounded-full"
+            class="h-2 w-2 bg-agent-idle rounded-full"
           />
           <span
-            class="text-pink-500"
+            class="text-agent-synthesizer"
           >
             📝 Synthesizer - Formátuji odpověď
           </span>

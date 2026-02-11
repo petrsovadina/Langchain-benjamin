@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`MessageSkeleton > snapshot test 1`] = `
+<div
+  aria-label="Načítání zprávy"
+  class="space-y-3 animate-pulse flex justify-start"
+  data-slot="message-skeleton"
+  data-variant="assistant"
+  role="status"
+>
+  <div
+    class="flex items-start gap-3 max-w-3xl"
+  >
+    <div
+      class="h-8 w-8 rounded-full bg-surface-muted shrink-0"
+    />
+    <div
+      class="flex-1 space-y-2"
+    >
+      <div
+        class="h-4 bg-surface-muted rounded w-3/4"
+      />
+      <div
+        class="h-4 bg-surface-muted rounded w-3/4"
+      />
+      <div
+        class="h-4 bg-surface-muted rounded w-1/2"
+      />
+    </div>
+  </div>
+</div>
+`;
