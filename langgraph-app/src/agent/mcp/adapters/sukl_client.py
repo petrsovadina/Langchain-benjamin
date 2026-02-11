@@ -15,12 +15,16 @@ Available tools (MCP JSON-RPC):
 - batch-check-availability: Batch availability check
 
 Updated 2026-02-09: Rewrote from REST POST /tools/{name} to JSON-RPC envelope.
+Updated 2026-02-11: Security hardening (size limits, thread-safe IDs, context manager).
 """
 
 from __future__ import annotations
 
+import itertools
+import json
 import logging
 import os
+import re
 from datetime import datetime
 from typing import Any, cast
 
@@ -38,6 +42,15 @@ from ..domain.ports import IMCPClient, IRetryStrategy
 
 logger = logging.getLogger(__name__)
 
+# Safety limits for content parsing
+MAX_CONTENT_SIZE = 1_000_000  # 1 MB max total text content
+MAX_TEXT_LENGTH = 100_000  # 100 KB max for text parsing
+
+# JSON-RPC headers (shared across all requests)
+_RPC_HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/event-stream",
+}
 
 # Tool name mapping: internal name → MCP server tool name
 TOOL_NAME_MAP = {
@@ -68,6 +81,9 @@ PARAM_MAP = {
     "find-pharmacies": {"city": "city", "postal_code": "postalCode"},
 }
 
+# ReDoS-safe pattern: line-anchored, no backtracking ambiguity
+_DRUG_LINE_PATTERN = re.compile(r'^\d+\.\s+([^(]+)\s+\((\d{4,8})\)\s*-\s*(.+)$')
+
 
 class DrugSearchResult(BaseModel):
     """Schema for search_drugs response."""
@@ -86,6 +102,10 @@ class SUKLMCPClient(IMCPClient):
     the SÚKL-mcp server (sukl-mcp-ts.vercel.app) implements the MCP
     Streamable HTTP transport. BioMCPClient uses REST because its server
     exposes a traditional REST API. The protocol difference is intentional.
+
+    Supports async context manager for safe resource cleanup:
+        async with SUKLMCPClient() as client:
+            response = await client.call_tool("search_drugs", {"query": "aspirin"})
 
     Example:
         >>> client = SUKLMCPClient()
@@ -107,13 +127,37 @@ class SUKLMCPClient(IMCPClient):
         self.retry_strategy = retry_strategy
         self.default_retry_config = default_retry_config or RetryConfig()
         self._session: aiohttp.ClientSession | None = None
-        self._request_id = 0
+        self._id_counter = itertools.count(1)
 
         logger.info(f"[SUKLMCPClient] Initialized with base_url={self.base_url}")
 
+    async def __aenter__(self) -> SUKLMCPClient:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        await self.close()
+
     def _next_id(self) -> int:
-        self._request_id += 1
-        return self._request_id
+        """Thread-safe request ID generator."""
+        return next(self._id_counter)
+
+    def _build_rpc_request(
+        self, method: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Build JSON-RPC 2.0 request envelope."""
+        request: dict[str, Any] = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "id": self._next_id(),
+        }
+        if params is not None:
+            request["params"] = params
+        return request
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
@@ -165,15 +209,10 @@ class SUKLMCPClient(IMCPClient):
             mcp_tool, mcp_params = self._map_tool_and_params(tool_name, parameters)
 
             # Build JSON-RPC envelope
-            payload = {
-                "jsonrpc": "2.0",
-                "method": "tools/call",
-                "params": {
-                    "name": mcp_tool,
-                    "arguments": mcp_params,
-                },
-                "id": self._next_id(),
-            }
+            payload = self._build_rpc_request("tools/call", {
+                "name": mcp_tool,
+                "arguments": mcp_params,
+            })
 
             start_time = datetime.now()
 
@@ -185,10 +224,7 @@ class SUKLMCPClient(IMCPClient):
                 async with session.post(
                     self.base_url,
                     json=payload,
-                    headers={
-                        "Content-Type": "application/json",
-                        "Accept": "application/json, text/event-stream",
-                    },
+                    headers=_RPC_HEADERS,
                 ) as response:
                     latency_ms = int(
                         (datetime.now() - start_time).total_seconds() * 1000
@@ -264,7 +300,7 @@ class SUKLMCPClient(IMCPClient):
         else:
             return await _execute()
 
-    def _parse_content(self, content: list[dict]) -> dict[str, Any]:
+    def _parse_content(self, content: list[dict[str, Any]]) -> dict[str, Any]:
         """Parse MCP content blocks into structured data.
 
         The SÚKL MCP server returns text content that may be:
@@ -272,41 +308,58 @@ class SUKLMCPClient(IMCPClient):
         - JSON strings (structured data)
 
         We try JSON first, fall back to raw text.
+        Enforces size limits to prevent memory exhaustion from untrusted servers.
         """
-        import json
+        texts: list[str] = []
+        total_size = 0
 
-        texts = []
         for block in content:
             if block.get("type") == "text":
                 text = block.get("text", "")
+                total_size += len(text)
+                if total_size > MAX_CONTENT_SIZE:
+                    logger.warning(
+                        "[SUKLMCPClient] Content exceeds %d bytes, truncating",
+                        MAX_CONTENT_SIZE,
+                    )
+                    break
                 texts.append(text)
 
         combined = "\n".join(texts)
 
         # Try to parse as JSON
         try:
-            return {"drugs": json.loads(combined)}
-        except (json.JSONDecodeError, ValueError):
+            parsed = json.loads(combined)
+            return {"drugs": parsed}
+        except (json.JSONDecodeError, ValueError, RecursionError):
             pass
 
         # Parse formatted text response into structured data
         return self._parse_text_response(combined)
 
     def _parse_text_response(self, text: str) -> dict[str, Any]:
-        """Parse human-readable text response into structured data."""
-        import re
+        """Parse human-readable text response into structured data.
 
-        drugs = []
-        # Pattern: "1. DRUG NAME (CODE) - INGREDIENT"
-        pattern = r'\d+\.\s+(.+?)\s+\((\d+)\)\s*-\s*(.+?)(?:\n|$)'
-        for match in re.finditer(pattern, text):
-            name, code, ingredient = match.groups()
-            drugs.append({
-                "name": name.strip(),
-                "registration_number": code.strip(),
-                "atc_code": "",
-                "active_ingredient": ingredient.strip(),
-            })
+        Uses line-anchored regex to prevent ReDoS.
+        """
+        if len(text) > MAX_TEXT_LENGTH:
+            logger.warning(
+                "[SUKLMCPClient] Text response too long (%d chars), truncating",
+                len(text),
+            )
+            text = text[:MAX_TEXT_LENGTH]
+
+        drugs: list[dict[str, str]] = []
+        for line in text.split('\n'):
+            match = _DRUG_LINE_PATTERN.match(line.strip())
+            if match:
+                name, code, ingredient = match.groups()
+                drugs.append({
+                    "name": name.strip(),
+                    "registration_number": code.strip(),
+                    "atc_code": "",
+                    "active_ingredient": ingredient.strip(),
+                })
 
         if drugs:
             return {"drugs": drugs, "raw_text": text}
@@ -320,19 +373,12 @@ class SUKLMCPClient(IMCPClient):
             session = await self._get_session()
             start_time = datetime.now()
 
-            payload = {
-                "jsonrpc": "2.0",
-                "method": "tools/list",
-                "id": self._next_id(),
-            }
+            payload = self._build_rpc_request("tools/list")
 
             async with session.post(
                 self.base_url,
                 json=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json, text/event-stream",
-                },
+                headers=_RPC_HEADERS,
                 timeout=aiohttp.ClientTimeout(total=timeout),
             ) as response:
                 latency_ms = int((datetime.now() - start_time).total_seconds() * 1000)
@@ -368,18 +414,11 @@ class SUKLMCPClient(IMCPClient):
         """List available SÚKL MCP tools via JSON-RPC."""
         try:
             session = await self._get_session()
-            payload = {
-                "jsonrpc": "2.0",
-                "method": "tools/list",
-                "id": self._next_id(),
-            }
+            payload = self._build_rpc_request("tools/list")
             async with session.post(
                 self.base_url,
                 json=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json, text/event-stream",
-                },
+                headers=_RPC_HEADERS,
             ) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -411,6 +450,7 @@ class SUKLMCPClient(IMCPClient):
     async def close(self) -> None:
         if self._session and not self._session.closed:
             await self._session.close()
+            self._session = None
             logger.info("[SUKLMCPClient] Session closed")
 
     # High-level typed helpers

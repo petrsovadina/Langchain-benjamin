@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import aiohttp
 from langchain_anthropic import ChatAnthropic
 from langgraph.types import Send
 
@@ -175,8 +176,11 @@ class IntentClassifier:
         except (ValueError, KeyError, TypeError) as e:
             logger.warning("[IntentClassifier] Classification parse error: %s", e)
             return fallback_to_keyword_routing(message)
+        except (aiohttp.ClientError, TimeoutError, OSError) as e:
+            logger.error("[IntentClassifier] Network/timeout error: %s", e)
+            return fallback_to_keyword_routing(message)
         except Exception as e:
-            logger.error("[IntentClassifier] Classification failed: %s", e)
+            logger.exception("[IntentClassifier] Unexpected error: %s", e)
             return fallback_to_keyword_routing(message)
 
 
@@ -222,8 +226,17 @@ def fallback_to_keyword_routing(message: str) -> IntentResult:
 
     message_lower = message.lower()
 
-    # Check keywords (same logic as route_query in graph.py)
-    # Research keywords first (most specific)
+    # Check keywords (same priority as route_query in graph.py)
+    # Drug keywords first (most common use case)
+    if any(kw in message_lower for kw in DRUG_KEYWORDS):
+        return IntentResult(
+            intent_type=IntentType.DRUG_INFO,
+            confidence=0.6,
+            agents_to_call=["drug_agent"],
+            reasoning="Fallback: Drug keywords detected",
+        )
+
+    # Research keywords (research-specific terms only)
     if any(kw in message_lower for kw in RESEARCH_KEYWORDS):
         return IntentResult(
             intent_type=IntentType.RESEARCH_QUERY,
@@ -239,15 +252,6 @@ def fallback_to_keyword_routing(message: str) -> IntentResult:
             confidence=0.6,
             agents_to_call=["guidelines_agent"],
             reasoning="Fallback: Guidelines keywords detected",
-        )
-
-    # Drug keywords
-    if any(kw in message_lower for kw in DRUG_KEYWORDS):
-        return IntentResult(
-            intent_type=IntentType.DRUG_INFO,
-            confidence=0.6,
-            agents_to_call=["drug_agent"],
-            reasoning="Fallback: Drug keywords detected",
         )
 
     # Default: general medical

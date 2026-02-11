@@ -395,6 +395,76 @@ class TestSUKLMCPClientParseContent:
         assert "raw_text" in result
 
 
+class TestSUKLMCPClientContextManager:
+    """Test async context manager for safe resource cleanup."""
+
+    @pytest.mark.asyncio
+    async def test_context_manager_closes_session(self):
+        """Test that async with closes session on exit."""
+        async with SUKLMCPClient(base_url=BASE_URL) as client:
+            session = await client._get_session()
+            assert session is not None
+        assert client._session is None
+
+    @pytest.mark.asyncio
+    async def test_context_manager_closes_on_exception(self):
+        """Test that session is closed even when exception occurs."""
+        try:
+            async with SUKLMCPClient(base_url=BASE_URL) as client:
+                await client._get_session()
+                raise ValueError("test error")
+        except ValueError:
+            pass
+        assert client._session is None
+
+
+class TestSUKLMCPClientThreadSafety:
+    """Test thread-safe request ID generation."""
+
+    def test_unique_ids(self):
+        """Test that _next_id generates unique sequential IDs."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        ids = [client._next_id() for _ in range(100)]
+        assert len(set(ids)) == 100
+        assert ids == list(range(1, 101))
+
+    def test_rpc_request_builder(self):
+        """Test _build_rpc_request generates valid JSON-RPC envelopes."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        req = client._build_rpc_request("tools/call", {"name": "test"})
+        assert req["jsonrpc"] == "2.0"
+        assert req["method"] == "tools/call"
+        assert req["params"] == {"name": "test"}
+        assert "id" in req
+
+    def test_rpc_request_without_params(self):
+        """Test _build_rpc_request without params (e.g. tools/list)."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        req = client._build_rpc_request("tools/list")
+        assert "params" not in req
+
+
+class TestSUKLMCPClientSizeLimits:
+    """Test content size limits for security."""
+
+    def test_parse_content_truncates_large_content(self):
+        """Test that oversized content is truncated."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        huge_text = "A" * 2_000_000  # 2 MB
+        content = [{"type": "text", "text": huge_text}]
+        result = client._parse_content(content)
+        # Should not crash; result should be valid
+        assert "drugs" in result or "raw_text" in result
+
+    def test_parse_text_response_truncates_long_text(self):
+        """Test that oversized text response is truncated."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        long_text = "No match here. " * 100_000
+        result = client._parse_text_response(long_text)
+        assert result["drugs"] == []
+        assert "raw_text" in result
+
+
 class TestSUKLMCPClientParamMapping:
     """Test parameter mapping logic including None-mapped params."""
 

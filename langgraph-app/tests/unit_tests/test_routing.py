@@ -349,3 +349,62 @@ def test_route_query_guidelines_priority_over_drug():
     )
     result2 = route_query(state2)
     assert result2 == "guidelines_agent"
+
+
+# =============================================================================
+# Regression Tests - Routing Priority Change (2026-02-09)
+# =============================================================================
+
+
+def test_route_query_drug_priority_over_research():
+    """Regression: Drug keywords take priority over research keywords.
+
+    After priority change, queries with both drug and research keywords
+    should route to drug_agent.
+    """
+    state = State(
+        messages=[{"role": "user", "content": "studie o léku metformin"}],
+        next="",
+    )
+    result = route_query(state)
+    assert result == "drug_agent"  # "lék" matches before "studie"
+
+
+def test_route_query_generic_medical_terms_no_match():
+    """Regression: Generic medical terms removed from RESEARCH_KEYWORDS.
+
+    Terms like 'léčba', 'terapie', 'diabetes' no longer trigger research routing.
+    Without other keywords, they should fall to placeholder.
+    """
+    # These used to be in RESEARCH_KEYWORDS, now removed
+    state = State(
+        messages=[{"role": "user", "content": "léčba hypertenze"}],
+        next="",
+    )
+    result = route_query(state)
+    # "léčba" is not in any keyword set → falls to placeholder
+    assert result == "placeholder"
+
+
+def test_route_query_explicit_research_terms_still_work():
+    """Regression: Explicit research terms still route to PubMed.
+
+    Terms like 'studie', 'výzkum', 'pubmed' must still work.
+    """
+    for term in ["studie o hypertenzi", "výzkum účinnosti", "pubmed články"]:
+        state = State(
+            messages=[{"role": "user", "content": term}],
+            next="",
+        )
+        result = route_query(state)
+        assert result == "translate_cz_to_en", f"Failed for: {term}"
+
+
+def test_route_query_drug_keyword_aspirin():
+    """Regression: Common drug queries route correctly."""
+    state = State(
+        messages=[{"role": "user", "content": "jaké je dávkování aspirinu"}],
+        next="",
+    )
+    result = route_query(state)
+    assert result == "drug_agent"  # "dávkování" is in DRUG_KEYWORDS
