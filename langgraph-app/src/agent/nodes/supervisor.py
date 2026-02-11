@@ -24,7 +24,7 @@ Example:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from langchain_anthropic import ChatAnthropic
 from langgraph.types import Send

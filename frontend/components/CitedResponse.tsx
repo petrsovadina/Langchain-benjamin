@@ -48,7 +48,9 @@ export function CitedResponse({ answer, retrievedDocs }: CitedResponseProps) {
             );
           }
 
-          const citation = citationMap.get(segment.citationNumber);
+          const citation = segment.citationNumber != null
+            ? citationMap.get(segment.citationNumber)
+            : undefined;
           if (!citation) return null;
 
           return (

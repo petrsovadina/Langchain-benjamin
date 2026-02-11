@@ -13,7 +13,7 @@ exports[`Omnibox > Snapshots > default state 1`] = `
     role="search"
   >
     <div
-      class="relative flex items-center gap-1 md:gap-2 bg-white dark:bg-slate-900 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 px-4 py-3 transition-all duration-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/20"
+      class="relative flex items-center gap-1 md:gap-2 bg-surface-elevated rounded-full shadow-lg border border-default px-4 py-3 transition-all duration-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/20"
       data-testid="omnibox"
     >
       <input
@@ -37,7 +37,7 @@ exports[`Omnibox > Snapshots > default state 1`] = `
       >
         <button
           aria-label="Hlasový vstup"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-slate-400 hover:text-slate-600 active:bg-slate-100 dark:active:bg-slate-800 min-h-[44px] min-w-[44px]"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-tertiary hover:text-secondary active:bg-surface-muted min-h-[44px] min-w-[44px]"
           data-size="icon"
           data-slot="button"
           data-variant="ghost"
@@ -73,7 +73,7 @@ exports[`Omnibox > Snapshots > default state 1`] = `
         </button>
         <button
           aria-label="Přiložit soubor"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-slate-400 hover:text-slate-600 active:bg-slate-100 dark:active:bg-slate-800 min-h-[44px] min-w-[44px]"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-tertiary hover:text-secondary active:bg-surface-muted min-h-[44px] min-w-[44px]"
           data-size="icon"
           data-slot="button"
           data-variant="ghost"
@@ -225,7 +225,7 @@ exports[`Omnibox > Snapshots > error state 1`] = `
       </button>
     </div>
     <div
-      class="relative flex items-center gap-1 md:gap-2 bg-white dark:bg-slate-900 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 px-4 py-3 transition-all duration-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/20"
+      class="relative flex items-center gap-1 md:gap-2 bg-surface-elevated rounded-full shadow-lg border border-default px-4 py-3 transition-all duration-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/20"
       data-testid="omnibox"
     >
       <input
@@ -249,7 +249,7 @@ exports[`Omnibox > Snapshots > error state 1`] = `
       >
         <button
           aria-label="Hlasový vstup"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-slate-400 hover:text-slate-600 active:bg-slate-100 dark:active:bg-slate-800 min-h-[44px] min-w-[44px]"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-tertiary hover:text-secondary active:bg-surface-muted min-h-[44px] min-w-[44px]"
           data-size="icon"
           data-slot="button"
           data-variant="ghost"
@@ -285,7 +285,7 @@ exports[`Omnibox > Snapshots > error state 1`] = `
         </button>
         <button
           aria-label="Přiložit soubor"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-slate-400 hover:text-slate-600 active:bg-slate-100 dark:active:bg-slate-800 min-h-[44px] min-w-[44px]"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-tertiary hover:text-secondary active:bg-surface-muted min-h-[44px] min-w-[44px]"
           data-size="icon"
           data-slot="button"
           data-variant="ghost"
@@ -359,7 +359,7 @@ exports[`Omnibox > Snapshots > loading state 1`] = `
     role="search"
   >
     <div
-      class="relative flex items-center gap-1 md:gap-2 bg-white dark:bg-slate-900 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 px-4 py-3 transition-all duration-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/20"
+      class="relative flex items-center gap-1 md:gap-2 bg-surface-elevated rounded-full shadow-lg border border-default px-4 py-3 transition-all duration-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/20"
       data-testid="omnibox"
     >
       <input
@@ -384,7 +384,7 @@ exports[`Omnibox > Snapshots > loading state 1`] = `
       >
         <button
           aria-label="Hlasový vstup"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-slate-400 hover:text-slate-600 active:bg-slate-100 dark:active:bg-slate-800 min-h-[44px] min-w-[44px]"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-tertiary hover:text-secondary active:bg-surface-muted min-h-[44px] min-w-[44px]"
           data-size="icon"
           data-slot="button"
           data-variant="ghost"
@@ -421,7 +421,7 @@ exports[`Omnibox > Snapshots > loading state 1`] = `
         </button>
         <button
           aria-label="Přiložit soubor"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-slate-400 hover:text-slate-600 active:bg-slate-100 dark:active:bg-slate-800 min-h-[44px] min-w-[44px]"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-tertiary hover:text-secondary active:bg-surface-muted min-h-[44px] min-w-[44px]"
           data-size="icon"
           data-slot="button"
           data-variant="ghost"
@@ -494,7 +494,8 @@ exports[`Omnibox > Snapshots > offline state 1`] = `
   >
     <div
       aria-live="polite"
-      class="absolute -top-12 left-0 right-0 bg-destructive/10 border border-destructive rounded-lg px-4 py-2 text-sm text-destructive flex items-center gap-2 animate-pulse animate-in slide-in-from-top-2"
+      class="bg-destructive/10 border border-destructive rounded-lg px-4 py-2 text-sm text-destructive flex items-center gap-2 animate-pulse animate-in slide-in-from-top-2 mb-2"
+      data-slot="offline-banner"
       role="alert"
     >
       <svg
@@ -535,7 +536,7 @@ exports[`Omnibox > Snapshots > offline state 1`] = `
       Jste offline. Připojte se k internetu pro odeslání dotazu.
     </div>
     <div
-      class="relative flex items-center gap-1 md:gap-2 bg-white dark:bg-slate-900 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 px-4 py-3 transition-all duration-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/20"
+      class="relative flex items-center gap-1 md:gap-2 bg-surface-elevated rounded-full shadow-lg border border-default px-4 py-3 transition-all duration-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/20"
       data-testid="omnibox"
     >
       <input
@@ -560,7 +561,7 @@ exports[`Omnibox > Snapshots > offline state 1`] = `
       >
         <button
           aria-label="Hlasový vstup"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-slate-400 hover:text-slate-600 active:bg-slate-100 dark:active:bg-slate-800 min-h-[44px] min-w-[44px]"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-tertiary hover:text-secondary active:bg-surface-muted min-h-[44px] min-w-[44px]"
           data-size="icon"
           data-slot="button"
           data-variant="ghost"
@@ -596,7 +597,7 @@ exports[`Omnibox > Snapshots > offline state 1`] = `
         </button>
         <button
           aria-label="Přiložit soubor"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-slate-400 hover:text-slate-600 active:bg-slate-100 dark:active:bg-slate-800 min-h-[44px] min-w-[44px]"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 text-tertiary hover:text-secondary active:bg-surface-muted min-h-[44px] min-w-[44px]"
           data-size="icon"
           data-slot="button"
           data-variant="ghost"
