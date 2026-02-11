@@ -1,21 +1,26 @@
 """SÚKL MCP Client adapter - Czech pharmaceutical database access.
 
-Implements IMCPClient for SÚKL-mcp server (https://github.com/petrsovadina/SUKL-mcp).
+Implements IMCPClient for SÚKL-mcp server using JSON-RPC protocol.
+Server: https://sukl-mcp-ts.vercel.app/mcp
 
-Provides 8 tools:
-- search_drugs: Search drugs by name
-- get_drug_details: Get detailed drug information
-- search_by_atc: Search by ATC code
-- get_interactions: Get drug interactions
-- search_side_effects: Search side effects
-- get_pricing_info: Get pricing information
-- search_by_ingredient: Search by active ingredient
-- validate_prescription: Validate prescription
+Available tools (MCP JSON-RPC):
+- search-medicine: Search drugs by name (fuzzy matching)
+- get-medicine-details: Get detailed drug info by SÚKL code
+- search-by-atc: Search by ATC code (NOTE: server tool is get-atc-info)
+- get-reimbursement: Get pricing/reimbursement info
+- check-availability: Check drug availability/distribution status
+- get-pil-content: Patient Information Leaflet
+- get-spc-content: Summary of Product Characteristics
+- find-pharmacies: Search pharmacies by city/postal code
+- batch-check-availability: Batch availability check
+
+Updated 2026-02-09: Rewrote from REST POST /tools/{name} to JSON-RPC envelope.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime
 from typing import Any, cast
 
@@ -34,69 +39,106 @@ from ..domain.ports import IMCPClient, IRetryStrategy
 logger = logging.getLogger(__name__)
 
 
-# Pydantic models for SÚKL responses
+# Tool name mapping: internal name → MCP server tool name
+TOOL_NAME_MAP = {
+    "search_drugs": "search-medicine",
+    "get_drug_details": "get-medicine-details",
+    "search_by_atc": "get-atc-info",
+    "get_interactions": "get-medicine-details",  # No dedicated interactions tool
+    "search_side_effects": "get-medicine-details",
+    "get_pricing_info": "get-reimbursement",
+    "search_by_ingredient": "search-medicine",
+    "validate_prescription": "search-medicine",  # No dedicated validation tool
+    "get_reimbursement": "get-reimbursement",
+    "check_availability": "check-availability",
+    "get_pil": "get-pil-content",
+    "get_spc": "get-spc-content",
+    "find_pharmacies": "find-pharmacies",
+}
+
+# Parameter mapping: internal param names → MCP server param names
+PARAM_MAP = {
+    "search-medicine": {"query": "query", "limit": "limit"},
+    "get-medicine-details": {"registration_number": "sukl_code"},
+    "get-atc-info": {"atc_code": "code"},
+    "get-reimbursement": {"registration_number": "sukl_code"},
+    "check-availability": {"registration_number": "sukl_code", "include_alternatives": None},
+    "get-pil-content": {"registration_number": "sukl_code"},
+    "get-spc-content": {"registration_number": "sukl_code"},
+    "find-pharmacies": {"city": "city", "postal_code": "postalCode"},
+}
+
+
 class DrugSearchResult(BaseModel):
     """Schema for search_drugs response."""
-
     name: str
-    atc_code: str
-    registration_number: str
+    atc_code: str = ""
+    registration_number: str = ""
     manufacturer: str | None = None
 
 
 class SUKLMCPClient(IMCPClient):
-    """Adapter: SÚKL-mcp server client.
+    """Adapter: SÚKL-mcp server client using JSON-RPC protocol.
 
     Provides access to Czech pharmaceutical database with 68,000+ drugs.
 
-    Attributes:
-        base_url: SÚKL-mcp server URL (default: http://localhost:3000).
-        timeout: Request timeout in seconds (default: 30).
-        retry_strategy: Optional retry implementation.
-        default_retry_config: Default RetryConfig for all calls.
+    Note: This client uses JSON-RPC protocol (tools/call method) because
+    the SÚKL-mcp server (sukl-mcp-ts.vercel.app) implements the MCP
+    Streamable HTTP transport. BioMCPClient uses REST because its server
+    exposes a traditional REST API. The protocol difference is intentional.
 
     Example:
-        >>> client = SUKLMCPClient(base_url="http://localhost:3000")
-        >>> response = await client.call_tool(
-        ...     "search_drugs",
-        ...     {"query": "aspirin"}
-        ... )
+        >>> client = SUKLMCPClient()
+        >>> response = await client.call_tool("search_drugs", {"query": "aspirin"})
         >>> print(response.data)
     """
 
     def __init__(
         self,
-        base_url: str = "http://localhost:3000",
+        base_url: str | None = None,
         timeout: float = 30.0,
         retry_strategy: IRetryStrategy | None = None,
         default_retry_config: RetryConfig | None = None,
     ):
-        """Initialize SUKLMCPClient.
-
-        Args:
-            base_url: SÚKL-mcp server URL.
-            timeout: Request timeout in seconds.
-            retry_strategy: Optional retry strategy (injected dependency).
-            default_retry_config: Default retry configuration.
-        """
-        self.base_url = base_url.rstrip("/")
+        self.base_url = (base_url or os.getenv(
+            "SUKL_MCP_URL", "http://localhost:3000"
+        )).rstrip("/")
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.retry_strategy = retry_strategy
         self.default_retry_config = default_retry_config or RetryConfig()
         self._session: aiohttp.ClientSession | None = None
+        self._request_id = 0
 
-        logger.info(f"[SUKLMCPClient] Initialized with base_url={base_url}")
+        logger.info(f"[SUKLMCPClient] Initialized with base_url={self.base_url}")
+
+    def _next_id(self) -> int:
+        self._request_id += 1
+        return self._request_id
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session (lazy initialization).
-
-        Returns:
-            Active aiohttp.ClientSession.
-        """
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(timeout=self.timeout)
-            logger.debug("[SUKLMCPClient] Created new aiohttp session")
         return self._session
+
+    def _map_tool_and_params(
+        self, tool_name: str, parameters: dict[str, Any]
+    ) -> tuple[str, dict[str, Any]]:
+        """Map internal tool/param names to MCP server names."""
+        mcp_tool = TOOL_NAME_MAP.get(tool_name, tool_name)
+        param_mapping = PARAM_MAP.get(mcp_tool, {})
+
+        mapped_params = {}
+        for internal_key, value in parameters.items():
+            if internal_key in param_mapping:
+                mcp_key = param_mapping[internal_key]
+                # Explicitly mapped to None => skip this parameter
+                if mcp_key is not None:
+                    mapped_params[mcp_key] = value
+            else:
+                # No mapping defined => pass parameter through unchanged
+                mapped_params[internal_key] = value
+
+        return mcp_tool, mapped_params
 
     async def call_tool(
         self,
@@ -104,39 +146,54 @@ class SUKLMCPClient(IMCPClient):
         parameters: dict[str, Any],
         retry_config: RetryConfig | None = None,
     ) -> MCPResponse:
-        """Call SÚKL MCP tool with parameters.
+        """Call SÚKL MCP tool via JSON-RPC protocol.
 
         Args:
-            tool_name: Tool identifier (e.g., "search_drugs").
-            parameters: Tool parameters.
+            tool_name: Tool identifier (internal name, auto-mapped to MCP name).
+            parameters: Tool parameters (internal names, auto-mapped).
             retry_config: Override default retry config.
 
         Returns:
             MCPResponse with success/failure and data.
-
-        Raises:
-            MCPConnectionError: Cannot connect to server.
-            MCPTimeoutError: Request timeout or rate limiting.
-            MCPServerError: Server 5xx error.
         """
         config = retry_config or self.default_retry_config
 
         async def _execute() -> MCPResponse:
-            """Inner function for retry wrapper."""
             session = await self._get_session()
-            url = f"{self.base_url}/tools/{tool_name}"
+
+            # Map tool and parameter names
+            mcp_tool, mcp_params = self._map_tool_and_params(tool_name, parameters)
+
+            # Build JSON-RPC envelope
+            payload = {
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "name": mcp_tool,
+                    "arguments": mcp_params,
+                },
+                "id": self._next_id(),
+            }
 
             start_time = datetime.now()
 
             try:
-                logger.debug(f"[SUKLMCPClient] Calling {tool_name} with {parameters}")
+                logger.debug(
+                    f"[SUKLMCPClient] JSON-RPC call: {mcp_tool} with {mcp_params}"
+                )
 
-                async with session.post(url, json=parameters) as response:
+                async with session.post(
+                    self.base_url,
+                    json=payload,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Accept": "application/json, text/event-stream",
+                    },
+                ) as response:
                     latency_ms = int(
                         (datetime.now() - start_time).total_seconds() * 1000
                     )
 
-                    # Handle server errors (5xx)
                     if response.status >= 500:
                         error_text = await response.text()
                         raise MCPServerError(
@@ -144,7 +201,6 @@ class SUKLMCPClient(IMCPClient):
                             status_code=response.status,
                         )
 
-                    # Handle rate limiting (429)
                     if response.status == 429:
                         retry_after = response.headers.get("Retry-After", "60")
                         raise MCPTimeoutError(
@@ -152,7 +208,6 @@ class SUKLMCPClient(IMCPClient):
                             server_url=self.base_url,
                         )
 
-                    # Handle client errors (4xx)
                     if response.status >= 400:
                         error_text = await response.text()
                         return MCPResponse(
@@ -161,16 +216,33 @@ class SUKLMCPClient(IMCPClient):
                             metadata={"latency_ms": latency_ms},
                         )
 
-                    # Success - parse JSON response
-                    data = await response.json()
+                    # Parse JSON-RPC response
+                    rpc_response = await response.json()
+
+                    # Check for JSON-RPC error
+                    if "error" in rpc_response:
+                        rpc_error = rpc_response["error"]
+                        return MCPResponse(
+                            success=False,
+                            error=f"RPC error {rpc_error.get('code')}: {rpc_error.get('message')}",
+                            metadata={"latency_ms": latency_ms},
+                        )
+
+                    # Extract content from MCP result
+                    result = rpc_response.get("result", {})
+                    content = result.get("content", [])
+
+                    # Parse text content blocks
+                    parsed_data = self._parse_content(content)
 
                     return MCPResponse(
                         success=True,
-                        data=data,
+                        data=parsed_data,
                         metadata={
                             "latency_ms": latency_ms,
                             "server_url": self.base_url,
-                            "tool_name": tool_name,
+                            "tool_name": mcp_tool,
+                            "original_tool": tool_name,
                         },
                     )
 
@@ -186,45 +258,92 @@ class SUKLMCPClient(IMCPClient):
                     server_url=self.base_url,
                 ) from e
 
-            except ValidationError as e:
-                raise MCPValidationError(
-                    "Invalid SÚKL response schema", validation_errors=e.errors()
-                ) from e
-
-        # Execute with retry if strategy provided
         if self.retry_strategy:
             result = await self.retry_strategy.execute_with_retry(_execute, config)
             return cast(MCPResponse, result)
         else:
             return await _execute()
 
-    async def health_check(self, timeout: float = 5.0) -> MCPHealthStatus:
-        """Check SÚKL server health.
+    def _parse_content(self, content: list[dict]) -> dict[str, Any]:
+        """Parse MCP content blocks into structured data.
 
-        Args:
-            timeout: Health check timeout in seconds.
+        The SÚKL MCP server returns text content that may be:
+        - Formatted human-readable text (search results, details)
+        - JSON strings (structured data)
 
-        Returns:
-            MCPHealthStatus with server state.
-
-        Note:
-            Does not raise exceptions - returns status instead.
+        We try JSON first, fall back to raw text.
         """
+        import json
+
+        texts = []
+        for block in content:
+            if block.get("type") == "text":
+                text = block.get("text", "")
+                texts.append(text)
+
+        combined = "\n".join(texts)
+
+        # Try to parse as JSON
+        try:
+            return {"drugs": json.loads(combined)}
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # Parse formatted text response into structured data
+        return self._parse_text_response(combined)
+
+    def _parse_text_response(self, text: str) -> dict[str, Any]:
+        """Parse human-readable text response into structured data."""
+        import re
+
+        drugs = []
+        # Pattern: "1. DRUG NAME (CODE) - INGREDIENT"
+        pattern = r'\d+\.\s+(.+?)\s+\((\d+)\)\s*-\s*(.+?)(?:\n|$)'
+        for match in re.finditer(pattern, text):
+            name, code, ingredient = match.groups()
+            drugs.append({
+                "name": name.strip(),
+                "registration_number": code.strip(),
+                "atc_code": "",
+                "active_ingredient": ingredient.strip(),
+            })
+
+        if drugs:
+            return {"drugs": drugs, "raw_text": text}
+
+        # Return raw text if no structured parsing possible
+        return {"raw_text": text, "drugs": []}
+
+    async def health_check(self, timeout: float = 5.0) -> MCPHealthStatus:
+        """Check SÚKL server health via JSON-RPC tools/list."""
         try:
             session = await self._get_session()
             start_time = datetime.now()
 
-            async with session.get(
-                f"{self.base_url}/health", timeout=aiohttp.ClientTimeout(total=timeout)
+            payload = {
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "id": self._next_id(),
+            }
+
+            async with session.post(
+                self.base_url,
+                json=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json, text/event-stream",
+                },
+                timeout=aiohttp.ClientTimeout(total=timeout),
             ) as response:
                 latency_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
                 if response.status == 200:
                     data = await response.json()
+                    tools = data.get("result", {}).get("tools", [])
                     return MCPHealthStatus(
                         status="healthy",
                         latency_ms=latency_ms,
-                        tools_count=data.get("tools_count", 8),
+                        tools_count=len(tools),
                     )
                 else:
                     error_text = await response.text()
@@ -246,94 +365,73 @@ class SUKLMCPClient(IMCPClient):
             )
 
     async def list_tools(self) -> list[MCPToolMetadata]:
-        """List available SÚKL MCP tools.
+        """List available SÚKL MCP tools via JSON-RPC."""
+        try:
+            session = await self._get_session()
+            payload = {
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "id": self._next_id(),
+            }
+            async with session.post(
+                self.base_url,
+                json=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json, text/event-stream",
+                },
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    tools = data.get("result", {}).get("tools", [])
+                    return [
+                        MCPToolMetadata(
+                            name=t["name"],
+                            description=t.get("description", ""),
+                            parameters=t.get("inputSchema", {}).get("properties", {}),
+                            returns={},
+                        )
+                        for t in tools
+                    ]
+        except Exception as e:
+            logger.warning(f"[SUKLMCPClient] Failed to list tools: {e}")
 
-        Returns:
-            List of 8 SÚKL tool metadata.
-
-        Note:
-            Currently returns hardcoded list. Future: query /tools endpoint.
-        """
+        # Fallback: hardcoded list
         return [
-            MCPToolMetadata(
-                name="search_drugs",
-                description="Search drugs by name or keyword",
-                parameters={"query": "string"},
-                returns={"drugs": "list[DrugSearchResult]"},
-            ),
-            MCPToolMetadata(
-                name="get_drug_details",
-                description="Get detailed drug information",
-                parameters={"registration_number": "string"},
-                returns={"drug": "DrugDetails"},
-            ),
-            MCPToolMetadata(
-                name="search_by_atc",
-                description="Search drugs by ATC code",
-                parameters={"atc_code": "string"},
-                returns={"drugs": "list[DrugSearchResult]"},
-            ),
-            MCPToolMetadata(
-                name="get_interactions",
-                description="Get drug interactions",
-                parameters={"drug_id": "string"},
-                returns={"interactions": "list[Interaction]"},
-            ),
-            MCPToolMetadata(
-                name="search_side_effects",
-                description="Search drug side effects",
-                parameters={"drug_id": "string"},
-                returns={"side_effects": "list[SideEffect]"},
-            ),
-            MCPToolMetadata(
-                name="get_pricing_info",
-                description="Get drug pricing information",
-                parameters={"registration_number": "string"},
-                returns={"pricing": "PricingInfo"},
-            ),
-            MCPToolMetadata(
-                name="search_by_ingredient",
-                description="Search drugs by active ingredient",
-                parameters={"ingredient": "string"},
-                returns={"drugs": "list[DrugSearchResult]"},
-            ),
-            MCPToolMetadata(
-                name="validate_prescription",
-                description="Validate prescription data",
-                parameters={"prescription": "dict"},
-                returns={"valid": "bool", "errors": "list[str]"},
-            ),
+            MCPToolMetadata(name="search-medicine", description="Search drugs by name", parameters={"query": "string"}, returns={}),
+            MCPToolMetadata(name="get-medicine-details", description="Get drug details by SÚKL code", parameters={"suklCode": "string"}, returns={}),
+            MCPToolMetadata(name="get-atc-info", description="Search by ATC code", parameters={"code": "string"}, returns={}),
+            MCPToolMetadata(name="get-reimbursement", description="Get pricing/reimbursement", parameters={"suklCode": "string"}, returns={}),
+            MCPToolMetadata(name="check-availability", description="Check drug availability", parameters={"suklCode": "string"}, returns={}),
+            MCPToolMetadata(name="get-pil-content", description="Patient Information Leaflet", parameters={"suklCode": "string"}, returns={}),
+            MCPToolMetadata(name="get-spc-content", description="Summary of Product Characteristics", parameters={"suklCode": "string"}, returns={}),
+            MCPToolMetadata(name="find-pharmacies", description="Search pharmacies", parameters={"city": "string"}, returns={}),
         ]
 
     async def close(self) -> None:
-        """Close aiohttp session gracefully."""
         if self._session and not self._session.closed:
             await self._session.close()
             logger.info("[SUKLMCPClient] Session closed")
 
-    # High-level helper methods (typed convenience API)
+    # High-level typed helpers
 
     async def search_drugs(self, query: str) -> list[DrugSearchResult]:
-        """Search drugs by name (typed helper).
-
-        Args:
-            query: Drug name or keyword.
-
-        Returns:
-            List of matching drugs.
-
-        Raises:
-            MCPConnectionError, MCPTimeoutError: Connection issues.
-            MCPValidationError: Invalid response.
-        """
+        """Search drugs by name (typed helper)."""
         response = await self.call_tool("search_drugs", {"query": query})
 
         if not response.success:
             raise MCPValidationError(f"Drug search failed: {response.error}")
 
-        # Validate with Pydantic
         try:
-            return [DrugSearchResult(**drug) for drug in response.data.get("drugs", [])]
+            return [
+                DrugSearchResult(
+                    name=drug.get("name", ""),
+                    atc_code=drug.get("atc_code", ""),
+                    registration_number=drug.get("registration_number", ""),
+                    manufacturer=drug.get("manufacturer"),
+                )
+                for drug in response.data.get("drugs", [])
+            ]
         except ValidationError as e:
             raise MCPValidationError(
                 "Invalid drug search response", validation_errors=e.errors()

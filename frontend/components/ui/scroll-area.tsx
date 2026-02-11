@@ -59,7 +59,7 @@ function ScrollArea({
 }
 
 interface ScrollBarProps
-  extends React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>,
+  extends Omit<React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>, "orientation">,
     VariantProps<typeof scrollBarVariants> {}
 
 function ScrollBar({
@@ -72,7 +72,7 @@ function ScrollBar({
     <ScrollAreaPrimitive.ScrollAreaScrollbar
       data-slot="scroll-area-scrollbar"
       data-variant={variant}
-      orientation={orientation}
+      orientation={orientation ?? "vertical"}
       className={cn(scrollBarVariants({ variant, orientation }), className)}
       {...props}
     >

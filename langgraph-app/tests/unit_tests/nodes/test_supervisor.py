@@ -488,7 +488,10 @@ class TestIntentClassifierInit:
         """Test IntentClassifier with default parameters (lazy LLM init)."""
         classifier = IntentClassifier()
 
-        assert classifier.model_name == "claude-sonnet-4-20250514"
+        # Default model from env var DEFAULT_MODEL_NAME or fallback
+        import os
+        expected = os.getenv("DEFAULT_MODEL_NAME", "claude-sonnet-4-20250514")
+        assert classifier.model_name == expected
         assert classifier.temperature == 0.0
         # LLM is lazily initialized - None until first classify_intent call
         assert classifier.llm is None

@@ -10,11 +10,11 @@ exports[`AssistantMessage > Snapshots > default state 1`] = `
     role="article"
   >
     <div
-      class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center"
+      class="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center"
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-bot h-4 w-4 text-white"
+        class="lucide lucide-bot h-4 w-4 text-primary-foreground"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -50,7 +50,7 @@ exports[`AssistantMessage > Snapshots > default state 1`] = `
       </svg>
     </div>
     <div
-      class="text-card-foreground flex flex-col gap-6 rounded-xl border shadow-sm max-w-2xl bg-white dark:bg-slate-900 px-4 py-3 border-slate-200 dark:border-slate-700 border-l-4 border-l-slate-300 dark:border-l-slate-600"
+      class="text-card-foreground flex flex-col gap-6 rounded-xl shadow-sm border max-w-2xl bg-surface-elevated px-4 py-3 border-default border-l-4 border-l-strong"
       data-slot="card"
     >
       <div
@@ -63,7 +63,7 @@ exports[`AssistantMessage > Snapshots > default state 1`] = `
         </div>
       </div>
       <div
-        class="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400"
+        class="flex items-center gap-2 mt-2 text-xs text-tertiary"
       >
         <time>
           12:00
@@ -77,22 +77,26 @@ exports[`AssistantMessage > Snapshots > default state 1`] = `
 exports[`AssistantMessage > Snapshots > loading state 1`] = `
 <div>
   <div
-    class="space-y-3 animate-pulse"
+    aria-label="Načítání zprávy"
+    class="space-y-3 animate-pulse flex justify-start"
+    data-slot="message-skeleton"
+    data-variant="assistant"
+    role="status"
   >
     <div
-      class="flex items-start gap-3"
+      class="flex items-start gap-3 max-w-3xl"
     >
       <div
-        class="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700"
+        class="h-8 w-8 rounded-full bg-surface-muted shrink-0"
       />
       <div
         class="flex-1 space-y-2"
       >
         <div
-          class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"
+          class="h-4 bg-surface-muted rounded w-3/4"
         />
         <div
-          class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2"
+          class="h-4 bg-surface-muted rounded w-1/2"
         />
       </div>
     </div>
@@ -111,11 +115,11 @@ exports[`AssistantMessage > Snapshots > streaming state 1`] = `
     role="article"
   >
     <div
-      class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center animate-pulse"
+      class="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center animate-pulse"
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-bot h-4 w-4 text-white"
+        class="lucide lucide-bot h-4 w-4 text-primary-foreground"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -151,11 +155,11 @@ exports[`AssistantMessage > Snapshots > streaming state 1`] = `
       </svg>
     </div>
     <div
-      class="text-card-foreground flex flex-col gap-6 rounded-xl border shadow-sm max-w-2xl bg-white dark:bg-slate-900 px-4 py-3 border-slate-200 dark:border-slate-700"
+      class="text-card-foreground flex flex-col gap-6 rounded-xl shadow-sm border max-w-2xl bg-surface-elevated px-4 py-3 border-default"
       data-slot="card"
     >
       <div
-        class="flex items-center gap-2 text-sm text-slate-500"
+        class="flex items-center gap-2 text-sm text-tertiary"
         data-testid="streaming-indicator"
       >
         <div
@@ -198,11 +202,11 @@ exports[`AssistantMessage > Snapshots > with citations 1`] = `
     role="article"
   >
     <div
-      class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center"
+      class="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center"
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-bot h-4 w-4 text-white"
+        class="lucide lucide-bot h-4 w-4 text-primary-foreground"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -238,7 +242,7 @@ exports[`AssistantMessage > Snapshots > with citations 1`] = `
       </svg>
     </div>
     <div
-      class="text-card-foreground flex flex-col gap-6 rounded-xl border shadow-sm max-w-2xl bg-white dark:bg-slate-900 px-4 py-3 border-slate-200 dark:border-slate-700 border-l-4 border-l-citation-badge-text"
+      class="text-card-foreground flex flex-col gap-6 rounded-xl shadow-sm border max-w-2xl bg-surface-elevated px-4 py-3 border-default border-l-4 border-l-citation-badge-text"
       data-slot="card"
     >
       <div
@@ -247,7 +251,7 @@ exports[`AssistantMessage > Snapshots > with citations 1`] = `
         Test response content
       </div>
       <div
-        class="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400"
+        class="flex items-center gap-2 mt-2 text-xs text-tertiary"
       >
         <time>
           12:00

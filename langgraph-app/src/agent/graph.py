@@ -6,6 +6,7 @@ Implements Constitution Principles I-V.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal, Sequence
@@ -40,22 +41,23 @@ from agent.nodes.synthesizer import synthesizer_node
 
 # Import translation and pubmed_agent nodes (Feature 005)
 from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
+from agent.utils.message_utils import extract_message_content
 
 # Load environment variables (LangSmith tracing)
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # Initialize LangSmith tracing with graceful degradation
 try:
     langsmith_api_key = os.getenv("LANGSMITH_API_KEY")
     if langsmith_api_key:
         os.environ.setdefault("LANGSMITH_TRACING", "true")
-        print("[LangSmith] Tracing enabled")
+        logger.info("LangSmith tracing enabled")
     else:
-        print("[LangSmith] No API key found - tracing disabled (graceful degradation)")
-except Exception as e:
-    print(
-        f"[LangSmith] Tracing initialization warning: {e} - continuing without tracing"
-    )
+        logger.info("LangSmith: No API key found - tracing disabled (graceful degradation)")
+except (ImportError, OSError, ValueError) as e:
+    logger.warning("LangSmith tracing initialization warning: %s - continuing without tracing", e)
 
 # Initialize MCP clients for dev server (Feature 002)
 _mcp_config = MCPConfig.from_env()
@@ -68,11 +70,9 @@ try:
         timeout=_mcp_config.sukl_timeout,
         default_retry_config=_mcp_config.to_retry_config(),
     )
-    print(f"[MCP] SÚKL client initialized: {_mcp_config.sukl_url}")
-except Exception as e:
-    print(
-        f"[MCP] Failed to initialize SÚKL client: {e} - drug agent will be unavailable"
-    )
+    logger.info("SÚKL MCP client initialized: %s", _mcp_config.sukl_url)
+except (OSError, ConnectionError, ValueError) as e:
+    logger.warning("Failed to initialize SÚKL client: %s - drug agent will be unavailable", e)
 
 try:
     _biomcp_client = BioMCPClient(
@@ -81,11 +81,9 @@ try:
         max_results=_mcp_config.biomcp_max_results,
         default_retry_config=_mcp_config.to_retry_config(),
     )
-    print(f"[MCP] BioMCP client initialized: {_mcp_config.biomcp_url}")
-except Exception as e:
-    print(
-        f"[MCP] Failed to initialize BioMCP client: {e} - PubMed agent will be unavailable"
-    )
+    logger.info("BioMCP client initialized: %s", _mcp_config.biomcp_url)
+except (OSError, ConnectionError, ValueError) as e:
+    logger.warning("Failed to initialize BioMCP client: %s - PubMed agent will be unavailable", e)
 
 
 def get_mcp_clients(
@@ -259,18 +257,12 @@ async def placeholder_node(state: State, runtime: Runtime[Context]) -> dict[str,
     context = runtime.context or {}
     model = context.get("model_name", "default")
 
-    # Log for debugging
-    print(f"[placeholder_node] Executing with model={model}")
+    logger.debug("placeholder_node executing with model=%s", model)
 
     # Echo last user message
     last_message = state.messages[-1] if state.messages else None
     if last_message:
-        # Handle both dict and Message object formats
-        content = (
-            last_message.get("content")
-            if isinstance(last_message, dict)
-            else last_message.content
-        )
+        content = extract_message_content(last_message)
         response = f"Echo: {content}"
     else:
         response = "No input"
@@ -315,7 +307,7 @@ DRUG_KEYWORDS = {
 
 # Research-related keywords for routing (Czech + English)
 RESEARCH_KEYWORDS = {
-    # Czech - research terms
+    # Czech - research-SPECIFIC terms (must clearly indicate research intent)
     "studie",
     "výzkum",
     "pubmed",
@@ -328,35 +320,11 @@ RESEARCH_KEYWORDS = {
     "klinický výzkum",
     "randomizovaná studie",
     "meta-analýza",
-    "přehled",
     "review",
     "evidence",
     "důkazy",
     "publikace",
-    # Czech - medical conditions & treatments (route to research)
-    "diabetes",
-    "diabetu",
-    "diabetem",
-    "cukrovka",
-    "cukrovkou",
-    "léčba",
-    "léčení",
-    "terapie",
-    "onemocnění",
-    "nemoc",
-    "choroba",
-    "syndrom",
-    "symptom",
-    "příznaky",
-    "diagnóza",
-    "diagnostika",
-    "prevence",
-    "prognóza",
-    "komplikace",
-    "riziko",
-    "účinnost",
-    "bezpečnost",
-    # English fallback
+    # English fallback - research specific
     "study",
     "research",
     "article",
@@ -365,13 +333,16 @@ RESEARCH_KEYWORDS = {
     "clinical trial",
     "meta-analysis",
     "systematic review",
-    "evidence",
     "publication",
-    "treatment",
-    "therapy",
-    "disease",
-    "diagnosis",
 }
+
+# Generic medical terms - these alone DON'T indicate research intent.
+# They're used by the LLM classifier (supervisor) for context, NOT keyword routing.
+# Moved OUT of RESEARCH_KEYWORDS to fix routing overlap:
+# "léčba", "léčení", "terapie", "onemocnění", "nemoc", "choroba",
+# "syndrom", "symptom", "příznaky", "diagnóza", "diagnostika",
+# "prevence", "prognóza", "komplikace", "riziko", "účinnost",
+# "bezpečnost", "diabetes", "diabetu", "cukrovka", etc.
 
 # Guidelines-related keywords for routing (Czech + English)
 GUIDELINES_KEYWORDS = {
@@ -404,14 +375,13 @@ def route_query(
 ) -> Literal["drug_agent", "translate_cz_to_en", "guidelines_agent", "placeholder"]:
     """Route query to appropriate agent based on content.
 
-    Simple keyword-based routing for MVP. Will be replaced by
-    Feature 007-supervisor-orchestration with LLM-based intent classification.
+    Simple keyword-based routing as fallback for supervisor LLM classification.
 
     Routing priority:
     1. Explicit queries (drug_query, research_query, guideline_query)
-    2. Research keywords (highest - most specific)
-    3. Guidelines keywords
-    4. Drug keywords
+    2. Drug keywords (highest - most common use case)
+    3. Research keywords (research-specific terms only)
+    4. Guidelines keywords
     5. Placeholder (fallback)
 
     Args:
@@ -435,40 +405,23 @@ def route_query(
     # Check last user message for keywords
     if state.messages:
         last_message = state.messages[-1]
-        raw_content = (
-            last_message.get("content", "")
-            if isinstance(last_message, dict)
-            else getattr(last_message, "content", "")
-        )
-
-        # Normalize content to string (handle multimodal list format from LangGraph Studio)
-        content_text: str = ""
-        if isinstance(raw_content, str):
-            content_text = raw_content
-        elif isinstance(raw_content, list) and raw_content:
-            # Handle multimodal content blocks
-            first_block = raw_content[0]
-            if isinstance(first_block, str):
-                content_text = first_block
-            elif isinstance(first_block, dict) and "text" in first_block:
-                content_text = str(first_block["text"])
-
+        content_text = extract_message_content(last_message)
         content_lower = content_text.lower() if content_text else ""
 
-        # Check for research keywords (highest priority - most specific)
+        # Check for drug keywords FIRST (most common use case)
+        for keyword in DRUG_KEYWORDS:
+            if keyword in content_lower:
+                return "drug_agent"
+
+        # Check for research keywords (now trimmed to research-specific terms)
         for keyword in RESEARCH_KEYWORDS:
             if keyword in content_lower:
                 return "translate_cz_to_en"
 
-        # Check for guidelines keywords (higher priority than drug)
+        # Check for guidelines keywords
         for keyword in GUIDELINES_KEYWORDS:
             if keyword in content_lower:
                 return "guidelines_agent"
-
-        # Check for drug keywords
-        for keyword in DRUG_KEYWORDS:
-            if keyword in content_lower:
-                return "drug_agent"
 
     # Default to placeholder for non-specific queries
     return "placeholder"

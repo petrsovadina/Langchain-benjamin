@@ -9,6 +9,7 @@ This module implements the pubmed_agent_node and helper functions for:
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -24,6 +25,8 @@ from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
     from agent.graph import Context, State
+
+logger = logging.getLogger(__name__)
 
 # Research keywords for query classification (Czech + English)
 RESEARCH_KEYWORDS = {
@@ -351,7 +354,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
         >>> result = await pubmed_agent_node(state, runtime)
         >>> assert "retrieved_docs" in result
     """
-    print("[pubmed_agent] Starting PubMed search...")
+    logger.info("Starting PubMed search")
 
     # Get research_query from state
     research_query = state.research_query
@@ -368,7 +371,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
             research_query = classify_research_query(content)
 
     if not research_query:
-        print("[pubmed_agent] No research query detected")
+        logger.warning("No research query detected")
         return {
             "retrieved_docs": [],
             "messages": [
@@ -386,7 +389,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
     _, biomcp_client = get_mcp_clients(runtime)
 
     if not biomcp_client:
-        print("[pubmed_agent] ERROR: BioMCP client not available")
+        logger.error("BioMCP client not available")
         return {
             "retrieved_docs": [],
             "messages": [
@@ -403,7 +406,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
         articles = []
 
         if research_query.query_type == "pmid_lookup":
-            print(f"[pubmed_agent] PMID lookup: {research_query.query_text}")
+            logger.info("PMID lookup: %s", research_query.query_text)
             article = await _get_article_by_pmid(
                 research_query.query_text, biomcp_client
             )
@@ -416,14 +419,14 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
             max_results = (
                 int(max_results_raw) if isinstance(max_results_raw, (int, str)) else 5
             )
-            print(f"[pubmed_agent] Searching: {research_query.query_text[:100]}...")
+            logger.info("Searching: %s...", research_query.query_text[:100])
             articles = await _search_pubmed_articles(
                 research_query, biomcp_client, max_results
             )
 
         # Check if no results
         if not articles:
-            print("[pubmed_agent] No articles found")
+            logger.info("No articles found")
             return {
                 "retrieved_docs": [],
                 "messages": [
@@ -460,7 +463,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
             )
             documents.append(doc)
 
-        print(f"[pubmed_agent] Found {len(documents)} articles")
+        logger.info("Found %d articles", len(documents))
 
         # Create response message with inline citations and References section
         summary = f"Nalezeno {len(documents)} relevantních článků z PubMed:\n\n"
@@ -485,7 +488,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
         }
 
     except Exception as e:
-        print(f"[pubmed_agent] ERROR: {str(e)}")
+        logger.exception("PubMed search error: %s", e)
         return {
             "retrieved_docs": [],
             "messages": [

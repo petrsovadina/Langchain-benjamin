@@ -1,117 +1,97 @@
-# New LangGraph Project
+# Czech MedAI - Backend (LangGraph + FastAPI)
 
-[![CI](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/unit-tests.yml)
-[![Integration Tests](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/integration-tests.yml)
+Multi-agentní LangGraph graf s FastAPI bridge vrstvou pro Czech MedAI.
 
-This template demonstrates a simple application implemented using [LangGraph](https://github.com/langchain-ai/langgraph), designed for showing how to get started with [LangGraph Server](https://langchain-ai.github.io/langgraph/concepts/langgraph_server/#langgraph-server) and using [LangGraph Studio](https://langchain-ai.github.io/langgraph/concepts/langgraph_studio/), a visual debugging IDE.
-
-<div align="center">
-  <img src="./static/studio_ui.png" alt="Graph view in LangGraph studio UI" width="75%" />
-</div>
-
-The core logic defined in `src/agent/graph.py`, showcases an single-step application that responds with a fixed string and the configuration provided.
-
-You can extend this graph to orchestrate more complex agentic workflows that can be visualized and debugged in LangGraph Studio.
-
-## Getting Started
-
-1. Install dependencies, along with the [LangGraph CLI](https://langchain-ai.github.io/langgraph/concepts/langgraph_cli/), which will be used to run the server.
+## Quick Start
 
 ```bash
-cd path/to/your/app
-pip install -e . "langgraph-cli[inmem]"
-```
-
-2. (Optional) Customize the code and project as needed. Create a `.env` file if you need to use secrets.
-
-```bash
+# Setup
+uv venv && source .venv/bin/activate
+uv pip install -e .
+uv pip install 'langgraph-cli[inmem]'
 cp .env.example .env
+
+# Dev server (LangGraph Studio)
+./dev.sh
+
+# FastAPI server
+PYTHONPATH=src uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
 
-If you want to enable LangSmith tracing, add your LangSmith API key to the `.env` file.
+## Graph Architecture
 
-```text
-# .env
-LANGSMITH_API_KEY=lsv2...
+```
+__start__ → supervisor (LLM intent + Send API)
+              ├→ drug_agent → synthesizer
+              ├→ translate_cz_to_en → pubmed_agent → translate_en_to_cz → synthesizer
+              ├→ guidelines_agent → synthesizer
+              └→ placeholder → synthesizer
+           synthesizer → __end__
 ```
 
-3. Start the LangGraph Server.
+Defined in `src/agent/graph.py`, configured via `langgraph.json`.
 
-```shell
-langgraph dev
-```
+### Nodes
 
-For more information on getting started with LangGraph Server, [see here](https://langchain-ai.github.io/langgraph/tutorials/langgraph-platform/local-server/).
+| Node | File | Role |
+|---|---|---|
+| `supervisor` | `nodes/supervisor.py` | LLM intent classification, Send API dispatch |
+| `drug_agent` | `nodes/drug_agent.py` | SÚKL drug queries via MCP |
+| `pubmed_agent` | `nodes/pubmed_agent.py` | PubMed search via BioMCP |
+| `translate_*` | `nodes/translation.py` | CZ↔EN translation (Sandwich Pattern) |
+| `guidelines_agent` | `nodes/guidelines_agent.py` | ČLS JEP guideline search (pgvector) |
+| `synthesizer` | `nodes/synthesizer.py` | Multi-agent response combination |
 
-## How to customize
+### FastAPI Endpoints
 
-1. **Define runtime context**: Modify the `Context` class in the `graph.py` file to expose the arguments you want to configure per assistant. For example, in a chatbot application you may want to define a dynamic system prompt or LLM to use. For more information on runtime context in LangGraph, [see here](https://langchain-ai.github.io/langgraph/agents/context/?h=context#static-runtime-context).
-
-2. **Extend the graph**: The core logic of the application is defined in [graph.py](./src/agent/graph.py). You can modify this file to add new nodes, edges, or change the flow of information.
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/v1/consult` | POST | SSE streaming consultation |
+| `/health` | GET | Health check (MCP clients, DB) |
 
 ## Development
 
-While iterating on your graph in LangGraph Studio, you can edit past state and rerun your app from previous states to debug specific nodes. Local changes will be automatically applied via hot reload.
+```bash
+make test                    # Unit testy
+make integration_tests       # Integrační testy
+make test TEST_FILE=path     # Konkrétní test
+make lint                    # ruff + mypy --strict
+make format                  # Auto-format
+make spell_check             # Spell check
+make speckit_help            # SpecKit workflow help
+```
 
-Follow-up requests extend the same thread. You can create an entirely new thread, clearing previous history, using the `+` button in the top right.
-
-For more advanced features and examples, refer to the [LangGraph documentation](https://langchain-ai.github.io/langgraph/). These resources can help you adapt this template for your specific use case and build more sophisticated conversational agents.
-
-LangGraph Studio also integrates with [LangSmith](https://smith.langchain.com/) for more in-depth tracing and collaboration with teammates, allowing you to analyze and optimize your chatbot's performance.
-
-## Guidelines Storage
-
-Czech MedAI používá pgvector pro ukládání a vyhledávání klinických guidelines.
-
-### Setup
-
-1. **Spustit migration**:
-   ```bash
-   psql -d your_database -f migrations/003_guidelines_schema.sql
-   ```
-
-2. **Nastavit environment variables**:
-   ```bash
-   # Option 1: Standard PostgreSQL
-   export DATABASE_URL="postgresql://user:pass@localhost:5432/dbname"
-
-   # Option 2: Supabase
-   export SUPABASE_URL="https://your-project.supabase.co"
-   export SUPABASE_KEY="your-service-role-key"
-   ```
-
-3. **Použití**:
-   ```python
-   from agent.utils.guidelines_storage import store_guideline, search_guidelines
-   from agent.models.guideline_models import GuidelineSection, GuidelineSource
-
-   # Store guideline
-   section = GuidelineSection(
-       guideline_id="CLS-JEP-2024-001",
-       title="Hypertenze",
-       section_name="Farmakologická léčba",
-       content="ACE inhibitory jsou...",
-       publication_date="2024-01-15",
-       source=GuidelineSource.CLS_JEP,
-       url="https://www.cls.cz/guidelines/hypertenze-2024.pdf",
-       metadata={"embedding": [0.1] * 1536}
-   )
-   await store_guideline(section)
-
-   # Search guidelines
-   results = await search_guidelines(
-       query=[0.1] * 1536,  # Pre-computed embedding
-       limit=5,
-       source_filter="cls_jep"
-   )
-   ```
-
-### Testing
+## Guidelines Storage (pgvector)
 
 ```bash
-# Unit tests
-pytest tests/unit_tests/utils/test_guidelines_storage.py -v
+# Migration
+psql -d your_database -f migrations/003_guidelines_schema.sql
 
-# Integration tests (requires database)
-pytest tests/integration_tests/test_guidelines_storage_integration.py -v
+# Environment
+export DATABASE_URL="postgresql://user:pass@localhost:5432/dbname"
+```
+
+```python
+from agent.utils.guidelines_storage import store_guideline, search_guidelines
+from agent.models.guideline_models import GuidelineSection, GuidelineSource
+
+section = GuidelineSection(
+    guideline_id="CLS-JEP-2024-001",
+    title="Hypertenze",
+    section_name="Farmakologická léčba",
+    content="ACE inhibitory jsou...",
+    publication_date="2024-01-15",
+    source=GuidelineSource.CLS_JEP,
+    url="https://www.cls.cz/guidelines/hypertenze-2024.pdf",
+    metadata={"embedding": [0.1] * 1536}
+)
+await store_guideline(section)
+
+results = await search_guidelines(query=[0.1] * 1536, limit=5, source_filter="cls_jep")
+```
+
+## Docker (Production)
+
+```bash
+docker compose up            # API + Redis + PostgreSQL
 ```
