@@ -82,6 +82,11 @@ class SUKLMCPClient(IMCPClient):
 
     Provides access to Czech pharmaceutical database with 68,000+ drugs.
 
+    Note: This client uses JSON-RPC protocol (tools/call method) because
+    the SÚKL-mcp server (sukl-mcp-ts.vercel.app) implements the MCP
+    Streamable HTTP transport. BioMCPClient uses REST because its server
+    exposes a traditional REST API. The protocol difference is intentional.
+
     Example:
         >>> client = SUKLMCPClient()
         >>> response = await client.call_tool("search_drugs", {"query": "aspirin"})
@@ -96,7 +101,7 @@ class SUKLMCPClient(IMCPClient):
         default_retry_config: RetryConfig | None = None,
     ):
         self.base_url = (base_url or os.getenv(
-            "SUKL_MCP_URL", "https://sukl-mcp-ts.vercel.app/mcp"
+            "SUKL_MCP_URL", "http://localhost:3000"
         )).rstrip("/")
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.retry_strategy = retry_strategy
@@ -124,13 +129,14 @@ class SUKLMCPClient(IMCPClient):
 
         mapped_params = {}
         for internal_key, value in parameters.items():
-            mcp_key = param_mapping.get(internal_key)
-            if mcp_key is None:
-                # Skip unmapped params or pass through if no mapping exists
-                if internal_key not in param_mapping:
-                    mapped_params[internal_key] = value
+            if internal_key in param_mapping:
+                mcp_key = param_mapping[internal_key]
+                # Explicitly mapped to None => skip this parameter
+                if mcp_key is not None:
+                    mapped_params[mcp_key] = value
             else:
-                mapped_params[mcp_key] = value
+                # No mapping defined => pass parameter through unchanged
+                mapped_params[internal_key] = value
 
         return mcp_tool, mapped_params
 

@@ -375,14 +375,13 @@ def route_query(
 ) -> Literal["drug_agent", "translate_cz_to_en", "guidelines_agent", "placeholder"]:
     """Route query to appropriate agent based on content.
 
-    Simple keyword-based routing for MVP. Will be replaced by
-    Feature 007-supervisor-orchestration with LLM-based intent classification.
+    Simple keyword-based routing as fallback for supervisor LLM classification.
 
     Routing priority:
     1. Explicit queries (drug_query, research_query, guideline_query)
-    2. Research keywords (highest - most specific)
-    3. Guidelines keywords
-    4. Drug keywords
+    2. Drug keywords (highest - most common use case)
+    3. Research keywords (research-specific terms only)
+    4. Guidelines keywords
     5. Placeholder (fallback)
 
     Args:

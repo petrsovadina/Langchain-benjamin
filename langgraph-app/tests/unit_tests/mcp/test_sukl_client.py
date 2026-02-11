@@ -325,3 +325,103 @@ class TestSUKLMCPClientListTools:
             tool_names = [t.name for t in tools]
             assert "search-medicine" in tool_names
             await client.close()
+
+
+class TestSUKLMCPClientParseContent:
+    """Test _parse_content and _parse_text_response parsing methods."""
+
+    def test_parse_content_json_response(self):
+        """Test parsing JSON content blocks."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        content = [{"type": "text", "text": '[{"name": "Aspirin", "code": "123"}]'}]
+        result = client._parse_content(content)
+        assert "drugs" in result
+        assert len(result["drugs"]) == 1
+        assert result["drugs"][0]["name"] == "Aspirin"
+
+    def test_parse_content_formatted_text(self):
+        """Test parsing human-readable formatted text."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        content = [
+            {
+                "type": "text",
+                "text": "Found 2 medicines:\n\n1. Aspirin (12345) - acetylsalicylic acid\n2. Ibuprofen (67890) - ibuprofen",
+            }
+        ]
+        result = client._parse_content(content)
+        assert len(result["drugs"]) == 2
+        assert result["drugs"][0]["name"] == "Aspirin"
+        assert result["drugs"][0]["registration_number"] == "12345"
+        assert result["drugs"][1]["name"] == "Ibuprofen"
+        assert "raw_text" in result
+
+    def test_parse_content_empty(self):
+        """Test parsing empty content returns empty drugs list."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        result = client._parse_content([])
+        assert result["drugs"] == []
+        assert "raw_text" in result
+
+    def test_parse_content_non_text_blocks_ignored(self):
+        """Test that non-text content blocks are ignored."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        content = [{"type": "image", "data": "base64..."}, {"type": "text", "text": "No results"}]
+        result = client._parse_content(content)
+        assert "raw_text" in result
+
+    def test_parse_text_response_single_drug(self):
+        """Test parsing a single drug from formatted text."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        text = "1. PARALEN (56789) - paracetamol"
+        result = client._parse_text_response(text)
+        assert len(result["drugs"]) == 1
+        assert result["drugs"][0]["name"] == "PARALEN"
+        assert result["drugs"][0]["registration_number"] == "56789"
+        assert result["drugs"][0]["active_ingredient"] == "paracetamol"
+
+    def test_parse_text_response_no_match(self):
+        """Test parsing text with no drug pattern returns raw text."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        text = "No medicines found for your query."
+        result = client._parse_text_response(text)
+        assert result["drugs"] == []
+        assert result["raw_text"] == text
+
+    def test_parse_content_malformed_json(self):
+        """Test graceful handling of malformed JSON (falls back to text parsing)."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        content = [{"type": "text", "text": "{invalid json"}]
+        result = client._parse_content(content)
+        assert "raw_text" in result
+
+
+class TestSUKLMCPClientParamMapping:
+    """Test parameter mapping logic including None-mapped params."""
+
+    def test_param_mapped_to_none_is_skipped(self):
+        """Test that params explicitly mapped to None are dropped."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        _, params = client._map_tool_and_params(
+            "check_availability",
+            {"registration_number": "123", "include_alternatives": True},
+        )
+        assert "sukl_code" in params
+        assert "include_alternatives" not in params
+
+    def test_unmapped_param_passes_through(self):
+        """Test that params not in mapping pass through unchanged."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        _, params = client._map_tool_and_params(
+            "search_drugs", {"query": "aspirin", "extra_param": "value"}
+        )
+        assert params["query"] == "aspirin"
+        assert params["extra_param"] == "value"
+
+    def test_unknown_tool_passes_through(self):
+        """Test that unknown tool names pass through unchanged."""
+        client = SUKLMCPClient(base_url=BASE_URL)
+        tool, params = client._map_tool_and_params(
+            "unknown_tool", {"foo": "bar"}
+        )
+        assert tool == "unknown_tool"
+        assert params == {"foo": "bar"}
