@@ -70,7 +70,7 @@ TOOL_NAME_MAP = {
 }
 
 # Parameter mapping: internal param names → MCP server param names
-PARAM_MAP = {
+PARAM_MAP: dict[str, dict[str, str | None]] = {
     "search-medicine": {"query": "query", "limit": "limit"},
     "get-medicine-details": {"registration_number": "sukl_code"},
     "get-atc-info": {"atc_code": "code"},
@@ -120,9 +120,8 @@ class SUKLMCPClient(IMCPClient):
         retry_strategy: IRetryStrategy | None = None,
         default_retry_config: RetryConfig | None = None,
     ):
-        self.base_url = (base_url or os.getenv(
-            "SUKL_MCP_URL", "http://localhost:3000"
-        )).rstrip("/")
+        raw_url: str = base_url or os.getenv("SUKL_MCP_URL") or "http://localhost:3000"
+        self.base_url = raw_url.rstrip("/")
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.retry_strategy = retry_strategy
         self.default_retry_config = default_retry_config or RetryConfig()
@@ -169,7 +168,7 @@ class SUKLMCPClient(IMCPClient):
     ) -> tuple[str, dict[str, Any]]:
         """Map internal tool/param names to MCP server names."""
         mcp_tool = TOOL_NAME_MAP.get(tool_name, tool_name)
-        param_mapping = PARAM_MAP.get(mcp_tool, {})
+        param_mapping: dict[str, str | None] = PARAM_MAP.get(mcp_tool, {})
 
         mapped_params = {}
         for internal_key, value in parameters.items():

@@ -1,30 +1,37 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 1.0.3 → 1.0.4 (PATCH)
-- Bump rationale: Validation review - updated test metrics and added notes on planned refactoring
-- Modified principles: None (principles unchanged)
+- Version change: 1.0.4 → 1.1.0 (MINOR)
+- Bump rationale: Materially expanded guidance - added Security Standards section,
+  Frontend Technology Stack, MCP Protocol Standards, and updated test metrics
+- Modified principles: None (5 principles unchanged)
 - Enhanced sections:
-  * Development Workflow: Clarified test coverage metric (177/183 = 97%)
-  * Code Quality Gates: Added note about Feature 005 Refactoring (planned translation layer removal)
-- Added sections: None
+  * Technology Stack: Added Frontend Mandatory Technologies and MCP Protocol Standards
+  * Code Quality Gates: Updated test metrics (177/183 → 189/195 = 97%)
+  * Principle V (Modular Design): Added MCP client design patterns
+- Added sections:
+  * Security Standards (new top-level section with 4 sub-sections)
+  * Frontend Mandatory Technologies (under Technology Stack)
+  * MCP Protocol Standards (under Technology Stack)
 - Removed sections: None
 - Templates requiring updates:
   ✅ plan-template.md - Verified aligned (Constitution Check references all 5 principles)
   ✅ spec-template.md - Verified aligned (user stories with priorities, edge cases)
   ✅ tasks-template.md - Verified aligned (TDD workflow, LangGraph-specific patterns)
+  ✅ checklist-template.md - Verified aligned (generic structure, no constitution refs)
 - Follow-up TODOs: None
 - Change context:
-  * Validation review conducted 2026-02-02
-  * Test coverage improved: 169/175 → 177/183 (97%)
-  * Feature 005 Refactoring (remove translation layer) ready for implementation
-  * Multimodal content handling fix deployed (commit a8429ba)
-  * All templates verified aligned with constitution principles
+  * Security hardening session conducted 2026-02-11
+  * SUKLMCPClient rewritten with thread-safe IDs, size limits, async context manager
+  * Supervisor exception handling refined with specific exception types
+  * Routing priority codified: drug > research > guidelines > placeholder
+  * 12 new tests added (4 routing regression + 8 security)
+  * Frontend stack documented for first time in constitution
 
-PREVIOUS REPORT (1.0.2 → 1.0.3):
-- Codified Phase 7 code quality enforcement standards
-- Added explicit mypy --strict enforcement
-- Clarified ruff configuration and T201 print() debugging exception
-- Added setuptools package discovery pattern requirement
+PREVIOUS REPORT (1.0.3 → 1.0.4):
+- Validation review - updated test metrics and added notes on planned refactoring
+- Test coverage improved: 169/175 → 177/183 (97%)
+- Feature 005 Refactoring (remove translation layer) ready for implementation
+- Multimodal content handling fix deployed (commit a8429ba)
 -->
 
 # Langchain-Benjamin Constitution
@@ -40,6 +47,7 @@ PREVIOUS REPORT (1.0.2 → 1.0.3):
 - State transitions MUST be explicit via `.add_edge()` or conditional edges
 - No business logic outside of graph nodes (keep controllers, helpers minimal)
 - Graph structure MUST be visualizable in LangGraph Studio
+- Routing MUST use the Send API for dynamic multi-agent dispatch
 
 **Rationale**: LangGraph is the orchestration backbone. Maintaining graph-centric design ensures debuggability, traceability, and visual comprehension of agent behavior.
 
@@ -66,6 +74,7 @@ PREVIOUS REPORT (1.0.2 → 1.0.3):
 
 - **Unit tests**: Cover individual node logic in `tests/unit_tests/`
 - **Integration tests**: Validate full graph execution in `tests/integration_tests/`
+- **Regression tests**: Cover routing priority changes and security fixes
 - Test workflow: Write test → Verify it fails → Implement → Verify it passes
 - Use `pytest` as testing framework (already configured in pyproject.toml)
 - Contract tests for external API integrations when applicable
@@ -77,10 +86,11 @@ PREVIOUS REPORT (1.0.2 → 1.0.3):
 **ALL graph executions MUST be traceable**.
 
 - Enable LangSmith tracing via `.env` configuration (`LANGSMITH_API_KEY`)
-- Log state transitions at node boundaries (use `print()` or structured logging)
+- Use structured `logging` module (not `print()`) for production code
 - Node implementations MUST log key decisions and data transformations
 - Use LangGraph Studio for visual debugging during development
 - Checkpoint state before/after complex operations
+- Exception handlers MUST use specific exception types (not bare `except Exception`)
 
 **Rationale**: Agent debugging is impossible without execution traces. LangSmith and Studio provide the tooling; adherence to logging practices makes them effective.
 
@@ -93,31 +103,82 @@ PREVIOUS REPORT (1.0.2 → 1.0.3):
 - Extract reusable logic into helper functions in `src/agent/` modules
 - Use subgraphs for complex multi-step operations
 - Configuration parameters MUST go in `Context`, not hardcoded
+- MCP clients MUST implement `IMCPClient` interface and support async context manager (`__aenter__`/`__aexit__`)
 
 **Rationale**: Small nodes are easier to test, debug, and reuse. LangGraph supports composition; leverage it for maintainability.
 
 ## Technology Stack
 
-### Mandatory Technologies
+### Backend Mandatory Technologies
 
-- **Python**: ≥3.10 (as per pyproject.toml)
-- **LangGraph**: ≥1.0.0 (core framework)
+- **Python**: >=3.10 (as per pyproject.toml)
+- **LangGraph**: >=1.0.0 (core framework)
 - **LangGraph CLI**: For local development server (`langgraph dev`)
+- **FastAPI**: Bridge layer for SSE streaming (`src/api/`)
 - **pytest**: Testing framework with conftest.py fixtures
 - **ruff**: Linting and formatting (configured in pyproject.toml)
 - **mypy**: Type checking with --strict mode enforcement
+
+### Frontend Mandatory Technologies
+
+- **Next.js**: 14 (React 18, App Router)
+- **TypeScript**: Strict mode
+- **Tailwind CSS**: v4 with OKLCH semantic design tokens
+- **shadcn/ui**: Component library extended with `cva` variants
+- **Vitest**: Unit testing with React Testing Library + jest-axe
+- **Playwright**: E2E testing (Desktop Chrome, Mobile Chrome/Safari, Tablet)
+
+### MCP Protocol Standards
+
+MCP (Model Context Protocol) clients communicate with external data sources:
+
+- **SUKL MCP**: JSON-RPC 2.0 protocol (Czech pharmaceutical database)
+- **BioMCP**: REST protocol (PubMed/biomedical literature)
+- Protocol choice is per-server (not a project-wide decision)
+- All MCP clients MUST implement `IMCPClient` interface from `agent.mcp.interfaces`
+- JSON-RPC requests MUST use `_build_rpc_request()` DRY helper pattern
 
 ### Recommended Integrations
 
 - **LangSmith**: Tracing and monitoring (via `LANGSMITH_API_KEY`)
 - **python-dotenv**: Environment variable management
 - **LangGraph Studio**: Visual debugging and development
+- **Redis**: Response caching for quick mode
 
 ### Constraints
 
 - **No direct database ORM**: Use LangGraph checkpointing for persistence
 - **Async-first**: All node functions must be `async def`
 - **Minimal external dependencies**: Justify new dependencies against core LangGraph patterns
+
+## Security Standards
+
+### Input Validation
+
+- All external input MUST be validated at system boundaries
+- Content size MUST be bounded (`MAX_CONTENT_SIZE` for HTTP responses, `MAX_TEXT_LENGTH` for parsed text)
+- Regex patterns MUST be line-anchored to prevent ReDoS attacks
+- JSON parsing MUST catch `RecursionError` for deeply nested payloads
+
+### Thread Safety
+
+- Shared mutable counters MUST use `itertools.count()` or `threading.Lock`
+- Request ID generation MUST be thread-safe (no `self._id += 1` pattern)
+
+### Resource Management
+
+- HTTP clients MUST implement async context manager (`__aenter__`/`__aexit__`)
+- Sessions MUST be set to `None` on close to prevent stale references
+- Timeouts MUST be configured for all external HTTP calls
+
+### Exception Handling
+
+- Catch specific exception types, not bare `except Exception`
+- Network errors: `aiohttp.ClientError`, `TimeoutError`, `OSError`
+- Parse errors: `ValueError`, `KeyError`, `TypeError`
+- Use `logger.exception()` for unexpected errors (preserves traceback)
+- Use `logger.warning()` for expected fallback scenarios
+- All external-facing functions MUST have fallback behavior (graceful degradation)
 
 ## Development Workflow
 
@@ -162,10 +223,11 @@ All code MUST pass these enforced quality checks before merge:
 - Use `r"""` prefix if docstring contains backslashes
 
 #### Testing
-- **Test coverage**: Minimum 80% for node implementations (current: 177/183 = 97%)
+- **Test coverage**: Minimum 80% for node implementations (current: 189/195 = 97%)
 - All tests MUST pass: `pytest tests/`
 - Note: 6 translation tests require API credits (expected skip without ANTHROPIC_API_KEY)
 - Performance benchmarks for latency-critical nodes
+- Regression tests MUST accompany routing priority or keyword changes
 
 #### Package Configuration
 - Use `[tool.setuptools.packages.find]` in pyproject.toml for package discovery
@@ -176,6 +238,20 @@ All code MUST pass these enforced quality checks before merge:
 - **Feature branches**: Use format `###-feature-name` (e.g., `001-rag-pipeline`)
 - **Commits**: Conventional format (`feat:`, `fix:`, `test:`, `docs:`)
 - **Pull requests**: Must pass all tests and linting before merge
+
+## Routing Architecture
+
+### Priority Order (codified 2026-02-09)
+
+Query routing follows this strict priority (highest to lowest):
+
+1. **Explicit queries**: `drug_query`, `research_query`, `guideline_query` in State
+2. **Drug keywords**: Most common use case (SUKL database)
+3. **Research keywords**: Research-specific terms only (`studie`, `vyzkum`, `pubmed`)
+4. **Guidelines keywords**: Clinical guidelines (`doporucene postupy`, `standardy`, `ESC`)
+5. **Placeholder**: Fallback for unmatched queries
+
+Both `route_query()` (graph.py) and `fallback_to_keyword_routing()` (supervisor.py) MUST maintain identical priority order.
 
 ## Governance
 
@@ -199,5 +275,6 @@ This constitution is a living document. Amendments require:
 - All features MUST reference constitution principles in plan.md "Constitution Check" section
 - Violations (e.g., adding non-graph logic) MUST be justified in "Complexity Tracking" table
 - Use `.specify/memory/constitution.md` as single source of truth for development standards
+- Security standards MUST be verified during code review
 
-**Version**: 1.0.4 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-02
+**Version**: 1.1.0 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-11
