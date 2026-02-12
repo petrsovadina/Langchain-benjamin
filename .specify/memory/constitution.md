@@ -223,7 +223,7 @@ All code MUST pass these enforced quality checks before merge:
 - Use `r"""` prefix if docstring contains backslashes
 
 #### Testing
-- **Test coverage**: Minimum 80% for node implementations (current: 189/195 = 97%)
+- **Test coverage**: Minimum 80% for node implementations (current: 444/449 = 98.9%)
 - All tests MUST pass: `pytest tests/`
 - Note: 6 translation tests require API credits (expected skip without ANTHROPIC_API_KEY)
 - Performance benchmarks for latency-critical nodes

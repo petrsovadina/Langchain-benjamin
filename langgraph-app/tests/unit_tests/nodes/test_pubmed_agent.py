@@ -148,11 +148,11 @@ class TestErrorHandling:
         # Assert
         assert "retrieved_docs" in result
         assert len(result["retrieved_docs"]) == 0
-        # Should have Czech error message about service unavailability
+        # Should have Czech error message about the failure
         assert "messages" in result
         assert any(
-            "nedostupn" in msg.get("content", "").lower()
-            or "unavailable" in msg.get("content", "").lower()
+            "chyba" in msg.get("content", "").lower()
+            or "timeout" in msg.get("content", "").lower()
             for msg in result["messages"]
         )
 

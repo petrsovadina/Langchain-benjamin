@@ -383,12 +383,16 @@ class TestErrorHandling:
         self, sample_state: State
     ) -> None:
         """Test drug_agent_node handles missing SÚKL client gracefully."""
+        from unittest.mock import patch
+
         sample_state.messages = [{"role": "user", "content": "Najdi Ibalgin"}]
 
         mock_runtime = MagicMock()
         mock_runtime.context = {}  # No sukl_mcp_client
 
-        result = await drug_agent_node(sample_state, mock_runtime)
+        # Patch get_mcp_clients to return (None, None), bypassing module-level fallback
+        with patch("agent.graph.get_mcp_clients", return_value=(None, None)):
+            result = await drug_agent_node(sample_state, mock_runtime)
 
         assert "chyba" in result["messages"][0]["content"].lower()
         assert result["retrieved_docs"] == []

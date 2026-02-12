@@ -375,6 +375,13 @@ async def supervisor_node(
         fallback_node = route_query(state)
         logger.info("[supervisor_node] Fallback routing to: %s", fallback_node)
         return Send(fallback_node, state)
+    except Exception as e:
+        logger.exception("[supervisor_node] Unexpected classification error: %s", e)
+        from agent.graph import route_query
+
+        fallback_node = route_query(state)
+        logger.info("[supervisor_node] Fallback routing to: %s", fallback_node)
+        return Send(fallback_node, state)
 
     # Validate agents
     valid_agents = validate_agent_names(result.agents_to_call)
