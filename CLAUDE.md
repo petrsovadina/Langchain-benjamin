@@ -132,6 +132,7 @@ docker compose up                       # API + Redis + PostgreSQL
 - `AsyncMock` for MCP clients in tests
 - `PYTHONPATH=src` always required (LangGraph CLI runs in pipx env)
 - Node functions must be async with signature `(State, Runtime[Context]) -> dict[str, Any]`
+- `get_mcp_clients(runtime)` in `graph.py` falls back to module-level clients when runtime context is empty - tests must `patch("agent.graph.get_mcp_clients")` to prevent leaking to real MCP servers
 
 ### TypeScript (frontend)
 - Tailwind v4 with OKLCH semantic design tokens (no hardcoded colors)
@@ -168,7 +169,7 @@ Frontend and backend communicate via Server-Sent Events:
 ### Backend
 - `langgraph-app/src/agent/graph.py` - Core graph (State, Context, route_query, compilation)
 - `langgraph-app/src/agent/nodes/` - Node implementations (drug_agent, pubmed_agent, translation)
-- `langgraph-app/src/agent/mcp/` - MCP client wrappers (SÚKL, BioMCP)
+- `langgraph-app/src/agent/mcp/` - MCP clients: `adapters/` (SUKLMCPClient, BioMCPClient), `domain/` (ports, entities, exceptions)
 - `langgraph-app/src/agent/models/` - Pydantic models (DrugQuery, ResearchQuery, PubMedArticle)
 - `langgraph-app/src/api/routes.py` - FastAPI endpoints (`/api/v1/consult`, `/health`)
 - `langgraph-app/src/api/main.py` - FastAPI app (CORS, rate limiting, security headers)
@@ -187,14 +188,14 @@ Frontend and backend communicate via Server-Sent Events:
 - `frontend/playwright.config.ts` - E2E config (4 device profiles)
 
 ### Configuration
-- `.specify/memory/constitution.md` - Project constitution v1.0.4 (5 principles)
+- `.specify/memory/constitution.md` - Project constitution v1.1.1 (5 principles + security standards)
 - `specs/ROADMAP.md` - Master roadmap (12 features, 4 phases)
 - `langgraph-app/.env` - Backend env vars (API keys, LangSmith)
 - `frontend/.env.local` - Frontend env (`NEXT_PUBLIC_API_URL=http://localhost:8000`)
 
 ## Constitution (5 Principles)
 
-Defined in `.specify/memory/constitution.md` v1.0.4:
+Defined in `.specify/memory/constitution.md` v1.1.1:
 
 1. **Graph-Centric Architecture** - All features as LangGraph nodes/edges, async functions
 2. **Type Safety** - mypy --strict, typed dataclasses/TypedDict, zero errors
@@ -232,7 +233,7 @@ Specs live in `specs/NNN-feature-name/` with `spec.md`, `plan.md`, `tasks.md`.
 
 **`ModuleNotFoundError: No module named 'agent'`** - Use `./dev.sh` or prefix with `PYTHONPATH=src`.
 
-**Translation tests fail** - 6 tests require `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env`.
+**Translation tests fail** - 5 tests require `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env`.
 
 **Frontend can't connect to backend** - Ensure FastAPI runs on :8000 and `NEXT_PUBLIC_API_URL` is set in `frontend/.env.local`.
 

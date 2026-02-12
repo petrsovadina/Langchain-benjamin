@@ -1,31 +1,30 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 1.0.4 → 1.1.0 (MINOR)
-- Bump rationale: Materially expanded guidance - added Security Standards section,
-  Frontend Technology Stack, MCP Protocol Standards, and updated test metrics
-- Modified principles: None (5 principles unchanged)
+- Version change: 1.1.0 → 1.1.1 (PATCH)
+- Bump rationale: Corrected stale test metrics in Sync Impact Report header
+  and fixed translation test count (6 → 5)
+- Modified principles: None
 - Enhanced sections:
-  * Technology Stack: Added Frontend Mandatory Technologies and MCP Protocol Standards
-  * Code Quality Gates: Updated test metrics (177/183 → 189/195 = 97%)
-  * Principle V (Modular Design): Added MCP client design patterns
-- Added sections:
-  * Security Standards (new top-level section with 4 sub-sections)
-  * Frontend Mandatory Technologies (under Technology Stack)
-  * MCP Protocol Standards (under Technology Stack)
+  * Testing: Updated test metrics to 444/449 = 98.9% (post mock-fix session)
+  * Testing: Corrected translation test count from 6 to 5
+- Added sections: None
 - Removed sections: None
 - Templates requiring updates:
-  ✅ plan-template.md - Verified aligned (Constitution Check references all 5 principles)
-  ✅ spec-template.md - Verified aligned (user stories with priorities, edge cases)
-  ✅ tasks-template.md - Verified aligned (TDD workflow, LangGraph-specific patterns)
-  ✅ checklist-template.md - Verified aligned (generic structure, no constitution refs)
+  ✅ plan-template.md - No changes needed
+  ✅ spec-template.md - No changes needed
+  ✅ tasks-template.md - No changes needed
+  ✅ checklist-template.md - No changes needed
 - Follow-up TODOs: None
 - Change context:
-  * Security hardening session conducted 2026-02-11
-  * SUKLMCPClient rewritten with thread-safe IDs, size limits, async context manager
-  * Supervisor exception handling refined with specific exception types
-  * Routing priority codified: drug > research > guidelines > placeholder
-  * 12 new tests added (4 routing regression + 8 security)
-  * Frontend stack documented for first time in constitution
+  * 3 mock test bugs fixed (supervisor fallback, drug_agent patch, pubmed assertion)
+  * supervisor_node now has `except Exception` broad fallback after specific handlers
+  * Test suite: 444 passed, 5 skipped (translation tests requiring API credits)
+
+PREVIOUS REPORT (1.0.4 → 1.1.0):
+- Materially expanded guidance - added Security Standards, Frontend Tech Stack, MCP Protocol
+- Test coverage improved: 177/183 → 444/449 (98.9%)
+- 12 new tests added (4 routing regression + 8 security)
+- Security hardening: thread-safe IDs, size limits, async context manager, ReDoS-safe regex
 
 PREVIOUS REPORT (1.0.3 → 1.0.4):
 - Validation review - updated test metrics and added notes on planned refactoring
@@ -225,7 +224,7 @@ All code MUST pass these enforced quality checks before merge:
 #### Testing
 - **Test coverage**: Minimum 80% for node implementations (current: 444/449 = 98.9%)
 - All tests MUST pass: `pytest tests/`
-- Note: 6 translation tests require API credits (expected skip without ANTHROPIC_API_KEY)
+- Note: 5 translation tests require API credits (expected skip without ANTHROPIC_API_KEY)
 - Performance benchmarks for latency-critical nodes
 - Regression tests MUST accompany routing priority or keyword changes
 
@@ -277,4 +276,4 @@ This constitution is a living document. Amendments require:
 - Use `.specify/memory/constitution.md` as single source of truth for development standards
 - Security standards MUST be verified during code review
 
-**Version**: 1.1.0 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-11
+**Version**: 1.1.1 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-12

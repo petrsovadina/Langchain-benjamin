@@ -140,7 +140,7 @@ Langchain-benjamin/
 │   ├── ROADMAP.md             # Master roadmap (12 features, 4 fáze)
 │   └── NNN-feature-name/      # spec.md, plan.md, tasks.md
 ├── PRD-docs/                  # PRD dokumentace (strategie, architektura, UX)
-└── .specify/                  # SpecKit framework + Constitution v1.0.4
+└── .specify/                  # SpecKit framework + Constitution v1.1.1
 ```
 
 ## Feature Development Workflow (SpecKit)
@@ -153,13 +153,15 @@ make speckit_new FEATURE="Description"   # Vytvoří branch + spec
 
 ## Constitution (5 Principů)
 
-Definováno v `.specify/memory/constitution.md` v1.0.4:
+Definováno v `.specify/memory/constitution.md` v1.1.1:
 
-1. **Graph-Centric Architecture** - Vše jako LangGraph nodes/edges
+1. **Graph-Centric Architecture** - Vše jako LangGraph nodes/edges, Send API
 2. **Type Safety** - mypy --strict, typed dataclasses/TypedDict
-3. **Test-First Development** - Testy PŘED implementací (TDD)
-4. **Observability** - LangSmith tracing, structured logging
-5. **Modular Design** - Single responsibility per node
+3. **Test-First Development** - Testy PŘED implementací (TDD), regression testy
+4. **Observability** - LangSmith tracing, structured logging, specific exceptions
+5. **Modular Design** - Single responsibility per node, IMCPClient interface
+
+Plus **Security Standards**: input validation, thread-safe IDs, async context managers, ReDoS-safe regex.
 
 ## Roadmap
 
@@ -191,7 +193,7 @@ Definováno v `.specify/memory/constitution.md` v1.0.4:
 
 **`ModuleNotFoundError: No module named 'agent'`** - Použijte `./dev.sh` nebo prefix `PYTHONPATH=src`.
 
-**Translation testy selhávají** - 6 testů vyžaduje `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY` v `.env`.
+**Translation testy selhávají** - 5 testů vyžaduje `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY` v `.env`.
 
 **Frontend se nepřipojí k backendu** - Ověřte, že FastAPI běží na :8000 a `NEXT_PUBLIC_API_URL=http://localhost:8000` je v `frontend/.env.local`.
 
@@ -203,9 +205,9 @@ Definováno v `.specify/memory/constitution.md` v1.0.4:
 - **[CLAUDE.md](./CLAUDE.md)** - Guide pro Claude Code
 - **[MCP_INTEGRATION.md](./MCP_INTEGRATION.md)** - MCP integrace
 - **[.specify/README.md](./.specify/README.md)** - SpecKit framework
-- **[.specify/memory/constitution.md](./.specify/memory/constitution.md)** - Constitution v1.0.4
+- **[.specify/memory/constitution.md](./.specify/memory/constitution.md)** - Constitution v1.1.1
 - **[specs/ROADMAP.md](./specs/ROADMAP.md)** - Detailní roadmap
 
 ---
 
-**Verze:** 2.0.0 | **Aktualizováno:** 2026-02-10
+**Verze:** 2.1.0 | **Aktualizováno:** 2026-02-12
