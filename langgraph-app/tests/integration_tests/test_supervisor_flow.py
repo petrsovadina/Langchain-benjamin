@@ -111,8 +111,8 @@ class TestSupervisorFlow:
         assert len(result["retrieved_docs"]) >= 1
 
     @pytest.mark.asyncio
-    async def test_supervisor_fallback_to_placeholder(self) -> None:
-        """Test supervisor falls back to placeholder when classification fails."""
+    async def test_supervisor_fallback_to_general_agent(self) -> None:
+        """Test supervisor falls back to general_agent when classification fails."""
         initial_state = {
             "messages": [{"role": "user", "content": "Jaké je počasí?"}],
         }
@@ -126,10 +126,10 @@ class TestSupervisorFlow:
 
             result = await graph.ainvoke(initial_state)
 
-        # "Jaké je počasí?" has no keywords -> placeholder echoes
+        # "Jaké je počasí?" has no keywords -> general_agent responds
         assert len(result["messages"]) >= 2
         last_content = get_message_content(result["messages"][-1])
-        assert "Echo" in last_content
+        assert last_content  # general_agent should provide a response
 
     @pytest.mark.asyncio
     async def test_supervisor_backward_compat_keyword_fallback(

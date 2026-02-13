@@ -39,8 +39,6 @@ from agent.nodes.supervisor import supervisor_node
 # Import synthesizer node (Feature 009)
 from agent.nodes.synthesizer import synthesizer_node
 
-# Import translation and pubmed_agent nodes (Feature 005)
-from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
 from agent.utils.message_utils import extract_message_content
 
 # Load environment variables (LangSmith tracing)
@@ -236,10 +234,11 @@ class State:
         pass
 
 
-async def placeholder_node(state: State, runtime: Runtime[Context]) -> dict[str, Any]:
-    """Echo user messages with configuration info.
+async def general_agent_node(state: State, runtime: Runtime[Context]) -> dict[str, Any]:
+    """Answer general medical questions using LLM.
 
-    Processes input state and returns AI response using configured model.
+    Handles queries that don't match specific agent routing (drug/research/guidelines).
+    Uses Claude to provide helpful Czech medical responses.
 
     Args:
         state: Current agent state with message history.
@@ -248,26 +247,62 @@ async def placeholder_node(state: State, runtime: Runtime[Context]) -> dict[str,
     Returns:
         Updated state dict with:
             - messages: list with new assistant message
-            - next: routing indicator for next node
-
-    Raises:
-        ValueError: If state.messages is empty.
+            - next: "__end__"
     """
-    # Access context with fallback
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage, SystemMessage
+
     context = runtime.context or {}
-    model = context.get("model_name", "default")
+    model_name = context.get("model_name", "claude-sonnet-4-5-20250929")
 
-    logger.debug("placeholder_node executing with model=%s", model)
+    logger.info("general_agent_node executing with model=%s", model_name)
 
-    # Echo last user message
     last_message = state.messages[-1] if state.messages else None
-    if last_message:
-        content = extract_message_content(last_message)
-        response = f"Echo: {content}"
-    else:
-        response = "No input"
+    if not last_message:
+        return {
+            "messages": [{"role": "assistant", "content": "Nebyl zadán žádný dotaz."}],
+            "next": "__end__",
+        }
 
-    return {"messages": [{"role": "assistant", "content": response}], "next": "__end__"}
+    user_content = extract_message_content(last_message)
+
+    try:
+        llm = ChatAnthropic(
+            model=model_name,
+            temperature=0.0,
+            timeout=None,
+            stop=None,
+            max_tokens=2048,
+        )
+
+        system_prompt = (
+            "Jsi Czech MedAI, klinický rozhodovací asistent pro české lékaře. "
+            "Odpovídáš vždy v češtině s korektní lékařskou terminologií. "
+            "Poskytuj stručné, faktické a odborné odpovědi. "
+            "Pokud dotaz nesouvisí s medicínou, zdvořile to uveď a nabídni pomoc "
+            "s lékařským dotazem. "
+            "NIKDY nevymýšlej citace ani zdroje, které nemáš k dispozici."
+        )
+
+        response = await llm.ainvoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_content),
+        ])
+
+        answer = (
+            response.content
+            if isinstance(response.content, str)
+            else str(response.content)
+        )
+
+    except Exception as e:
+        logger.error("general_agent_node LLM call failed: %s", e)
+        answer = (
+            "Omlouvám se, nepodařilo se zpracovat váš dotaz. "
+            "Zkuste prosím specifičtější lékařský dotaz."
+        )
+
+    return {"messages": [{"role": "assistant", "content": answer}], "next": "__end__"}
 
 
 # Drug-related keywords for routing (Czech + English)
@@ -372,7 +407,7 @@ GUIDELINES_KEYWORDS = {
 
 def route_query(
     state: State,
-) -> Literal["drug_agent", "translate_cz_to_en", "guidelines_agent", "placeholder"]:
+) -> Literal["drug_agent", "pubmed_agent", "guidelines_agent", "general_agent"]:
     """Route query to appropriate agent based on content.
 
     Simple keyword-based routing as fallback for supervisor LLM classification.
@@ -382,13 +417,13 @@ def route_query(
     2. Drug keywords (highest - most common use case)
     3. Research keywords (research-specific terms only)
     4. Guidelines keywords
-    5. Placeholder (fallback)
+    5. General agent (fallback)
 
     Args:
         state: Current agent state with messages.
 
     Returns:
-        Node name to route to: "drug_agent", "translate_cz_to_en", "guidelines_agent", or "placeholder".
+        Node name to route to: "drug_agent", "pubmed_agent", "guidelines_agent", or "general_agent".
     """
     # Check if explicit drug_query is set
     if state.drug_query is not None:
@@ -396,7 +431,7 @@ def route_query(
 
     # Check if explicit research_query is set
     if state.research_query is not None:
-        return "translate_cz_to_en"
+        return "pubmed_agent"
 
     # Check if explicit guideline_query is set
     if state.guideline_query is not None:
@@ -416,15 +451,15 @@ def route_query(
         # Check for research keywords (now trimmed to research-specific terms)
         for keyword in RESEARCH_KEYWORDS:
             if keyword in content_lower:
-                return "translate_cz_to_en"
+                return "pubmed_agent"
 
         # Check for guidelines keywords
         for keyword in GUIDELINES_KEYWORDS:
             if keyword in content_lower:
                 return "guidelines_agent"
 
-    # Default to placeholder for non-specific queries
-    return "placeholder"
+    # Default to general agent for non-specific queries
+    return "general_agent"
 
 
 async def _supervisor_with_command(
@@ -449,12 +484,10 @@ graph = (
     # Add nodes
     # Feature 007: Supervisor orchestrator (LLM-based intent classification + Send API)
     .add_node("supervisor", _supervisor_with_command)
-    .add_node("placeholder", placeholder_node)
+    .add_node("general_agent", general_agent_node)
     .add_node("drug_agent", drug_agent_node)
-    # Feature 005: PubMed research workflow (Sandwich Pattern: CZ→EN→PubMed→EN→CZ)
-    .add_node("translate_cz_to_en", translate_cz_to_en_node)
+    # Feature 005: PubMed research (internal CZ→EN translation)
     .add_node("pubmed_agent", pubmed_agent_node)
-    .add_node("translate_en_to_cz", translate_en_to_cz_node)
     # Feature 006: Guidelines Agent
     .add_node("guidelines_agent", guidelines_agent_node)
     # Feature 009: Synthesizer (combines multi-agent responses)
@@ -464,14 +497,12 @@ graph = (
     # Supervisor uses Send API for dynamic routing (no conditional edges needed)
     # Agent edges route to synthesizer (Feature 009)
     .add_edge("drug_agent", "synthesizer")
-    # PubMed research workflow: CZ→EN→PubMed→EN→CZ (Sandwich Pattern)
-    .add_edge("translate_cz_to_en", "pubmed_agent")
-    .add_edge("pubmed_agent", "translate_en_to_cz")
-    .add_edge("translate_en_to_cz", "synthesizer")
+    # PubMed research: pubmed_agent handles CZ→EN internally
+    .add_edge("pubmed_agent", "synthesizer")
     # Guidelines agent routes to synthesizer
     .add_edge("guidelines_agent", "synthesizer")
-    # Placeholder routes to synthesizer
-    .add_edge("placeholder", "synthesizer")
+    # General agent routes to synthesizer
+    .add_edge("general_agent", "synthesizer")
     # Synthesizer ends the graph
     .add_edge("synthesizer", "__end__")
     .compile(name="Czech MedAI")

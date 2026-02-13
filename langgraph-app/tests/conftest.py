@@ -43,7 +43,7 @@ def sample_state():
     """
     return State(
         messages=[{"role": "user", "content": "test message"}],
-        next="placeholder",
+        next="general_agent",
         retrieved_docs=[],
     )
 

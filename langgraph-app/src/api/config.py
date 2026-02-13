@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     """
 
     # Environment
-    environment: Literal["development", "staging", "production"] = "production"
+    environment: Literal["development", "staging", "production"] = "development"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
     # API Server
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
 
     # Logging
     log_format: Literal["json", "text"] = "json"
-    log_file: str = "/app/logs/czech-medai.log"
+    log_file: str = "logs/czech-medai.log"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

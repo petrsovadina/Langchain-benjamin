@@ -3,7 +3,6 @@
 Provides helper functions and utilities for agent processing.
 
 Modules:
-    translation_prompts: Translation prompt templates.
     pdf_processor: PDF processing and chunking utilities (Feature 006).
     guidelines_storage: Async storage utilities for guidelines with pgvector.
     timeout: Timeout wrapper for async agent nodes (Feature 007).

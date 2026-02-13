@@ -302,7 +302,7 @@ class TestFullGraphExecution:
         """Verify State dataclass has drug_query field for graph execution."""
         state = State(
             messages=[{"role": "user", "content": "test"}],
-            next="placeholder",
+            next="general_agent",
             retrieved_docs=[],
         )
 

@@ -1,70 +1,79 @@
-"""Unit tests for LangGraph foundation (AgentState, Context, placeholder_node).
+"""Unit tests for LangGraph foundation (AgentState, Context, general_agent_node).
 
 IMPORTANT: These tests are written FIRST (Test-First Development - Principle III).
 They MUST FAIL initially until implementation is complete.
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
-from agent.graph import State, placeholder_node
+from agent.graph import State, general_agent_node
 
 
 @pytest.mark.asyncio
-async def test_placeholder_node_echoes_message(mock_runtime):
-    """Test placeholder node echoes user message.
+async def test_general_agent_node_responds_to_message(mock_runtime):
+    """Test general_agent node responds to user message via LLM.
 
     Acceptance: Given a State with user message,
-    When placeholder_node is invoked,
-    Then it returns AI message echoing the user input.
+    When general_agent_node is invoked,
+    Then it returns AI message with LLM response.
     """
-    # Arrange
-    state = State(messages=[{"role": "user", "content": "Hello"}], next="placeholder")
+    state = State(messages=[{"role": "user", "content": "Hello"}], next="general_agent")
 
-    # Act
-    result = await placeholder_node(state, mock_runtime)
+    mock_llm_response = MagicMock()
+    mock_llm_response.content = "Test response"
 
-    # Assert
+    with patch("langchain_anthropic.ChatAnthropic") as mock_chat_cls:
+        mock_chat_instance = MagicMock()
+        mock_chat_instance.ainvoke = AsyncMock(return_value=mock_llm_response)
+        mock_chat_cls.return_value = mock_chat_instance
+
+        result = await general_agent_node(state, mock_runtime)
+
     assert "messages" in result
     assert len(result["messages"]) == 1
-    assert "Echo: Hello" in result["messages"][0]["content"]
+    assert "Test response" in result["messages"][0]["content"]
     assert result["next"] == "__end__"
 
 
 @pytest.mark.asyncio
-async def test_placeholder_node_handles_empty_state(mock_runtime):
-    """Test placeholder node with no messages.
+async def test_general_agent_node_handles_empty_state(mock_runtime):
+    """Test general_agent node with no messages.
 
     Acceptance: Given empty State,
-    When placeholder_node is invoked,
-    Then it returns "No input" message.
+    When general_agent_node is invoked,
+    Then it returns fallback message.
     """
-    # Arrange
-    state = State(messages=[], next="placeholder")
+    state = State(messages=[], next="general_agent")
 
-    # Act
-    result = await placeholder_node(state, mock_runtime)
+    result = await general_agent_node(state, mock_runtime)
 
-    # Assert
     assert "messages" in result
     assert len(result["messages"]) == 1
-    assert result["messages"][0]["content"] == "No input"
+    assert result["messages"][0]["content"] == "Nebyl zadán žádný dotaz."
     assert result["next"] == "__end__"
 
 
 @pytest.mark.asyncio
-async def test_placeholder_node_accesses_runtime_config(mock_runtime):
-    """Test placeholder node can access runtime configuration.
+async def test_general_agent_node_accesses_runtime_config(mock_runtime):
+    """Test general_agent node can access runtime configuration.
 
     Acceptance: Given mock_runtime with model_name,
-    When placeholder_node is invoked,
-    Then it can read model_name from runtime.context.
+    When general_agent_node is invoked,
+    Then it executes successfully with LLM call.
     """
-    # Arrange
-    state = State(messages=[{"role": "user", "content": "test"}], next="placeholder")
+    state = State(messages=[{"role": "user", "content": "test"}], next="general_agent")
 
-    # Act
-    result = await placeholder_node(state, mock_runtime)
+    mock_llm_response = MagicMock()
+    mock_llm_response.content = "Test response"
 
-    # Assert - node should execute without error (validates runtime access)
+    with patch("langchain_anthropic.ChatAnthropic") as mock_chat_cls:
+        mock_chat_instance = MagicMock()
+        mock_chat_instance.ainvoke = AsyncMock(return_value=mock_llm_response)
+        mock_chat_cls.return_value = mock_chat_instance
+
+        result = await general_agent_node(state, mock_runtime)
+
     assert result is not None
-    # Note: Actual model usage will be in future features
+    assert "messages" in result

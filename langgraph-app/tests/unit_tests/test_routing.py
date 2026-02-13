@@ -47,7 +47,7 @@ def test_route_query_with_multimodal_list_content():
     result = route_query(state)
 
     # Assert
-    assert result == "translate_cz_to_en"  # Should route to research
+    assert result == "pubmed_agent"  # Should route to research
 
 
 def test_route_query_with_multimodal_simple_list():
@@ -75,7 +75,7 @@ def test_route_query_with_empty_list_content():
 
     Acceptance: Given State with empty list as content,
     When route_query is invoked,
-    Then it defaults to placeholder without crash.
+    Then it defaults to general_agent without crash.
     """
     # Arrange
     state = State(messages=[{"role": "user", "content": []}], next="")
@@ -84,7 +84,7 @@ def test_route_query_with_empty_list_content():
     result = route_query(state)
 
     # Assert
-    assert result == "placeholder"
+    assert result == "general_agent"
 
 
 def test_route_query_with_research_keyword():
@@ -92,7 +92,7 @@ def test_route_query_with_research_keyword():
 
     Acceptance: Given State with research keyword in content,
     When route_query is invoked,
-    Then it routes to translate_cz_to_en (PubMed agent).
+    Then it routes to pubmed_agent (PubMed agent).
     """
     # Arrange
     state = State(
@@ -103,15 +103,15 @@ def test_route_query_with_research_keyword():
     result = route_query(state)
 
     # Assert
-    assert result == "translate_cz_to_en"
+    assert result == "pubmed_agent"
 
 
 def test_route_query_with_no_keywords():
-    """Test route_query defaults to placeholder for generic queries.
+    """Test route_query defaults to general_agent for generic queries.
 
     Acceptance: Given State with no drug/research keywords,
     When route_query is invoked,
-    Then it routes to placeholder.
+    Then it routes to general_agent.
     """
     # Arrange
     state = State(messages=[{"role": "user", "content": "ahoj jak se máš"}], next="")
@@ -120,7 +120,7 @@ def test_route_query_with_no_keywords():
     result = route_query(state)
 
     # Assert
-    assert result == "placeholder"
+    assert result == "general_agent"
 
 
 def test_route_query_with_explicit_drug_query():
@@ -151,7 +151,7 @@ def test_route_query_with_explicit_research_query():
 
     Acceptance: Given State with explicit research_query set,
     When route_query is invoked,
-    Then it routes to translate_cz_to_en regardless of message content.
+    Then it routes to pubmed_agent regardless of message content.
     """
     # Arrange
     from agent.models.research_models import ResearchQuery
@@ -168,7 +168,7 @@ def test_route_query_with_explicit_research_query():
     result = route_query(state)
 
     # Assert
-    assert result == "translate_cz_to_en"
+    assert result == "pubmed_agent"
 
 
 # =============================================================================
@@ -309,7 +309,7 @@ def test_route_query_research_priority_over_guidelines():
 
     Acceptance: Given State with both research and guidelines keywords,
     When route_query is invoked,
-    Then it routes to translate_cz_to_en (research) because research has higher priority.
+    Then it routes to pubmed_agent (research) because research has higher priority.
     """
     # Arrange - "studie" is a research keyword, "guidelines" is a guidelines keyword
     state = State(
@@ -321,7 +321,7 @@ def test_route_query_research_priority_over_guidelines():
     result = route_query(state)
 
     # Assert - Research keywords have highest priority
-    assert result == "translate_cz_to_en"
+    assert result == "pubmed_agent"
 
 
 def test_route_query_guidelines_priority_over_drug():
@@ -374,7 +374,7 @@ def test_route_query_generic_medical_terms_no_match():
     """Regression: Generic medical terms removed from RESEARCH_KEYWORDS.
 
     Terms like 'léčba', 'terapie', 'diabetes' no longer trigger research routing.
-    Without other keywords, they should fall to placeholder.
+    Without other keywords, they should fall to general_agent.
     """
     # These used to be in RESEARCH_KEYWORDS, now removed
     state = State(
@@ -382,8 +382,8 @@ def test_route_query_generic_medical_terms_no_match():
         next="",
     )
     result = route_query(state)
-    # "léčba" is not in any keyword set → falls to placeholder
-    assert result == "placeholder"
+    # "léčba" is not in any keyword set → falls to general_agent
+    assert result == "general_agent"
 
 
 def test_route_query_explicit_research_terms_still_work():
@@ -397,7 +397,7 @@ def test_route_query_explicit_research_terms_still_work():
             next="",
         )
         result = route_query(state)
-        assert result == "translate_cz_to_en", f"Failed for: {term}"
+        assert result == "pubmed_agent", f"Failed for: {term}"
 
 
 def test_route_query_drug_keyword_aspirin():

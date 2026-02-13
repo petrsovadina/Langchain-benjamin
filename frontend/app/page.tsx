@@ -18,11 +18,38 @@ const AgentThoughtStream = dynamic(
   { ssr: false }
 );
 
+const SCROLL_THRESHOLD = 150; // px from bottom to trigger auto-scroll
+
 export default function HomePage() {
   const { messages, isLoading, error, agentStatuses, sendQuery, retry } = useConsult();
   const omniboxRef = useRef<OmniboxHandle>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isUserNearBottomRef = useRef(true);
 
   const isZenMode = messages.length === 0;
+
+  // Track whether user is near the bottom of the scroll area
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      isUserNearBottomRef.current =
+        scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD;
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [isZenMode]);
+
+  // Auto-scroll to bottom only when user is near bottom
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container && isUserNearBottomRef.current) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
+  }, [messages.length, isLoading]);
 
   const handleSwipeDown = useCallback(() => {
     omniboxRef.current?.focus();
@@ -42,7 +69,11 @@ export default function HomePage() {
   return (
     <>
       <ProgressBar isLoading={isLoading} />
-      <ChatLayout isZenMode={isZenMode} onSwipeDown={handleSwipeDown}>
+      <ChatLayout
+        isZenMode={isZenMode}
+        onSwipeDown={handleSwipeDown}
+        scrollContainerRef={scrollContainerRef}
+      >
         <AgentThoughtStream agents={agentStatuses} />
 
         {!isZenMode && (

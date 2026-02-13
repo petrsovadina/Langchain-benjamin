@@ -97,10 +97,10 @@ class DrugResult(BaseModel):
     @field_validator("atc_code")
     @classmethod
     def validate_atc_format(cls, v: str) -> str:
-        """Validate ATC code format (e.g., M01AE01)."""
-        if len(v) < 3:
+        """Validate ATC code format (e.g., M01AE01). Empty string allowed."""
+        if v and len(v) < 3:
             raise ValueError(f"ATC code too short: {v}")
-        return v.upper()
+        return v.upper() if v else ""
 
 
 class DrugDetails(BaseModel):
