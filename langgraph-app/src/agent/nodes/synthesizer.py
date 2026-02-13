@@ -597,7 +597,8 @@ async def synthesizer_node(
             "3. Strukturuj odpověď do přehledných sekcí (pro více agentů)\n"
             "4. Zachovej všechny inline citace [N] přesně jak jsou\n"
             "5. NEPŘIDÁVEJ žádné nové informace, pouze syntetizuj existující\n"
-            "6. NEpřidávej References sekci - tu přidám já\n\n"
+            "6. NEpřidávej References sekci - tu přidám já\n"
+            "7. Pokud agentovy odpovědi obsahují anglické části (např. PubMed abstrakty), přelož je do češtiny\n\n"
             f"Odpovědi agentů:\n{agent_sections}\n\n"
             "Syntetizovaná odpověď:"
         )

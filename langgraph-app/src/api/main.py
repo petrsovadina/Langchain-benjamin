@@ -19,6 +19,7 @@ from slowapi.errors import RateLimitExceeded
 from api.config import settings
 from api.logging_config import setup_logging
 from api.routes import limiter, router
+from api.schemas import RootResponse
 
 logger = logging.getLogger(__name__)
 
@@ -74,15 +75,54 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 # Create FastAPI app
 app = FastAPI(
     title="Czech MedAI API",
-    description=(
-        "AI asistent pro české lékaře - klinická rozhodovací podpora "
-        "založená na důkazech z českých i mezinárodních zdrojů."
-    ),
+    description="""
+## AI asistent pro české lékaře
+
+Klinická rozhodovací podpora založená na důkazech z českých i mezinárodních zdrojů.
+
+### Funkce
+- **Vyhledávání léčiv** v databázi SÚKL (název, ATC kód, účinná látka)
+- **PubMed výzkum** s automatickým překladem CZ↔EN
+- **České klinické guidelines** (ČLS JEP, ESC, ERS)
+- **Real-time SSE streaming** odpovědí s průběžným stavem agentů
+- **Inline citace** [1][2][3] s odkazy na zdroje
+
+### Limity
+- **Rate limit:** 10 požadavků/minutu na IP adresu
+- **Timeout:** 30 sekund maximální doba zpracování
+- **Max délka dotazu:** 1 000 znaků
+
+### Architektura
+Multi-agentní systém na bázi LangGraph s paralelním zpracováním přes Send API.
+Agenti: `drug_agent`, `pubmed_agent`, `guidelines_agent` → `synthesizer`.
+    """,
     version="0.1.0",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    contact={
+        "name": "Czech MedAI Team",
+        "url": "https://github.com/petrsovadina/Langchain-benjamin",
+    },
+    license_info={
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    openapi_tags=[
+        {
+            "name": "Zdraví",
+            "description": "Health check a monitoring endpointy pro ověření dostupnosti služeb.",
+        },
+        {
+            "name": "Konzultace",
+            "description": "Lékařské konzultace s AI multi-agent systémem. Vrací SSE stream.",
+        },
+        {
+            "name": "Root",
+            "description": "Základní informace o API a navigační odkazy.",
+        },
+    ],
 )
 
 # CORS middleware with restricted origins
@@ -146,14 +186,25 @@ async def add_security_headers(request: Request, call_next):
         )
 
     # CSP (Content Security Policy)
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; "
-        "script-src 'self'; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: https:; "
-        "font-src 'self'; "
-        "connect-src 'self'"
-    )
+    # Swagger UI (/docs, /redoc) needs CDN scripts and inline styles
+    if request.url.path in ("/docs", "/redoc", "/openapi.json"):
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "img-src 'self' data: https://fastapi.tiangolo.com; "
+            "font-src 'self' https://cdn.jsdelivr.net; "
+            "connect-src 'self'"
+        )
+    else:
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; "
+            "font-src 'self'; "
+            "connect-src 'self'"
+        )
 
     return response
 
@@ -188,13 +239,19 @@ app.include_router(router)
 
 
 # Root endpoint
-@app.get("/", tags=["Root"])
-async def root():
-    """Root endpoint with API information."""
-    return {
-        "name": "Czech MedAI API",
-        "version": "0.1.0",
-        "description": "AI asistent pro české lékaře",
-        "docs": "/docs",
-        "health": "/health",
-    }
+@app.get(
+    "/",
+    tags=["Root"],
+    response_model=RootResponse,
+    summary="Základní informace o API",
+    description="Vrátí název, verzi a navigační odkazy na dokumentaci a health check.",
+)
+async def root() -> RootResponse:
+    """Root endpoint s informacemi o API a navigačními odkazy."""
+    return RootResponse(
+        name="Czech MedAI API",
+        version="0.1.0",
+        description="AI asistent pro české lékaře",
+        docs="/docs",
+        health="/health",
+    )

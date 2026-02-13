@@ -22,7 +22,7 @@ DOSTUPNÍ AGENTI:
 - drug_agent: SÚKL databáze léků (68,000+ léků, složení, indikace, kontraindikace, úhrady)
 - guidelines_agent: České a mezinárodní guidelines (ČLS JEP, ESC, ERS)
 - pubmed_agent: Biomedicínská literatura (PubMed, 36M+ článků, studie, výzkum)
-- placeholder: Obecné dotazy mimo scope
+- general_agent: Obecné medicínské dotazy a konverzace
 
 INTENT TYPY (8):
 
@@ -72,7 +72,7 @@ INTENT TYPY (8):
      * "Akutní dušnost - postup"
      * "Resuscitace při anafylaxi"
 
-7. general_medical (agents: ["placeholder"])
+7. general_medical (agents: ["general_agent"])
    - Obecný medicínský dotaz
    - Příklady:
      * "Co je to diabetes?"
@@ -164,7 +164,7 @@ FEW_SHOT_EXAMPLES: list[dict[str, Any]] = [
         "query": "Co je to diabetes?",
         "intent_type": "general_medical",
         "confidence": 0.85,
-        "agents_to_call": ["placeholder"],
+        "agents_to_call": ["general_agent"],
         "reasoning": "Obecný dotaz na definici. Není specifický pro léky, guidelines nebo studie.",
     },
     {

@@ -1,16 +1,16 @@
 "use client";
 
-import { ReactNode } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ReactNode, type Ref } from "react";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 
 interface ChatLayoutProps {
   children: ReactNode;
   isZenMode: boolean;
   onSwipeDown?: () => void;
+  scrollContainerRef?: Ref<HTMLDivElement>;
 }
 
-export function ChatLayout({ children, isZenMode, onSwipeDown }: ChatLayoutProps) {
+export function ChatLayout({ children, isZenMode, onSwipeDown, scrollContainerRef }: ChatLayoutProps) {
   const { onPointerDown, onPointerUp } = useSwipeGesture({
     onSwipeDown,
   });
@@ -41,8 +41,11 @@ export function ChatLayout({ children, isZenMode, onSwipeDown }: ChatLayoutProps
             {children}
           </div>
         ) : (
-          <div className="flex-1 flex flex-col">
-            <ScrollArea className="flex-1 px-4 md:px-6 py-8">{children}</ScrollArea>
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto px-4 md:px-6 py-8 scroll-smooth"
+          >
+            {children}
           </div>
         )}
       </main>

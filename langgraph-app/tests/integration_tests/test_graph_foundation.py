@@ -35,7 +35,7 @@ async def test_graph_renders_correctly(test_graph):
 
     Acceptance: Given compiled graph,
     When get_graph() is called,
-    Then returns graph dict with placeholder node.
+    Then returns graph dict with general_agent node.
     """
     # Act
     graph_dict = test_graph.get_graph().to_json()
@@ -43,7 +43,7 @@ async def test_graph_renders_correctly(test_graph):
     # Assert
     assert "nodes" in graph_dict
     node_ids = [n["id"] for n in graph_dict["nodes"]]
-    assert "placeholder" in node_ids
+    assert "general_agent" in node_ids
     assert "__start__" in node_ids
     assert "__end__" in node_ids
 

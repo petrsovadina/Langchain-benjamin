@@ -176,7 +176,7 @@ class TestSupervisorNodeSendAPI:
     async def test_explicit_research_query_returns_send(
         self, mock_runtime: MagicMock
     ) -> None:
-        """Test explicit research_query returns Send to translate_cz_to_en."""
+        """Test explicit research_query returns Send to pubmed_agent."""
         from agent.models.research_models import ResearchQuery
 
         state = State(
@@ -189,7 +189,7 @@ class TestSupervisorNodeSendAPI:
         result = await supervisor_node(state, mock_runtime)
 
         assert isinstance(result, Send)
-        assert result.node == "translate_cz_to_en"
+        assert result.node == "pubmed_agent"
 
     @pytest.mark.asyncio
     async def test_explicit_guideline_query_returns_send(
@@ -214,10 +214,10 @@ class TestSupervisorNodeSendAPI:
         assert result.node == "guidelines_agent"
 
     @pytest.mark.asyncio
-    async def test_empty_messages_returns_placeholder_send(
+    async def test_empty_messages_returns_general_agent_send(
         self, mock_runtime: MagicMock
     ) -> None:
-        """Test empty messages returns Send to placeholder."""
+        """Test empty messages returns Send to general_agent."""
         state = State(
             messages=[],
             next="__end__",
@@ -227,7 +227,7 @@ class TestSupervisorNodeSendAPI:
         result = await supervisor_node(state, mock_runtime)
 
         assert isinstance(result, Send)
-        assert result.node == "placeholder"
+        assert result.node == "general_agent"
 
     @pytest.mark.asyncio
     async def test_classification_error_fallback_returns_send(
@@ -254,10 +254,10 @@ class TestSupervisorNodeSendAPI:
         assert result.node == "drug_agent"
 
     @pytest.mark.asyncio
-    async def test_out_of_scope_returns_placeholder_send(
+    async def test_out_of_scope_returns_general_agent_send(
         self, mock_runtime: MagicMock
     ) -> None:
-        """Test out_of_scope intent returns Send to placeholder."""
+        """Test out_of_scope intent returns Send to general_agent."""
         state = State(
             messages=[HumanMessage(content="Jaké je počasí?")],
             next="__end__",
@@ -279,7 +279,7 @@ class TestSupervisorNodeSendAPI:
             result = await supervisor_node(state, mock_runtime)
 
         assert isinstance(result, Send)
-        assert result.node == "placeholder"
+        assert result.node == "general_agent"
 
     @pytest.mark.asyncio
     async def test_unavailable_agent_skipped_in_compound(
@@ -316,10 +316,10 @@ class TestSupervisorNodeSendAPI:
         assert result.node == "guidelines_agent"
 
     @pytest.mark.asyncio
-    async def test_all_agents_unavailable_returns_placeholder(
+    async def test_all_agents_unavailable_returns_general_agent(
         self, mock_runtime: MagicMock
     ) -> None:
-        """Test all MCP agents unavailable returns placeholder."""
+        """Test all MCP agents unavailable returns general_agent."""
         state = State(
             messages=[HumanMessage(content="Metformin - studie a léky")],
             next="__end__",
@@ -346,13 +346,13 @@ class TestSupervisorNodeSendAPI:
                 result = await supervisor_node(state, mock_runtime)
 
         assert isinstance(result, Send)
-        assert result.node == "placeholder"
+        assert result.node == "general_agent"
 
     @pytest.mark.asyncio
     async def test_research_query_maps_to_translate_node(
         self, mock_runtime: MagicMock
     ) -> None:
-        """Test pubmed_agent maps to translate_cz_to_en via AGENT_TO_NODE_MAP."""
+        """Test pubmed_agent maps to pubmed_agent via AGENT_TO_NODE_MAP."""
         state = State(
             messages=[HumanMessage(content="Studie o diabetu")],
             next="__end__",
@@ -374,7 +374,7 @@ class TestSupervisorNodeSendAPI:
             result = await supervisor_node(state, mock_runtime)
 
         assert isinstance(result, Send)
-        assert result.node == "translate_cz_to_en"
+        assert result.node == "pubmed_agent"
 
 
 # =============================================================================

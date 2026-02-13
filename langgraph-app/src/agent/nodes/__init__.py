@@ -2,8 +2,7 @@
 
 This module contains specialized agent nodes:
 - drug_agent: SÚKL pharmaceutical database queries
-- translation: Czech ↔ English medical translation
-- pubmed_agent: BioMCP PubMed research queries
+- pubmed_agent: BioMCP PubMed research queries (with internal CZ→EN translation)
 - synthesizer: Multi-agent response synthesis
 """
 
@@ -25,10 +24,6 @@ from agent.nodes.pubmed_agent import (
     pubmed_agent_node,
 )
 from agent.nodes.synthesizer import synthesizer_node
-from agent.nodes.translation import (
-    translate_cz_to_en_node,
-    translate_en_to_cz_node,
-)
 
 __all__: list[str] = [
     # Drug agent (Feature 003)
@@ -44,9 +39,6 @@ __all__: list[str] = [
     "classify_research_query",
     "article_to_document",
     "format_citation",
-    # Translation nodes (Feature 005)
-    "translate_cz_to_en_node",
-    "translate_en_to_cz_node",
     # Synthesizer node (Feature 009)
     "synthesizer_node",
 ]

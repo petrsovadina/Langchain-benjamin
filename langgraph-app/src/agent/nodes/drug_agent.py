@@ -50,6 +50,65 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
+def extract_drug_name(query_text: str) -> str:
+    """Extract drug name from natural language Czech query.
+
+    Removes common Czech question patterns, stopwords and punctuation
+    to isolate the drug name for SÚKL search.
+
+    Args:
+        query_text: Full user query text (e.g., "Na co je Lyumjev?").
+
+    Returns:
+        Extracted drug name (e.g., "Lyumjev").
+
+    Examples:
+        >>> extract_drug_name("Na co je Lyumjev?")
+        'Lyumjev'
+        >>> extract_drug_name("Jaká je dostupnost Paralenu?")
+        'Paralenu'
+        >>> extract_drug_name("Složení Ibalginu")
+        'Ibalginu'
+        >>> extract_drug_name("Kolik stojí Metformin?")
+        'Metformin'
+    """
+    text = query_text.strip().rstrip("?!.").strip()
+
+    # Remove common Czech question prefixes (order: longest first)
+    prefixes = [
+        r"na\s+co\s+(?:je|jsou|slouží)\s+",
+        r"jak(?:á|é|ý|ých|ými)?\s+(?:je|jsou)\s+(?:dostupnost|cena|úhrada|složení|indikace|kontraindikace|dávkování)\s+(?:léku\s+)?",
+        r"kolik\s+stojí\s+(?:lék\s+)?",
+        r"(?:najdi|vyhledej|hledej)\s+(?:lék|léky|info(?:rmace)?)?\s*",
+        r"(?:podrobnosti|detaily|informace)\s+(?:o\s+)?(?:léku\s+)?",
+        r"(?:složení|dostupnost|cena|úhrada|dávkování|indikace|kontraindikace)\s+(?:léku\s+)?",
+        r"(?:je|jsou)\s+(?:lék\s+)?",
+    ]
+    for pattern in prefixes:
+        text = re.sub(r"^" + pattern, "", text, flags=re.IGNORECASE).strip()
+
+    # If cleaned text is substantially shorter, use it
+    if text and len(text) < len(query_text) * 0.8:
+        return text
+
+    # Fallback: find capitalized words that look like drug names
+    common_czech = {
+        "Na", "Co", "Jak", "Jaká", "Jaké", "Jaký", "Je", "Jsou",
+        "Kolik", "Najdi", "Kde", "Pro", "Při", "Má", "Kdo",
+        "Jaké", "Které", "Který", "Jaka", "Jaky", "Jake",
+    }
+    words = query_text.split()
+    candidates = [
+        w.strip("?,!.()") for w in words
+        if w[0:1].isupper() and len(w.strip("?,!.()")) > 2
+        and w.strip("?,!.()") not in common_czech
+    ]
+    if candidates:
+        return candidates[0]
+
+    return text if text else query_text
+
+
 def classify_drug_query(query_text: str) -> QueryType:
     """Classify drug query based on text patterns.
 
@@ -633,9 +692,11 @@ async def drug_agent_node(
         content = extract_message_content(last_message) or None
         if content:
             query_type = classify_drug_query(content)
-            query = DrugQuery(query_text=content, query_type=query_type)
-            logger.debug(
-                f"[drug_agent_node] Parsed query from message: {content[:50]}..."
+            drug_name = extract_drug_name(content)
+            query = DrugQuery(query_text=drug_name, query_type=query_type)
+            logger.info(
+                f"[drug_agent_node] Extracted drug name: '{drug_name}' "
+                f"from: '{content[:50]}...'"
             )
 
     if not query:

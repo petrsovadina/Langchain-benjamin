@@ -286,7 +286,7 @@ class TestIntentClassification:
         mock_llm.ainvoke.return_value = create_mock_tool_call(
             intent_type="general_medical",
             confidence=0.85,
-            agents_to_call=["placeholder"],
+            agents_to_call=["general_agent"],
             reasoning="General medical question",
         )
 
@@ -371,7 +371,7 @@ class TestEdgeCases:
         mock_llm.ainvoke.return_value = create_mock_tool_call(
             intent_type="general_medical",
             confidence=0.4,  # Low confidence
-            agents_to_call=["placeholder"],
+            agents_to_call=["general_agent"],
             reasoning="Unclear query",
         )
 
@@ -420,7 +420,7 @@ class TestHelperFunctions:
 
     def test_valid_agent_names_set(self):
         """Test that VALID_AGENT_NAMES contains expected agents."""
-        expected = {"drug_agent", "pubmed_agent", "guidelines_agent", "placeholder"}
+        expected = {"drug_agent", "pubmed_agent", "guidelines_agent", "general_agent"}
         assert VALID_AGENT_NAMES == expected
 
     def test_fallback_to_keyword_routing_drug(self):
@@ -454,7 +454,7 @@ class TestHelperFunctions:
         result = fallback_to_keyword_routing("Zdravím vás")
 
         assert result.intent_type == IntentType.GENERAL_MEDICAL
-        assert "placeholder" in result.agents_to_call
+        assert "general_agent" in result.agents_to_call
         assert "Fallback" in result.reasoning
 
     def test_log_intent_classification(
@@ -525,7 +525,7 @@ class TestIntentClassifierInit:
         mock_chat.ainvoke.return_value = create_mock_tool_call(
             intent_type="general_medical",
             confidence=0.9,
-            agents_to_call=["placeholder"],
+            agents_to_call=["general_agent"],
             reasoning="Test lazy init",
         )
 
@@ -640,16 +640,16 @@ class TestAgentToNodeMap:
         assert AGENT_TO_NODE_MAP["drug_agent"] == "drug_agent"
 
     def test_pubmed_agent_maps_to_translate(self):
-        """Test pubmed_agent maps to translate_cz_to_en node."""
-        assert AGENT_TO_NODE_MAP["pubmed_agent"] == "translate_cz_to_en"
+        """Test pubmed_agent maps to pubmed_agent node."""
+        assert AGENT_TO_NODE_MAP["pubmed_agent"] == "pubmed_agent"
 
     def test_guidelines_agent_maps_to_guidelines(self):
         """Test guidelines_agent maps to guidelines_agent node."""
         assert AGENT_TO_NODE_MAP["guidelines_agent"] == "guidelines_agent"
 
-    def test_placeholder_maps_to_placeholder(self):
-        """Test placeholder maps to placeholder node."""
-        assert AGENT_TO_NODE_MAP["placeholder"] == "placeholder"
+    def test_general_agent_maps_to_general_agent(self):
+        """Test general_agent maps to general_agent node."""
+        assert AGENT_TO_NODE_MAP["general_agent"] == "general_agent"
 
 
 class TestSupervisorNode:
@@ -710,7 +710,7 @@ class TestSupervisorNode:
 
     @pytest.mark.asyncio
     async def test_supervisor_node_research_query(self, mock_runtime):
-        """Test supervisor routes research query to translate_cz_to_en via Send."""
+        """Test supervisor routes research query to pubmed_agent via Send."""
         state = State(
             messages=[{"role": "user", "content": "Studie o diabetu"}],
             next="__end__",
@@ -731,9 +731,9 @@ class TestSupervisorNode:
 
             result = await supervisor_node(state, mock_runtime)
 
-            # pubmed_agent maps to translate_cz_to_en via AGENT_TO_NODE_MAP
+            # pubmed_agent maps to pubmed_agent via AGENT_TO_NODE_MAP
             assert isinstance(result, Send)
-            assert result.node == "translate_cz_to_en"
+            assert result.node == "pubmed_agent"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_compound_query(self, mock_runtime):
@@ -772,7 +772,7 @@ class TestSupervisorNode:
 
     @pytest.mark.asyncio
     async def test_supervisor_node_out_of_scope(self, mock_runtime):
-        """Test supervisor routes out_of_scope to placeholder via Send."""
+        """Test supervisor routes out_of_scope to general_agent via Send."""
         state = State(
             messages=[{"role": "user", "content": "Jaké je počasí?"}],
             next="__end__",
@@ -794,11 +794,11 @@ class TestSupervisorNode:
             result = await supervisor_node(state, mock_runtime)
 
             assert isinstance(result, Send)
-            assert result.node == "placeholder"
+            assert result.node == "general_agent"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_empty_messages(self, mock_runtime):
-        """Test supervisor handles empty messages with placeholder Send."""
+        """Test supervisor handles empty messages with general_agent Send."""
         state = State(
             messages=[],
             next="__end__",
@@ -808,7 +808,7 @@ class TestSupervisorNode:
         result = await supervisor_node(state, mock_runtime)
 
         assert isinstance(result, Send)
-        assert result.node == "placeholder"
+        assert result.node == "general_agent"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_classification_error_fallback(self, mock_runtime):
@@ -864,7 +864,7 @@ class TestSupervisorNode:
         result = await supervisor_node(state, mock_runtime)
 
         assert isinstance(result, Send)
-        assert result.node == "translate_cz_to_en"
+        assert result.node == "pubmed_agent"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_explicit_guideline_query(self, mock_runtime):
@@ -914,7 +914,7 @@ class TestSupervisorNode:
                 result = await supervisor_node(state, mock_runtime)
 
         assert isinstance(result, Send)
-        assert result.node == "placeholder"
+        assert result.node == "general_agent"
 
     @pytest.mark.asyncio
     async def test_supervisor_node_unavailable_pubmed_agent(self, mock_runtime):
@@ -944,4 +944,4 @@ class TestSupervisorNode:
                 result = await supervisor_node(state, mock_runtime)
 
         assert isinstance(result, Send)
-        assert result.node == "placeholder"
+        assert result.node == "general_agent"

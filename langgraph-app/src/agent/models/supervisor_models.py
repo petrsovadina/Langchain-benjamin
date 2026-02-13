@@ -43,7 +43,7 @@ VALID_AGENT_NAMES = frozenset(
         "drug_agent",
         "pubmed_agent",
         "guidelines_agent",
-        "placeholder",
+        "general_agent",
     }
 )
 

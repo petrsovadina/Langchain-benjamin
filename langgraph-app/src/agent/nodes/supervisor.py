@@ -258,7 +258,7 @@ def fallback_to_keyword_routing(message: str) -> IntentResult:
     return IntentResult(
         intent_type=IntentType.GENERAL_MEDICAL,
         confidence=0.5,
-        agents_to_call=["placeholder"],
+        agents_to_call=["general_agent"],
         reasoning="Fallback: No specific keywords detected",
     )
 
@@ -289,9 +289,9 @@ def log_intent_classification(result: IntentResult, message: str) -> None:
 # Map conceptual agent names to graph node names
 AGENT_TO_NODE_MAP: dict[str, str] = {
     "drug_agent": "drug_agent",
-    "pubmed_agent": "translate_cz_to_en",  # PubMed via translation sandwich
+    "pubmed_agent": "pubmed_agent",  # PubMed with internal CZ→EN translation
     "guidelines_agent": "guidelines_agent",
-    "placeholder": "placeholder",
+    "general_agent": "general_agent",
 }
 
 
@@ -331,9 +331,9 @@ async def supervisor_node(
     if state.research_query is not None:
         logger.info(
             "[supervisor_node] Explicit research_query detected, "
-            "routing to translate_cz_to_en"
+            "routing to pubmed_agent"
         )
-        return Send("translate_cz_to_en", state)
+        return Send("pubmed_agent", state)
     if state.guideline_query is not None:
         logger.info(
             "[supervisor_node] Explicit guideline_query detected, "
@@ -344,14 +344,14 @@ async def supervisor_node(
     # Extract last user message
     if not state.messages:
         logger.warning("[supervisor_node] No messages in state")
-        return Send("placeholder", state)
+        return Send("general_agent", state)
 
     last_message = state.messages[-1]
     content = extract_message_content(last_message)
 
     if not content:
         logger.warning("[supervisor_node] Empty message content")
-        return Send("placeholder", state)
+        return Send("general_agent", state)
 
     # Classify intent
     context = runtime.context or {}
@@ -387,8 +387,8 @@ async def supervisor_node(
     valid_agents = validate_agent_names(result.agents_to_call)
 
     if not valid_agents:
-        logger.warning("[supervisor_node] No valid agents, routing to placeholder")
-        return Send("placeholder", state)
+        logger.warning("[supervisor_node] No valid agents, routing to general_agent")
+        return Send("general_agent", state)
 
     # Multi-agent routing with Send API (parallel execution)
     send_commands: list[Send] = []
@@ -413,7 +413,7 @@ async def supervisor_node(
                 continue
 
         # Map agent name to graph node name
-        target_node = AGENT_TO_NODE_MAP.get(agent_name, "placeholder")
+        target_node = AGENT_TO_NODE_MAP.get(agent_name, "general_agent")
 
         # Create Send command for this agent
         send_commands.append(Send(target_node, state))
@@ -422,9 +422,9 @@ async def supervisor_node(
     # Fallback if no valid agents after availability checks
     if not send_commands:
         logger.warning(
-            "[supervisor_node] No valid agents available, routing to placeholder"
+            "[supervisor_node] No valid agents available, routing to general_agent"
         )
-        return Send("placeholder", state)
+        return Send("general_agent", state)
 
     logger.info(f"[supervisor_node] Parallel execution: {len(send_commands)} agent(s)")
 

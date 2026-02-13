@@ -1,17 +1,17 @@
 """Unit tests for pubmed_agent node (Feature 005 - Phase 3).
 
-Tests PubMed search, document transformation, error handling, and PMID lookup.
-
-TDD Workflow: These tests are written FIRST and should FAIL before implementation.
+Tests PubMed search, document transformation, error handling, PMID lookup,
+and internal CZ→EN translation (translation sandwich removed).
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from agent.graph import State
 from agent.models.research_models import PubMedArticle, ResearchQuery
 from agent.nodes.pubmed_agent import (
+    _translate_query_to_english,
     article_to_document,
     classify_research_query,
     format_citation,
@@ -550,3 +550,70 @@ class TestPaywallHandling:
             "pmc_url" not in doc_paywalled.metadata
             or doc_paywalled.metadata.get("pmc_url") is None
         )
+
+
+class TestInternalTranslation:
+    """Test internal CZ→EN translation in pubmed_agent (translation sandwich removed)."""
+
+    @pytest.mark.asyncio
+    async def test_pubmed_translates_czech_query(
+        self, mock_biomcp_client, mock_runtime
+    ):
+        """Test that Czech query triggers internal CZ→EN translation when no research_query."""
+        mock_runtime.context["biomcp_client"] = mock_biomcp_client
+
+        state = State(
+            messages=[{"role": "user", "content": "Studie o hypertenzi"}],
+            next="",
+            retrieved_docs=[],
+            # No research_query → triggers internal translation
+        )
+
+        with patch(
+            "agent.nodes.pubmed_agent._translate_query_to_english"
+        ) as mock_translate:
+            mock_translate.return_value = ("hypertension studies", "search")
+            result = await pubmed_agent_node(state, mock_runtime)
+
+        # Translation was called
+        mock_translate.assert_called_once()
+        # Results returned
+        assert "retrieved_docs" in result
+        assert len(result["retrieved_docs"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_pubmed_detects_pmid_no_llm(self):
+        """Test PMID detection in _translate_query_to_english skips LLM."""
+        # PMID queries should be detected by regex, no LLM call
+        english_query, query_type = await _translate_query_to_english(
+            "Ukaž článek PMID:12345678", "test-model"
+        )
+
+        assert query_type == "pmid_lookup"
+        assert english_query == "12345678"
+
+    @pytest.mark.asyncio
+    async def test_pubmed_uses_existing_research_query(
+        self, mock_biomcp_client, mock_runtime
+    ):
+        """Test that existing research_query skips internal translation."""
+        mock_runtime.context["biomcp_client"] = mock_biomcp_client
+
+        state = State(
+            messages=[{"role": "user", "content": "Studie o hypertenzi"}],
+            next="",
+            retrieved_docs=[],
+            research_query=ResearchQuery(
+                query_text="hypertension studies", query_type="search"
+            ),
+        )
+
+        with patch(
+            "agent.nodes.pubmed_agent._translate_query_to_english"
+        ) as mock_translate:
+            result = await pubmed_agent_node(state, mock_runtime)
+
+        # Translation should NOT have been called
+        mock_translate.assert_not_called()
+        assert "retrieved_docs" in result
+        assert len(result["retrieved_docs"]) > 0

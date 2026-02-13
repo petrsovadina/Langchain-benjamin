@@ -1,36 +1,33 @@
-"""Integration tests for full PubMed agent flow (Feature 005 - Phase 3).
+"""Integration tests for full PubMed agent flow (Feature 005).
 
-Tests complete CZ→EN→PubMed→EN→CZ translation workflow with BioMCP integration.
-
-TDD Workflow: These tests should FAIL before implementation.
+Tests PubMed agent with internal CZ→EN translation and BioMCP integration.
+Translation sandwich removed - pubmed_agent handles CZ→EN internally.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from agent.graph import State
+from agent.models.research_models import ResearchQuery
 from agent.nodes.pubmed_agent import pubmed_agent_node
-from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_node
 
 
-class TestFullTranslationFlow:
-    """Test complete Czech → English → PubMed → English → Czech flow."""
+class TestFullPubMedFlow:
+    """Test complete PubMed search flow with internal translation."""
 
     @pytest.mark.asyncio
-    async def test_full_cz_en_cz_translation_flow(
+    async def test_czech_query_with_internal_translation(
         self, mock_biomcp_client, mock_runtime
     ):
-        """Test end-to-end flow: CZ query → EN translation → PubMed search → CZ abstracts.
+        """Test end-to-end: Czech query → internal CZ→EN → PubMed search → results.
 
-        This is the primary integration test for User Story 1 (P1).
-        Validates the complete "Sandwich Pattern" workflow.
+        pubmed_agent_node now handles CZ→EN translation internally when
+        no research_query is provided in state.
         """
-        # Arrange
         mock_runtime.context["biomcp_client"] = mock_biomcp_client
 
-        # Step 1: Start with Czech query
-        initial_state = State(
+        state = State(
             messages=[
                 {
                     "role": "user",
@@ -41,63 +38,27 @@ class TestFullTranslationFlow:
             retrieved_docs=[],
         )
 
-        # Step 2: Translate Czech → English
-        state_after_cz_to_en = await translate_cz_to_en_node(
-            initial_state, mock_runtime
-        )
+        # Mock the LLM translation call inside pubmed_agent
+        with patch("agent.nodes.pubmed_agent._translate_query_to_english") as mock_translate:
+            mock_translate.return_value = ("type 2 diabetes studies", "search")
 
-        # Verify research_query is populated
-        assert state_after_cz_to_en.get("research_query") is not None
-        english_query = state_after_cz_to_en["research_query"]
-        assert "diabetes" in english_query.query_text.lower()
-
-        # Step 3: Search PubMed with English query
-        state_with_english_query = State(
-            messages=initial_state.messages,
-            next="",
-            retrieved_docs=[],
-            research_query=english_query,
-        )
-        state_after_pubmed = await pubmed_agent_node(
-            state_with_english_query, mock_runtime
-        )
+            result = await pubmed_agent_node(state, mock_runtime)
 
         # Verify articles retrieved
-        assert state_after_pubmed.get("retrieved_docs") is not None
-        assert len(state_after_pubmed["retrieved_docs"]) > 0
+        assert result.get("retrieved_docs") is not None
+        assert len(result["retrieved_docs"]) > 0
 
-        # Step 4: Translate English abstracts → Czech
-        state_with_docs = State(
-            messages=initial_state.messages,
-            next="",
-            retrieved_docs=state_after_pubmed["retrieved_docs"],
-        )
-        final_state = await translate_en_to_cz_node(state_with_docs, mock_runtime)
-
-        # Assert: Final state has Czech abstracts
-        assert final_state.get("retrieved_docs") is not None
-        assert len(final_state["retrieved_docs"]) > 0
-
-        # Check that abstracts are in Czech format
-        for doc in final_state["retrieved_docs"]:
-            assert (
-                "Abstract (CZ):" in doc.page_content
-                or "Abstrakt (CZ):" in doc.page_content
-            )
+        # Documents should have PubMed metadata
+        for doc in result["retrieved_docs"]:
             assert doc.metadata["source"] == "PubMed"
             assert "pmid" in doc.metadata
             assert "url" in doc.metadata
 
     @pytest.mark.asyncio
-    async def test_pubmed_search_with_date_filter(
+    async def test_pubmed_search_with_existing_research_query(
         self, mock_biomcp_client, mock_runtime
     ):
-        """Test PubMed search with date range filter.
-
-        Verifies that date filters from Czech query are properly extracted
-        and applied to BioMCP search.
-        """
-        # Arrange
+        """Test PubMed search when research_query is already set (no translation needed)."""
         mock_runtime.context["biomcp_client"] = mock_biomcp_client
 
         state = State(
@@ -106,32 +67,20 @@ class TestFullTranslationFlow:
             ],
             next="",
             retrieved_docs=[],
+            research_query=ResearchQuery(
+                query_text="hypertension studies last 2 years",
+                query_type="search",
+            ),
         )
 
-        # Step 1: Translate and extract date filter
-        state_after_translation = await translate_cz_to_en_node(state, mock_runtime)
+        result = await pubmed_agent_node(state, mock_runtime)
 
-        # Step 2: Search with date filter
-        research_query = state_after_translation["research_query"]
-        state_with_query = State(
-            messages=state.messages,
-            next="",
-            retrieved_docs=[],
-            research_query=research_query,
-        )
-        result = await pubmed_agent_node(state_with_query, mock_runtime)
-
-        # Assert: Results should respect date filter
         assert result.get("retrieved_docs") is not None
-        # Note: Date filtering logic will be validated in actual BioMCP call
+        assert len(result["retrieved_docs"]) > 0
 
     @pytest.mark.asyncio
     async def test_pmid_lookup_flow(self, mock_biomcp_client, mock_runtime):
-        """Test PMID lookup workflow (User Story 2 preview).
-
-        Verifies that PMID pattern is detected and article_getter is called.
-        """
-        # Arrange
+        """Test PMID lookup workflow - internal PMID detection, no LLM call."""
         mock_runtime.context["biomcp_client"] = mock_biomcp_client
 
         state = State(
@@ -140,56 +89,36 @@ class TestFullTranslationFlow:
             retrieved_docs=[],
         )
 
-        # Step 1: Translate and detect PMID
-        state_after_translation = await translate_cz_to_en_node(state, mock_runtime)
-        research_query = state_after_translation["research_query"]
+        # PMID detection happens inside _translate_query_to_english (regex, no LLM)
+        with patch("agent.nodes.pubmed_agent._translate_query_to_english") as mock_translate:
+            mock_translate.return_value = ("12345678", "pmid_lookup")
 
-        # PMID lookup should be detected
-        assert research_query.query_type == "pmid_lookup"
-        assert "12345678" in research_query.query_text
+            result = await pubmed_agent_node(state, mock_runtime)
 
-        # Step 2: Lookup article by PMID
-        state_with_query = State(
-            messages=state.messages,
-            next="",
-            retrieved_docs=[],
-            research_query=research_query,
-        )
-        result = await pubmed_agent_node(state_with_query, mock_runtime)
-
-        # Assert: Single article retrieved
+        # Single article retrieved
         assert result.get("retrieved_docs") is not None
         assert len(result["retrieved_docs"]) == 1
         assert result["retrieved_docs"][0].metadata["pmid"] == "12345678"
 
     @pytest.mark.asyncio
     async def test_pmid_lookup_with_pmc_availability(self, mock_runtime):
-        """Test PMID lookup with PMC full-text detection (Phase 4 - T048).
-
-        Verifies complete flow for PMID lookup including PMC availability check:
-        - CZ → EN translation preserves PMID
-        - article_getter retrieves complete metadata
-        - PMC availability is detected and included
-        - Czech abstract translation works
-        """
-        # Arrange
+        """Test PMID lookup with PMC full-text detection."""
         from agent.mcp import MCPResponse
 
         mock_client = MagicMock()
         mock_client.call_tool = AsyncMock()
 
-        # Mock article_getter with PMC article
         mock_client.call_tool.return_value = MCPResponse(
             success=True,
             data={
                 "pmid": "12345678",
                 "title": "Metformin in Type 2 Diabetes",
-                "abstract": "Background: Metformin is first-line therapy for type 2 diabetes...",
+                "abstract": "Background: Metformin is first-line therapy...",
                 "authors": ["Smith, John A.", "Doe, Jane B."],
                 "publication_date": "2024-06-15",
                 "journal": "New England Journal of Medicine",
                 "doi": "10.1056/NEJMoa2024001",
-                "pmc_id": "PMC11234567",  # Free full-text available
+                "pmc_id": "PMC11234567",
             },
         )
 
@@ -199,87 +128,46 @@ class TestFullTranslationFlow:
             messages=[{"role": "user", "content": "Zobraz PMID:12345678"}],
             next="",
             retrieved_docs=[],
+            research_query=ResearchQuery(
+                query_text="12345678", query_type="pmid_lookup"
+            ),
         )
 
-        # Act - Full workflow
-        # Step 1: CZ→EN translation
-        state_after_cz_to_en = await translate_cz_to_en_node(state, mock_runtime)
-        research_query = state_after_cz_to_en["research_query"]
+        result = await pubmed_agent_node(state, mock_runtime)
 
-        assert research_query.query_type == "pmid_lookup"
-        assert research_query.query_text == "12345678"
+        assert result.get("retrieved_docs") is not None
+        assert len(result["retrieved_docs"]) == 1
 
-        # Step 2: PubMed article lookup
-        state_with_query = State(
-            messages=state.messages,
-            next="",
-            retrieved_docs=[],
-            research_query=research_query,
-        )
-        state_after_pubmed = await pubmed_agent_node(state_with_query, mock_runtime)
-
-        # Step 3: EN→CZ abstract translation
-        state_with_docs = State(
-            messages=state.messages,
-            next="",
-            retrieved_docs=state_after_pubmed["retrieved_docs"],
-        )
-        final_state = await translate_en_to_cz_node(state_with_docs, mock_runtime)
-
-        # Assert: Complete article with PMC availability
-        assert final_state.get("retrieved_docs") is not None
-        assert len(final_state["retrieved_docs"]) == 1
-
-        doc = final_state["retrieved_docs"][0]
+        doc = result["retrieved_docs"][0]
         assert doc.metadata["pmid"] == "12345678"
         assert doc.metadata["title"] == "Metformin in Type 2 Diabetes"
         assert doc.metadata["source"] == "PubMed"
-
-        # PMC availability should be detected
         assert "pmc_id" in doc.metadata
         assert doc.metadata["pmc_id"] == "PMC11234567"
-        assert "pmc_url" in doc.metadata
-        assert "ncbi.nlm.nih.gov/pmc" in doc.metadata["pmc_url"]
-
-        # Czech abstract should be present
-        assert (
-            "Abstract (CZ):" in doc.page_content or "Abstrakt (CZ):" in doc.page_content
-        )
 
     @pytest.mark.asyncio
     async def test_citation_tracking_across_queries(
         self, mock_biomcp_client, mock_runtime
     ):
-        """Test citation numbering across multiple queries.
-
-        Verifies that citation numbers [1], [2], [3] are assigned sequentially
-        and persist across conversation turns.
-        """
-        # Arrange
+        """Test citation numbering across multiple queries."""
         mock_runtime.context["biomcp_client"] = mock_biomcp_client
 
-        # First query
+        # First query with existing research_query
         state1 = State(
             messages=[{"role": "user", "content": "Studie o diabetu typu 2"}],
             next="",
             retrieved_docs=[],
+            research_query=ResearchQuery(
+                query_text="type 2 diabetes studies", query_type="search"
+            ),
         )
 
-        # Execute first query
-        state_after_translation1 = await translate_cz_to_en_node(state1, mock_runtime)
-        state_with_query1 = State(
-            messages=state1.messages,
-            next="",
-            retrieved_docs=[],
-            research_query=state_after_translation1["research_query"],
-        )
-        result1 = await pubmed_agent_node(state_with_query1, mock_runtime)
+        result1 = await pubmed_agent_node(state1, mock_runtime)
 
-        # Assert: First query has citations [1], [2], ...
         assert result1.get("retrieved_docs") is not None
         first_query_count = len(result1["retrieved_docs"])
 
-        # Second query (in same conversation)
+        # Second query
         state2 = State(
             messages=[
                 {"role": "user", "content": "Studie o diabetu typu 2"},
@@ -287,82 +175,48 @@ class TestFullTranslationFlow:
                 {"role": "user", "content": "Studie o hypertenzi"},
             ],
             next="",
-            retrieved_docs=result1["retrieved_docs"],  # Carry over previous docs
+            retrieved_docs=result1["retrieved_docs"],
+            research_query=ResearchQuery(
+                query_text="hypertension studies", query_type="search"
+            ),
         )
 
-        state_after_translation2 = await translate_cz_to_en_node(state2, mock_runtime)
-        state_with_query2 = State(
-            messages=state2.messages,
-            next="",
-            retrieved_docs=state2.retrieved_docs,
-            research_query=state_after_translation2["research_query"],
-        )
-        result2 = await pubmed_agent_node(state_with_query2, mock_runtime)
+        result2 = await pubmed_agent_node(state2, mock_runtime)
 
-        # Assert: Citation numbers should continue from first query
-        # Note: Full citation tracking with inline [1][2][3] implemented in Phase 5
         assert result2.get("retrieved_docs") is not None
         total_docs = len(result2["retrieved_docs"])
         assert total_docs >= first_query_count
 
     @pytest.mark.asyncio
     async def test_inline_citations_in_response(self, mock_biomcp_client, mock_runtime):
-        """Test inline citation format [1][2][3] in response message (Phase 5 - T058).
-
-        Verifies that pubmed_agent_node returns inline citations and References section:
-        - Response message includes inline [N] references
-        - References section lists all articles with PubMed URLs
-        - Citations are numbered sequentially
-        """
-        # Arrange
+        """Test inline citation format [1][2][3] in response message."""
         mock_runtime.context["biomcp_client"] = mock_biomcp_client
 
         state = State(
             messages=[{"role": "user", "content": "Studie o diabetu typu 2"}],
             next="",
             retrieved_docs=[],
+            research_query=ResearchQuery(
+                query_text="type 2 diabetes studies", query_type="search"
+            ),
         )
 
-        # Act
-        state_after_translation = await translate_cz_to_en_node(state, mock_runtime)
-        state_with_query = State(
-            messages=state.messages,
-            next="",
-            retrieved_docs=[],
-            research_query=state_after_translation["research_query"],
-        )
-        result = await pubmed_agent_node(state_with_query, mock_runtime)
+        result = await pubmed_agent_node(state, mock_runtime)
 
-        # Assert: Response message contains inline citations
         assert "messages" in result
-        _ = result["messages"][0]["content"]
-
-        # Should have inline citation markers [1], [2], etc.
-        # Pattern: Article title followed by [N]
-        # Example: "Metformin study [1]" or "[1] Metformin study"
-        # Note: Implementation in Phase 5 will determine exact format
-
-        # Assert: Documents have citation metadata
         assert "retrieved_docs" in result
         docs = result["retrieved_docs"]
         for doc in docs:
-            # All documents must have PubMed URL (SC-004: 100% auditability)
             assert "url" in doc.metadata
             assert "pubmed.ncbi.nlm.nih.gov" in doc.metadata["url"]
-            # PMID must be present
             assert "pmid" in doc.metadata
 
     @pytest.mark.asyncio
     async def test_biomcp_failure_graceful_degradation(self, mock_runtime):
-        """Test graceful degradation when BioMCP service fails.
-
-        Verifies that Czech error messages are returned and system doesn't crash.
-        """
-        # Arrange
+        """Test graceful degradation when BioMCP service fails."""
         mock_client = MagicMock()
         mock_client.call_tool = AsyncMock()
 
-        # Simulate BioMCP failure
         from agent.mcp import MCPResponse
 
         mock_client.call_tool.return_value = MCPResponse(
@@ -375,27 +229,16 @@ class TestFullTranslationFlow:
             messages=[{"role": "user", "content": "Studie o diabetu"}],
             next="",
             retrieved_docs=[],
+            research_query=ResearchQuery(
+                query_text="diabetes studies", query_type="search"
+            ),
         )
 
-        # Step 1: Translate query
-        state_after_translation = await translate_cz_to_en_node(state, mock_runtime)
+        result = await pubmed_agent_node(state, mock_runtime)
 
-        # Step 2: Attempt PubMed search (should fail gracefully)
-        state_with_query = State(
-            messages=state.messages,
-            next="",
-            retrieved_docs=[],
-            research_query=state_after_translation["research_query"],
-        )
-
-        # Should not raise exception
-        result = await pubmed_agent_node(state_with_query, mock_runtime)
-
-        # Assert: Graceful failure with Czech error message
         assert result.get("retrieved_docs") is not None
         assert len(result["retrieved_docs"]) == 0
         assert result.get("messages") is not None
-        # Error message should be in Czech
         error_message = result["messages"][0]["content"]
         assert any(
             keyword in error_message.lower()

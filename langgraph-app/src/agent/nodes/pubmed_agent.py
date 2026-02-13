@@ -2,6 +2,7 @@
 
 This module implements the pubmed_agent_node and helper functions for:
 - Query classification (research keyword detection, PMID pattern matching)
+- Internal CZ→EN query translation (absorbed from translation sandwich)
 - BioMCP article search and retrieval
 - Document transformation to LangChain format
 - Citation tracking (implemented in Phase 5)
@@ -21,12 +22,38 @@ from agent.models.research_models import (
     PubMedArticle,
     ResearchQuery,
 )
+from agent.utils.message_utils import extract_message_content
 from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
     from agent.graph import Context, State
 
 logger = logging.getLogger(__name__)
+
+# Czech → English translation prompt for PubMed queries
+# (moved from translation_prompts.py to eliminate translation sandwich)
+CZ_TO_EN_PROMPT = """Translate the following Czech medical query to English for PubMed search.
+
+CRITICAL RULES:
+1. Preserve Latin medical terms unchanged (e.g., diabetes mellitus, hypertensio, myocardium)
+2. Preserve drug names unchanged (e.g., Metformin, Ibalgin, Aspirin)
+3. Preserve anatomical terms unchanged (e.g., myocardium, cerebrum, ventriculus)
+4. Expand Czech medical abbreviations to full English terms:
+   - DM2 → type 2 diabetes / type 2 diabetes mellitus
+   - ICHS → ischemic heart disease / coronary artery disease
+   - TEN → pulmonary embolism
+   - IM → myocardial infarction
+   - CMP → cerebrovascular accident / stroke
+   - CHOPN → chronic obstructive pulmonary disease / COPD
+   - AS → atrial septal defect (or aortic stenosis based on context)
+   - HT → hypertension / arterial hypertension
+5. Maintain medical precision - do not simplify terminology
+6. Optimize for PubMed search effectiveness (use standard medical terminology)
+7. Keep the query concise and focused on search terms
+
+Czech query: {czech_query}
+
+English translation (query only, no explanations):"""
 
 # Research keywords for query classification (Czech + English)
 RESEARCH_KEYWORDS = {
@@ -326,18 +353,57 @@ async def _get_article_by_pmid(pmid: str, biomcp_client: Any) -> PubMedArticle |
     )
 
 
-@with_timeout(timeout_seconds=10.0)
+async def _translate_query_to_english(
+    czech_query: str, model_name: str
+) -> tuple[str, str]:
+    """Translate Czech medical query to English for PubMed search.
+
+    Handles PMID detection (no LLM needed) and LLM-based translation.
+
+    Args:
+        czech_query: Czech medical query text.
+        model_name: Claude model name for translation.
+
+    Returns:
+        Tuple of (english_query, query_type) where query_type is
+        "pmid_lookup" or "search".
+    """
+    # PMID detection - no LLM call needed
+    pmid_match = re.search(r"PMID:?\s*(\d{8})(?!\d)", czech_query, re.IGNORECASE)
+    if pmid_match:
+        return pmid_match.group(1), "pmid_lookup"
+
+    # LLM-based translation CZ→EN
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+
+    llm = ChatAnthropic(model_name=model_name, temperature=0, timeout=None, stop=None)
+    prompt = CZ_TO_EN_PROMPT.format(czech_query=czech_query)
+    response = await llm.ainvoke([HumanMessage(content=prompt)])
+
+    english_query_raw = response.content
+    english_query = (
+        english_query_raw.strip()
+        if isinstance(english_query_raw, str)
+        else str(english_query_raw).strip()
+    )
+
+    logger.info("Translated CZ→EN: '%s' → '%s'", czech_query[:80], english_query[:80])
+    return english_query, "search"
+
+
+@with_timeout(timeout_seconds=15.0)
 async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str, Any]:
     """Search PubMed articles with BioMCP integration.
 
     Workflow:
-        1. Use state.research_query (already populated by translation node)
+        1. Use state.research_query or translate Czech query internally
         2. Call BioMCP article_searcher or article_getter based on query_type
         3. Transform articles to Documents with English abstracts
-        4. Return documents (translation to Czech happens in separate node)
+        4. Return documents and summary message
 
     Args:
-        state: Current agent state with research_query.
+        state: Current agent state with messages (Czech query).
         runtime: Runtime context with biomcp_client.
 
     Returns:
@@ -356,19 +422,28 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
     """
     logger.info("Starting PubMed search")
 
+    context = runtime.context or {}
+    model_name = context.get("model_name", "claude-sonnet-4-5-20250929")
+
     # Get research_query from state
     research_query = state.research_query
 
     if not research_query:
-        # Fallback: classify from last message
+        # Internal translation: extract Czech query and translate to English
         if state.messages:
             last_message = state.messages[-1]
-            content = (
-                last_message.get("content", "")
-                if isinstance(last_message, dict)
-                else getattr(last_message, "content", "")
-            )
-            research_query = classify_research_query(content)
+            content = extract_message_content(last_message)
+
+            if content:
+                english_query, query_type = await _translate_query_to_english(
+                    content, model_name
+                )
+                research_query = ResearchQuery(
+                    query_text=english_query,
+                    query_type=query_type,
+                )
+            else:
+                research_query = classify_research_query("")
 
     if not research_query:
         logger.warning("No research query detected")

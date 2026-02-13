@@ -20,7 +20,7 @@ from agent.graph import Context, graph
 from agent.utils.guidelines_storage import get_pool
 from api.cache import get_cached_response, set_cached_response
 from api.dependencies import transform_documents
-from api.schemas import ConsultRequest, HealthCheckResponse
+from api.schemas import ConsultRequest, ErrorResponse, HealthCheckResponse
 
 logger = logging.getLogger(__name__)
 
@@ -339,23 +339,102 @@ Odešle lékařský dotaz do multi-agent systému a vrátí odpověď s citacemi
     """,
     responses={
         200: {
-            "description": "SSE stream s real-time updates",
+            "description": "SSE stream s real-time updates agentů",
             "content": {
                 "text/event-stream": {
-                    "example": """event: message
-data: {"type": "agent_start", "agent": "drug_agent"}
-
-event: message
-data: {"type": "final", "answer": "Metformin je kontraindikován...", "retrieved_docs": [...], "latency_ms": 2340}
-
-event: done
-data: {}"""
+                    "schema": {
+                        "type": "string",
+                        "format": "event-stream",
+                        "description": (
+                            "Server-Sent Events stream. Každý event má formát:\n\n"
+                            "```\nevent: message|done|error\ndata: <JSON>\n\n```\n\n"
+                            "**Event typy:**\n"
+                            "- `agent_start` — agent zahájil zpracování\n"
+                            "- `agent_complete` — agent dokončil zpracování\n"
+                            "- `cache_hit` — odpověď z Redis cache (jen quick mode)\n"
+                            "- `final` — finální odpověď s citacemi (viz ConsultResponse schéma)\n"
+                            "- `done` — stream ukončen\n"
+                            "- `error` — chyba (viz ErrorResponse schéma)"
+                        ),
+                    },
+                    "examples": {
+                        "agent_start": {
+                            "summary": "Agent Start",
+                            "value": 'event: message\ndata: {"type": "agent_start", "agent": "drug_agent"}\n\n',
+                        },
+                        "final_response": {
+                            "summary": "Finální odpověď",
+                            "value": (
+                                'event: message\n'
+                                'data: {"type": "final", "answer": "Metformin je kontraindikován při eGFR <30 [1].", '
+                                '"retrieved_docs": [{"page_content": "...", "metadata": {"source": "sukl"}}], '
+                                '"confidence": 0.92, "latency_ms": 2340}\n\n'
+                            ),
+                        },
+                        "cache_hit": {
+                            "summary": "Cache Hit (jen quick mode)",
+                            "value": 'event: message\ndata: {"type": "cache_hit"}\n\n',
+                        },
+                        "done": {
+                            "summary": "Stream dokončen",
+                            "value": "event: done\ndata: {}\n\n",
+                        },
+                        "error": {
+                            "summary": "Chyba",
+                            "value": 'event: error\ndata: {"type": "error", "error": "timeout", "detail": "Request timed out after 30 seconds"}\n\n',
+                        },
+                    },
                 }
             },
         },
-        400: {"description": "Validation error (query too long)"},
-        429: {"description": "Rate limit exceeded (10 req/min)"},
-        504: {"description": "Timeout (>30s execution)"},
+        400: {
+            "description": "Chyba validace (dotaz příliš dlouhý nebo neplatný)",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "validation_error",
+                        "detail": "Query too long (max 1000 characters)",
+                    }
+                }
+            },
+        },
+        429: {
+            "description": "Překročen rate limit (10 požadavků/minutu)",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "rate_limit_exceeded",
+                        "detail": "Rate limit 10/minute exceeded. Zkuste to znovu za chvíli.",
+                    }
+                }
+            },
+        },
+        500: {
+            "description": "Interní chyba serveru",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "internal_error",
+                        "detail": "An unexpected error occurred",
+                    }
+                }
+            },
+        },
+        504: {
+            "description": "Timeout (zpracování trvalo déle než 30 sekund)",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "timeout",
+                        "detail": "Request timed out after 30 seconds",
+                    }
+                }
+            },
+        },
     },
 )
 @limiter.limit("10/minute")
@@ -385,12 +464,6 @@ async def consult_endpoint(
         ... )
         >>> # SSE stream with events: agent_start, agent_complete, final, done
     """
-    # Validate query length (already in schema, but double-check)
-    if len(consult_request.query) > 1000:
-        raise HTTPException(
-            status_code=400, detail="Query too long (max 1000 characters)"
-        )
-
     # Log request
     logger.info("Processing consult request", extra={
         "request_id": getattr(request.state, "request_id", "unknown"),
