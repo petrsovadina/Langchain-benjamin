@@ -1,6 +1,6 @@
 # Czech MedAI (Benjamin)
 
-Multi-agentní AI asistent pro české lékaře postavený na LangGraph frameworku s Next.js frontendem a FastAPI bridge vrstvou. Poskytuje klinickou rozhodovací podporu založenou na důkazech, integrující specializované AI agenty pro dotazování českých medicínských zdrojů (SÚKL, VZP, ČLS JEP) a mezinárodního výzkumu (PubMed) s kompletním sledováním citací.
+Multi-agentní AI asistent pro české lékaře postavený na LangGraph frameworku s Next.js frontendem a FastAPI bridge vrstvou. Poskytuje klinickou rozhodovací podporu založenou na důkazech, integrující specializované AI agenty pro dotazování českých medicínských zdrojů (SÚKL, ČLS JEP) a mezinárodního výzkumu (PubMed) s kompletním sledováním citací.
 
 ## Quick Start
 
@@ -80,7 +80,7 @@ Frontend a backend komunikují přes Server-Sent Events na `POST /api/v1/consult
 | **Frontend** | Next.js 14, React 18, TypeScript, Tailwind v4, shadcn/ui, OKLCH design tokens |
 | **API Bridge** | FastAPI, SSE streaming, Redis cache, slowapi rate limiting |
 | **Orchestrace** | LangGraph ≥1.0.0, Python ≥3.10, async-first |
-| **Data** | MCP protocol (SÚKL-mcp, BioMCP), pgvector, Supabase |
+| **Data** | MCP protocol (SÚKL-mcp, BioMCP), PostgreSQL + pgvector |
 | **Kvalita** | mypy --strict, ruff, Vitest, Playwright, pytest |
 | **Observability** | LangSmith tracing, structured JSON logging |
 | **MCP Servery** | [SÚKL-mcp](https://github.com/petrsovadina/SUKL-mcp), [BioMCP](https://github.com/genomoncology/biomcp) |
@@ -141,7 +141,7 @@ Langchain-benjamin/
 │   ├── ROADMAP.md             # Master roadmap (12 features, 4 fáze)
 │   └── NNN-feature-name/      # spec.md, plan.md, tasks.md
 ├── PRD-docs/                  # PRD dokumentace (strategie, architektura, UX)
-└── .specify/                  # SpecKit framework + Constitution v1.1.1
+└── .specify/                  # SpecKit framework + Constitution v1.1.2
 ```
 
 ## Feature Development Workflow (SpecKit)
@@ -154,7 +154,7 @@ make speckit_new FEATURE="Description"   # Vytvoří branch + spec
 
 ## Constitution (5 Principů)
 
-Definováno v `.specify/memory/constitution.md` v1.1.1:
+Definováno v `.specify/memory/constitution.md` v1.1.2:
 
 1. **Graph-Centric Architecture** - Vše jako LangGraph nodes/edges, Send API
 2. **Type Safety** - mypy --strict, typed dataclasses/TypedDict
@@ -210,8 +210,11 @@ Plus **Security Standards**: input validation, thread-safe IDs, async context ma
 - **[QUICKSTART.md](./QUICKSTART.md)** - Rychlý start guide
 - **[CLAUDE.md](./CLAUDE.md)** - Guide pro Claude Code
 - **[MCP_INTEGRATION.md](./MCP_INTEGRATION.md)** - MCP integrace
+- **[docs/architecture.md](./docs/architecture.md)** - Architektura systému (Mermaid diagramy)
+- **[docs/api-reference.md](./docs/api-reference.md)** - API reference (endpointy, SSE protokol, příklady)
+- **[docs/development-guide.md](./docs/development-guide.md)** - Vývojářská příručka
 - **[.specify/README.md](./.specify/README.md)** - SpecKit framework
-- **[.specify/memory/constitution.md](./.specify/memory/constitution.md)** - Constitution v1.1.1
+- **[.specify/memory/constitution.md](./.specify/memory/constitution.md)** - Constitution v1.1.2
 - **[specs/ROADMAP.md](./specs/ROADMAP.md)** - Detailní roadmap
 
 ---
