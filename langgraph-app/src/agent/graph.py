@@ -20,25 +20,16 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command, Send
 from typing_extensions import TypedDict
 
-# Import MCP infrastructure (Feature 002)
 from agent.mcp import BioMCPClient, MCPConfig, SUKLMCPClient
-
-# Runtime import for State dataclass (required for LangGraph type resolution)
 from agent.models.drug_models import DrugQuery
 from agent.models.guideline_models import GuidelineQuery
 from agent.models.research_models import ResearchQuery
-
-# Import drug_agent_node (Feature 003)
 from agent.nodes import drug_agent_node
+from agent.nodes.general_agent import general_agent_node
 from agent.nodes.guidelines_agent import guidelines_agent_node
 from agent.nodes.pubmed_agent import pubmed_agent_node
-
-# Import supervisor node (Feature 007)
 from agent.nodes.supervisor import supervisor_node
-
-# Import synthesizer node (Feature 009)
 from agent.nodes.synthesizer import synthesizer_node
-
 from agent.utils.message_utils import extract_message_content
 
 # Load environment variables (LangSmith tracing)
@@ -225,84 +216,6 @@ class State:
     # Feature 006: Guidelines Agent
     guideline_query: GuidelineQuery | None = None
 
-    def __post_init__(self) -> None:
-        """Initialize mutable defaults.
-
-        Note: Using field(default_factory=list) for retrieved_docs.
-        This method kept for future initialization logic.
-        """
-        pass
-
-
-async def general_agent_node(state: State, runtime: Runtime[Context]) -> dict[str, Any]:
-    """Answer general medical questions using LLM.
-
-    Handles queries that don't match specific agent routing (drug/research/guidelines).
-    Uses Claude to provide helpful Czech medical responses.
-
-    Args:
-        state: Current agent state with message history.
-        runtime: Runtime context with model configuration.
-
-    Returns:
-        Updated state dict with:
-            - messages: list with new assistant message
-            - next: "__end__"
-    """
-    from langchain_anthropic import ChatAnthropic
-    from langchain_core.messages import HumanMessage, SystemMessage
-
-    context = runtime.context or {}
-    model_name = context.get("model_name", "claude-sonnet-4-5-20250929")
-
-    logger.info("general_agent_node executing with model=%s", model_name)
-
-    last_message = state.messages[-1] if state.messages else None
-    if not last_message:
-        return {
-            "messages": [{"role": "assistant", "content": "Nebyl zadán žádný dotaz."}],
-            "next": "__end__",
-        }
-
-    user_content = extract_message_content(last_message)
-
-    try:
-        llm = ChatAnthropic(
-            model=model_name,
-            temperature=0.0,
-            timeout=None,
-            stop=None,
-            max_tokens=2048,
-        )
-
-        system_prompt = (
-            "Jsi Czech MedAI, klinický rozhodovací asistent pro české lékaře. "
-            "Odpovídáš vždy v češtině s korektní lékařskou terminologií. "
-            "Poskytuj stručné, faktické a odborné odpovědi. "
-            "Pokud dotaz nesouvisí s medicínou, zdvořile to uveď a nabídni pomoc "
-            "s lékařským dotazem. "
-            "NIKDY nevymýšlej citace ani zdroje, které nemáš k dispozici."
-        )
-
-        response = await llm.ainvoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_content),
-        ])
-
-        answer = (
-            response.content
-            if isinstance(response.content, str)
-            else str(response.content)
-        )
-
-    except Exception as e:
-        logger.error("general_agent_node LLM call failed: %s", e)
-        answer = (
-            "Omlouvám se, nepodařilo se zpracovat váš dotaz. "
-            "Zkuste prosím specifičtější lékařský dotaz."
-        )
-
-    return {"messages": [{"role": "assistant", "content": answer}], "next": "__end__"}
 
 
 # Drug-related keywords for routing (Czech + English)
@@ -414,10 +327,7 @@ def route_query(
 
     Routing priority:
     1. Explicit queries (drug_query, research_query, guideline_query)
-    2. Drug keywords (highest - most common use case)
-    3. Research keywords (research-specific terms only)
-    4. Guidelines keywords
-    5. General agent (fallback)
+    2. Keyword matching via fallback_to_keyword_routing() (Drug > Research > Guidelines > General)
 
     Args:
         state: Current agent state with messages.
@@ -425,6 +335,8 @@ def route_query(
     Returns:
         Node name to route to: "drug_agent", "pubmed_agent", "guidelines_agent", or "general_agent".
     """
+    from agent.nodes.supervisor import fallback_to_keyword_routing
+
     # Check if explicit drug_query is set
     if state.drug_query is not None:
         return "drug_agent"
@@ -437,26 +349,13 @@ def route_query(
     if state.guideline_query is not None:
         return "guidelines_agent"
 
-    # Check last user message for keywords
+    # Keyword-based routing from last message
     if state.messages:
         last_message = state.messages[-1]
         content_text = extract_message_content(last_message)
-        content_lower = content_text.lower() if content_text else ""
-
-        # Check for drug keywords FIRST (most common use case)
-        for keyword in DRUG_KEYWORDS:
-            if keyword in content_lower:
-                return "drug_agent"
-
-        # Check for research keywords (now trimmed to research-specific terms)
-        for keyword in RESEARCH_KEYWORDS:
-            if keyword in content_lower:
-                return "pubmed_agent"
-
-        # Check for guidelines keywords
-        for keyword in GUIDELINES_KEYWORDS:
-            if keyword in content_lower:
-                return "guidelines_agent"
+        if content_text:
+            result = fallback_to_keyword_routing(content_text)
+            return result.agents_to_call[0]  # type: ignore[return-value]
 
     # Default to general agent for non-specific queries
     return "general_agent"

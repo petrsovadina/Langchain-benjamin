@@ -215,6 +215,7 @@ async def consult_stream_generator(
                             "drug_agent",
                             "pubmed_agent",
                             "guidelines_agent",
+                            "general_agent",
                             "supervisor",
                             "synthesizer",
                         ]:
@@ -228,6 +229,7 @@ async def consult_stream_generator(
                             "drug_agent",
                             "pubmed_agent",
                             "guidelines_agent",
+                            "general_agent",
                         ]:
                             yield "event: message\n"
                             yield f"data: {json.dumps({'type': 'agent_complete', 'agent': node_name})}\n\n"

@@ -3,6 +3,7 @@
 This module contains specialized agent nodes:
 - drug_agent: SÚKL pharmaceutical database queries
 - pubmed_agent: BioMCP PubMed research queries (with internal CZ→EN translation)
+- general_agent: General medical questions (LLM-based)
 - synthesizer: Multi-agent response synthesis
 """
 
@@ -17,6 +18,7 @@ from agent.nodes.drug_agent import (
     format_mcp_error,
     reimbursement_to_document,
 )
+from agent.nodes.general_agent import general_agent_node
 from agent.nodes.pubmed_agent import (
     article_to_document,
     classify_research_query,
@@ -34,6 +36,8 @@ __all__: list[str] = [
     "reimbursement_to_document",
     "availability_to_document",
     "format_mcp_error",
+    # General agent
+    "general_agent_node",
     # PubMed agent (Feature 005)
     "pubmed_agent_node",
     "classify_research_query",

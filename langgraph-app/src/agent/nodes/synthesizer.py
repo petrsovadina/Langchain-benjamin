@@ -391,6 +391,49 @@ def _structure_compound_response(text: str, agent_types: list[str]) -> str:
     return text
 
 
+def _build_terminology_warning(validation: dict[str, list[str]]) -> str:
+    """Build terminology warning section from validation results.
+
+    Args:
+        validation: Dict with 'warnings' and 'suggestions' lists.
+
+    Returns:
+        Formatted warning section string, or empty string if no issues.
+    """
+    if not validation["warnings"] and not validation["suggestions"]:
+        return ""
+
+    warning_section = "## Terminologické upozornění\n"
+    if validation["warnings"]:
+        warning_section += (
+            "\n".join(f"- {w}" for w in validation["warnings"]) + "\n\n"
+        )
+    if validation["suggestions"]:
+        warning_section += (
+            "\n".join(f"- {s}" for s in validation["suggestions"]) + "\n\n"
+        )
+    return warning_section.rstrip() + "\n\n"
+
+
+def _extract_message_content_raw(msg: Any) -> str:
+    """Extract text content from a message (dict or object).
+
+    Handles dict messages, LangChain message objects, and list-type content.
+
+    Args:
+        msg: Message in dict or object form.
+
+    Returns:
+        Extracted string content.
+    """
+    content = msg.get("content", "") if isinstance(msg, dict) else msg.content
+    if isinstance(content, list):
+        content = content[0] if content else ""
+        if isinstance(content, dict):
+            content = content.get("text", "")
+    return str(content)
+
+
 def _detect_agent_types(messages: list[Any]) -> list[str]:
     """Detect agent types from message content keywords.
 
@@ -494,18 +537,9 @@ async def synthesizer_node(
             "next": "__end__",
         }
 
-    # Extract content from messages
-    def _get_content(msg: Any) -> str:
-        content = msg.get("content", "") if isinstance(msg, dict) else msg.content
-        if isinstance(content, list):
-            content = content[0] if content else ""
-            if isinstance(content, dict):
-                content = content.get("text", "")
-        return str(content)
-
     # If single agent message, pass through with minimal processing
     if len(agent_messages) == 1:
-        content = _get_content(agent_messages[0])
+        content = _extract_message_content_raw(agent_messages[0])
 
         # Extract and re-add citations for consistency
         msg_text, citations = extract_citations_from_message(content)
@@ -522,17 +556,9 @@ async def synthesizer_node(
         formatted = format_response(msg_text, "quick")
 
         # Prepend terminology warning section if applicable
-        if validation["warnings"] or validation["suggestions"]:
-            warning_section = "## Terminologické upozornění\n"
-            if validation["warnings"]:
-                warning_section += (
-                    "\n".join(f"- {w}" for w in validation["warnings"]) + "\n\n"
-                )
-            if validation["suggestions"]:
-                warning_section += (
-                    "\n".join(f"- {s}" for s in validation["suggestions"]) + "\n\n"
-                )
-            formatted = warning_section.rstrip() + "\n\n" + formatted
+        warning_text = _build_terminology_warning(validation)
+        if warning_text:
+            formatted = warning_text + formatted
 
         # Add references back
         if citations:
@@ -555,7 +581,7 @@ async def synthesizer_node(
     all_citations: list[list[CitationInfo]] = []
 
     for msg in agent_messages:
-        content = _get_content(msg)
+        content = _extract_message_content_raw(msg)
         msg_text, citations = extract_citations_from_message(content)
         raw_messages.append(msg_text)
         all_citations.append(citations)
@@ -633,17 +659,9 @@ async def synthesizer_node(
     formatted = format_response(combined_text, "compound", agent_types)
 
     # Prepend terminology warning section if applicable
-    if validation["warnings"] or validation["suggestions"]:
-        warning_section = "## Terminologické upozornění\n"
-        if validation["warnings"]:
-            warning_section += (
-                "\n".join(f"- {w}" for w in validation["warnings"]) + "\n\n"
-            )
-        if validation["suggestions"]:
-            warning_section += (
-                "\n".join(f"- {s}" for s in validation["suggestions"]) + "\n\n"
-            )
-        formatted = warning_section.rstrip() + "\n\n" + formatted
+    warning_text = _build_terminology_warning(validation)
+    if warning_text:
+        formatted = warning_text + formatted
 
     # Add global references
     if global_references:

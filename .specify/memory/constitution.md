@@ -1,36 +1,45 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 1.1.0 → 1.1.1 (PATCH)
-- Bump rationale: Corrected stale test metrics in Sync Impact Report header
-  and fixed translation test count (6 → 5)
-- Modified principles: None
+- Version change: 1.1.1 → 1.1.2 (PATCH)
+- Bump rationale: Routing architecture section updated to reflect DRY
+  consolidation (route_query delegates to fallback_to_keyword_routing).
+  Test metrics updated after AGENT_TO_NODE_MAP test removal.
+  Node structure clarification (all agents in nodes/).
+- Modified principles: None (all 5 principles unchanged)
 - Enhanced sections:
-  * Testing: Updated test metrics to 444/449 = 98.9% (post mock-fix session)
-  * Testing: Corrected translation test count from 6 to 5
+  * Routing Architecture: Updated delegation model description
+  * Testing: Updated test metrics to 442/442 = 100% (post-refactoring)
+  * Principle V rationale: Added node location convention
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates:
-  ✅ plan-template.md - No changes needed
+  ✅ plan-template.md - No changes needed (Principle references intact)
   ✅ spec-template.md - No changes needed
-  ✅ tasks-template.md - No changes needed
+  ✅ tasks-template.md - No changes needed (node paths advisory, not prescriptive)
   ✅ checklist-template.md - No changes needed
 - Follow-up TODOs: None
 - Change context:
-  * 3 mock test bugs fixed (supervisor fallback, drug_agent patch, pubmed assertion)
-  * supervisor_node now has `except Exception` broad fallback after specific handlers
-  * Test suite: 444 passed, 5 skipped (translation tests requiring API credits)
+  * Refactoring session: 8 changes applied (see commit on branch `new`)
+  * general_agent_node extracted from graph.py → nodes/general_agent.py
+  * route_query() now delegates to fallback_to_keyword_routing() (DRY)
+  * AGENT_TO_NODE_MAP removed (identity map, no functional purpose)
+  * Dead code __post_init__ removed from State dataclass
+  * DRY helpers: _parse_drug_result, _build_terminology_warning,
+    _extract_message_content_raw
+  * Bugfix: general_agent added to SSE event filters in routes.py
+  * Test suite: 442 passed, 0 failed
+
+PREVIOUS REPORT (1.1.0 → 1.1.1):
+- Corrected stale test metrics and fixed translation test count (6 → 5)
+- Test suite: 444 passed, 5 skipped (translation tests requiring API credits)
 
 PREVIOUS REPORT (1.0.4 → 1.1.0):
-- Materially expanded guidance - added Security Standards, Frontend Tech Stack, MCP Protocol
+- Materially expanded guidance - added Security Standards, Frontend Tech Stack,
+  MCP Protocol
 - Test coverage improved: 177/183 → 444/449 (98.9%)
 - 12 new tests added (4 routing regression + 8 security)
-- Security hardening: thread-safe IDs, size limits, async context manager, ReDoS-safe regex
-
-PREVIOUS REPORT (1.0.3 → 1.0.4):
-- Validation review - updated test metrics and added notes on planned refactoring
-- Test coverage improved: 169/175 → 177/183 (97%)
-- Feature 005 Refactoring (remove translation layer) ready for implementation
-- Multimodal content handling fix deployed (commit a8429ba)
+- Security hardening: thread-safe IDs, size limits, async context manager,
+  ReDoS-safe regex
 -->
 
 # Langchain-Benjamin Constitution
@@ -99,12 +108,13 @@ PREVIOUS REPORT (1.0.3 → 1.0.4):
 
 - Each node MUST have a single, clear responsibility
 - Prefer multiple small nodes over one large node
+- All agent nodes MUST reside in `src/agent/nodes/` as separate modules
 - Extract reusable logic into helper functions in `src/agent/` modules
 - Use subgraphs for complex multi-step operations
 - Configuration parameters MUST go in `Context`, not hardcoded
 - MCP clients MUST implement `IMCPClient` interface and support async context manager (`__aenter__`/`__aexit__`)
 
-**Rationale**: Small nodes are easier to test, debug, and reuse. LangGraph supports composition; leverage it for maintainability.
+**Rationale**: Small nodes are easier to test, debug, and reuse. LangGraph supports composition; leverage it for maintainability. Separate modules per agent enable independent testing and clear ownership.
 
 ## Technology Stack
 
@@ -222,7 +232,7 @@ All code MUST pass these enforced quality checks before merge:
 - Use `r"""` prefix if docstring contains backslashes
 
 #### Testing
-- **Test coverage**: Minimum 80% for node implementations (current: 444/449 = 98.9%)
+- **Test coverage**: Minimum 80% for node implementations (current: 442/442 = 100%)
 - All tests MUST pass: `pytest tests/`
 - Note: 5 translation tests require API credits (expected skip without ANTHROPIC_API_KEY)
 - Performance benchmarks for latency-critical nodes
@@ -240,7 +250,7 @@ All code MUST pass these enforced quality checks before merge:
 
 ## Routing Architecture
 
-### Priority Order (codified 2026-02-09)
+### Priority Order (codified 2026-02-09, consolidated 2026-02-15)
 
 Query routing follows this strict priority (highest to lowest):
 
@@ -248,9 +258,11 @@ Query routing follows this strict priority (highest to lowest):
 2. **Drug keywords**: Most common use case (SUKL database)
 3. **Research keywords**: Research-specific terms only (`studie`, `vyzkum`, `pubmed`)
 4. **Guidelines keywords**: Clinical guidelines (`doporucene postupy`, `standardy`, `ESC`)
-5. **Placeholder**: Fallback for unmatched queries
+5. **General agent**: Fallback for unmatched queries
 
-Both `route_query()` (graph.py) and `fallback_to_keyword_routing()` (supervisor.py) MUST maintain identical priority order.
+### Single Source of Truth
+
+`fallback_to_keyword_routing()` in `supervisor.py` is the canonical keyword routing implementation. `route_query()` in `graph.py` delegates to it for keyword-based decisions (after checking explicit queries). This eliminates duplicate keyword logic and ensures both paths always agree.
 
 ## Governance
 
@@ -276,4 +288,4 @@ This constitution is a living document. Amendments require:
 - Use `.specify/memory/constitution.md` as single source of truth for development standards
 - Security standards MUST be verified during code review
 
-**Version**: 1.1.1 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-12
+**Version**: 1.1.2 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-15
