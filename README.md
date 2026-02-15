@@ -14,7 +14,7 @@ cd langgraph-app
 uv venv && source .venv/bin/activate
 uv pip install -e .
 uv pip install 'langgraph-cli[inmem]'
-cp .env.example .env    # Editujte: ANTHROPIC_API_KEY, LANGSMITH_API_KEY (optional)
+cp .env.example .env    # Editujte: ANTHROPIC_API_KEY, OPENAI_API_KEY (guidelines), LANGSMITH_API_KEY (optional)
 
 # 3. Spustit backend
 ./dev.sh                # LangGraph Studio na http://127.0.0.1:2024
@@ -38,12 +38,13 @@ npm run dev             # Next.js na http://localhost:3000
 ```
 User Query (CZ)
     |
-[Supervisor Node] → LLM intent classification + Send API (parallel dispatch)
+[Supervisor Node] → LLM intent classification (8 typů) + Send API
     |
-    |--→ [Drug Agent] → SÚKL-mcp (8 tools, 68k+ léků)
+    |--→ [Drug Agent] → SÚKL-mcp (9 MCP tools, 68k+ léků)
     |--→ [PubMed Agent] → BioMCP (24 tools)
-    |      └→ Sandwich Pattern: CZ→EN→PubMed→EN→CZ
+    |      └→ Interní CZ→EN překlad dotazu před BioMCP voláním
     |--→ [Guidelines Agent] → ČLS JEP PDFs (pgvector)
+    |--→ [General Agent] → Obecné medicínské dotazy (Claude LLM)
     |
 [Synthesizer Node] → Kombinace + formátování + inline citace [1][2][3]
     |
@@ -130,7 +131,7 @@ Langchain-benjamin/
 │   └── e2e/                   # Playwright E2E testy
 ├── langgraph-app/             # Python backend
 │   ├── src/agent/graph.py     # Core LangGraph graph (State, Context, nodes)
-│   ├── src/agent/nodes/       # supervisor, drug_agent, pubmed_agent, guidelines_agent, synthesizer, translation
+│   ├── src/agent/nodes/       # supervisor, drug_agent, pubmed_agent, guidelines_agent, general_agent, synthesizer
 │   ├── src/agent/mcp/         # MCP client wrappers (SÚKL, BioMCP)
 │   ├── src/agent/models/      # Pydantic modely (DrugQuery, ResearchQuery, GuidelineQuery)
 │   ├── src/api/               # FastAPI server (routes, cache, config, logging)
@@ -170,13 +171,13 @@ Plus **Security Standards**: input validation, thread-safe IDs, async context ma
 - **002** MCP Infrastructure (SÚKL-mcp + BioMCP clients)
 
 ### Phase 1: Core Agents - PŘEVÁŽNĚ DOKONČENO
-- **003** SÚKL Drug Agent (fuzzy search, 8 MCP tools)
+- **003** SÚKL Drug Agent (fuzzy search, 9 MCP tools)
 - **004** VZP Pricing Agent - ČEKÁ NA IMPLEMENTACI
-- **005** BioMCP PubMed Agent (Sandwich Pattern CZ→EN→PubMed→EN→CZ, citace)
+- **005** BioMCP PubMed Agent (interní CZ→EN překlad, citace)
 - **006** Guidelines Agent (ČLS JEP PDFs, pgvector)
 
 ### Phase 2: Integration - DOKONČENO
-- **007** Supervisor Orchestration (LLM intent classification, Send API)
+- **007** Supervisor Orchestration (LLM intent classification — 8 typů, Send API)
 - **009** Synthesizer Node (multi-agent response combination)
 
 ### Phase 3: UX & Deployment - DOKONČENO
@@ -185,15 +186,20 @@ Plus **Security Standards**: input validation, thread-safe IDs, async context ma
 
 ### Plánováno
 - **004** VZP Pricing Agent
-- **005 Refactoring** Odstranění translation layer (spec/plan/44 tasks ready)
 - **008** Cross-agent citation consolidation
 - **010** Czech localization (medical abbreviations dictionary)
+
+> **Dokončeno mimo roadmap:** Translation sandwich pattern odstraněn (commit 889b953) — PubMed agent nyní obsahuje interní CZ→EN překlad.
 
 ## Troubleshooting
 
 **`ModuleNotFoundError: No module named 'agent'`** - Použijte `./dev.sh` nebo prefix `PYTHONPATH=src`.
 
-**Translation testy selhávají** - 5 testů vyžaduje `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY` v `.env`.
+**`uv run pytest` zamrzne na importu** - Těžký dependency graph spouští MCP client init. Použijte `.venv/bin/pytest` s `PYTHONPATH=src` prefixem.
+
+**Translation testy selhávají/přeskočeny** - 5 testů vyžaduje `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY` v `.env`. Očekávané přeskočení v lokálním vývoji.
+
+**Testy prosakují na reálné MCP servery** - Vždy `patch("agent.graph.get_mcp_clients")` v testech. Viz `tests/conftest.py`.
 
 **Frontend se nepřipojí k backendu** - Ověřte, že FastAPI běží na :8000 a `NEXT_PUBLIC_API_URL=http://localhost:8000` je v `frontend/.env.local`.
 
@@ -210,4 +216,4 @@ Plus **Security Standards**: input validation, thread-safe IDs, async context ma
 
 ---
 
-**Verze:** 2.1.0 | **Aktualizováno:** 2026-02-12
+**Verze:** 0.0.1 | **Aktualizováno:** 2026-02-15

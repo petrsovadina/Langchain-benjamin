@@ -38,18 +38,22 @@ Frontend (Next.js :3000)
 @dataclass
 class State:
     messages: Annotated[list[AnyMessage], add_messages]
-    next: str = ""
-    retrieved_docs: list[Document] = field(default_factory=list)
+    next: Annotated[str, _keep_last] = "__end__"
+    retrieved_docs: Annotated[list[Document], add_documents] = field(default_factory=list)
     drug_query: DrugQuery | None = None
     research_query: ResearchQuery | None = None
+    guideline_query: GuidelineQuery | None = None
 
 class Context(TypedDict, total=False):
     model_name: str            # default: claude-sonnet-4-5-20250929
     temperature: float
+    langsmith_project: str
+    user_id: str | None
     sukl_mcp_client: Any       # SUKLMCPClient (Any for Pydantic compat)
     biomcp_client: Any         # BioMCPClient
-    mode: str                  # "quick" | "deep"
-    user_id: str | None
+    openai_api_key: str        # for guidelines embeddings
+    conversation_context: Any  # ConversationContext
+    mode: Literal["quick", "deep"]
 
 # Node signature:
 async def node_name(state: State, runtime: Runtime[Context]) -> dict[str, Any]:
@@ -88,9 +92,15 @@ uv run ruff format . && uv run ruff check . && uv run mypy --strict src/agent/
 make test                              # unit tests
 make integration_tests                 # integration tests
 make test TEST_FILE=tests/unit_tests/test_specific.py  # specific test
+make test_watch                        # pytest watch mode
 make lint                              # ruff + mypy --strict
 make format                            # auto-format
+make spell_check                       # codespell check
+make spell_fix                         # codespell auto-fix
+make lint_diff                         # lint only changed files vs main
 ```
+
+**Note:** Makefile targets use `python -m pytest` without `PYTHONPATH=src`. Either activate `.venv` first or use the explicit `PYTHONPATH=src uv run pytest` commands above.
 
 ### Frontend
 
@@ -168,12 +178,13 @@ Frontend and backend communicate via Server-Sent Events:
 
 ### Backend
 - `langgraph-app/src/agent/graph.py` - Core graph (State, Context, route_query, compilation)
-- `langgraph-app/src/agent/nodes/` - Node implementations (drug_agent, pubmed_agent, translation)
+- `langgraph-app/src/agent/nodes/` - Node implementations (supervisor, drug_agent, pubmed_agent, guidelines_agent, general_agent, synthesizer, supervisor_prompts)
 - `langgraph-app/src/agent/mcp/` - MCP clients: `adapters/` (SUKLMCPClient, BioMCPClient), `domain/` (ports, entities, exceptions)
-- `langgraph-app/src/agent/models/` - Pydantic models (DrugQuery, ResearchQuery, PubMedArticle)
 - `langgraph-app/src/api/routes.py` - FastAPI endpoints (`/api/v1/consult`, `/health`)
 - `langgraph-app/src/api/main.py` - FastAPI app (CORS, rate limiting, security headers)
+- `langgraph-app/src/agent/models/` - Pydantic models (drug_models, research_models, guideline_models, supervisor_models)
 - `langgraph-app/tests/conftest.py` - Pytest fixtures (mock_runtime, sample_state, sample_pubmed_articles)
+- `langgraph-app/tests/unit_tests/` - Unit tests; also `tests/quality/`, `tests/load_tests/`, `tests/performance/`
 
 ### Frontend
 - `frontend/app/page.tsx` - Main chat interface
@@ -207,11 +218,25 @@ Defined in `.specify/memory/constitution.md` v1.1.1:
 
 ### Backend (`langgraph-app/.env`)
 ```bash
-ANTHROPIC_API_KEY=sk-ant-...     # Required for translation layer (until refactoring)
-LANGSMITH_API_KEY=lsv2_pt_...    # Optional: LangSmith tracing
+# Required
+ANTHROPIC_API_KEY=sk-ant-...     # Supervisor + translation LLM calls
+OPENAI_API_KEY=sk-...            # Guidelines embeddings (pgvector semantic search)
+
+# MCP servers
+SUKL_MCP_URL=...                 # SÚKL pharmaceutical DB
+BIOMCP_COMMAND=...               # BioMCP REST client
+
+# Infrastructure (docker-compose provides defaults)
+DATABASE_URL=postgresql://...    # pgvector for guidelines
+REDIS_URL=redis://localhost:6379 # Response cache
+
+# Optional
+LANGSMITH_API_KEY=lsv2_pt_...    # LangSmith tracing
 LANGSMITH_PROJECT=czech-medai-dev
 TRANSLATION_MODEL=claude-4.5-haiku
 ```
+
+See `langgraph-app/.env.example` for complete variable reference with defaults.
 
 ### Frontend (`frontend/.env.local`)
 ```bash
@@ -229,12 +254,34 @@ make speckit_new FEATURE="Description"   # Create feature branch + spec
 
 Specs live in `specs/NNN-feature-name/` with `spec.md`, `plan.md`, `tasks.md`.
 
+## Docker Compose Services
+
+`docker compose up` starts 3 services:
+- **api** - FastAPI backend (port 8000, 4 uvicorn workers, non-root user)
+- **redis** - Response cache (port 6379, 256MB max, allkeys-lru eviction)
+- **postgres** - pgvector DB for guidelines (ankane/pgvector:latest)
+
+Production uses `.env.production`. Health check: `GET /health`.
+
+## API Middleware
+
+- **Rate limiting**: 10 req/min per IP via slowapi
+- **Request ID**: UUID per request in `X-Request-ID` header
+- **Security headers**: HSTS, CSP, X-Frame-Options: DENY, nosniff
+- **CORS**: Configurable via `CORS_ORIGINS` env var
+
 ## Troubleshooting
 
 **`ModuleNotFoundError: No module named 'agent'`** - Use `./dev.sh` or prefix with `PYTHONPATH=src`.
 
-**Translation tests fail** - 5 tests require `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env`.
+**`uv run pytest` hangs on import** - Heavy dependency graph triggers MCP client init. Use `.venv/bin/pytest` with `PYTHONPATH=src` prefix instead, or ensure MCP servers are not expected at import time.
+
+**Translation tests fail/skip** - 5 tests require `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env`. Expected skips in local dev.
+
+**Tests leak to real MCP servers** - Always `patch("agent.graph.get_mcp_clients")` in tests to prevent real MCP connections. See `tests/conftest.py` for patterns.
 
 **Frontend can't connect to backend** - Ensure FastAPI runs on :8000 and `NEXT_PUBLIC_API_URL` is set in `frontend/.env.local`.
 
 **Playwright tests fail on mock routes** - Mock routes must match `/api/v1/consult` (with version prefix), not `/api/consult`.
+
+**Python version**: Dev uses 3.12 (langgraph.json), Docker uses 3.11, minimum is 3.10 (pyproject.toml).
