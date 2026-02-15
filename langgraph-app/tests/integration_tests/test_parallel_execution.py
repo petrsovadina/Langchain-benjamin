@@ -352,7 +352,7 @@ class TestSupervisorNodeSendAPI:
     async def test_research_query_maps_to_translate_node(
         self, mock_runtime: MagicMock
     ) -> None:
-        """Test pubmed_agent maps to pubmed_agent via AGENT_TO_NODE_MAP."""
+        """Test pubmed_agent routes to pubmed_agent node."""
         state = State(
             messages=[HumanMessage(content="Studie o diabetu")],
             next="__end__",

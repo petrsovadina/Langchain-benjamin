@@ -28,7 +28,6 @@ from agent.models.supervisor_models import (
     IntentType,
 )
 from agent.nodes.supervisor import (
-    AGENT_TO_NODE_MAP,
     IntentClassifier,
     extract_message_content,
     fallback_to_keyword_routing,
@@ -632,26 +631,6 @@ class TestExtractMessageContent:
         assert extract_message_content(message) == ""
 
 
-class TestAgentToNodeMap:
-    """Tests for AGENT_TO_NODE_MAP constant."""
-
-    def test_drug_agent_maps_to_drug_agent(self):
-        """Test drug_agent maps to drug_agent node."""
-        assert AGENT_TO_NODE_MAP["drug_agent"] == "drug_agent"
-
-    def test_pubmed_agent_maps_to_translate(self):
-        """Test pubmed_agent maps to pubmed_agent node."""
-        assert AGENT_TO_NODE_MAP["pubmed_agent"] == "pubmed_agent"
-
-    def test_guidelines_agent_maps_to_guidelines(self):
-        """Test guidelines_agent maps to guidelines_agent node."""
-        assert AGENT_TO_NODE_MAP["guidelines_agent"] == "guidelines_agent"
-
-    def test_general_agent_maps_to_general_agent(self):
-        """Test general_agent maps to general_agent node."""
-        assert AGENT_TO_NODE_MAP["general_agent"] == "general_agent"
-
-
 class TestSupervisorNode:
     """Tests for supervisor_node function (Send API)."""
 
@@ -731,7 +710,7 @@ class TestSupervisorNode:
 
             result = await supervisor_node(state, mock_runtime)
 
-            # pubmed_agent maps to pubmed_agent via AGENT_TO_NODE_MAP
+            # pubmed_agent routes to pubmed_agent node
             assert isinstance(result, Send)
             assert result.node == "pubmed_agent"
 

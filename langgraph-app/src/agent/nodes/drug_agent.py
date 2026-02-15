@@ -46,6 +46,40 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# Parsing Helpers
+# =============================================================================
+
+
+def _parse_drug_result(
+    drug_data: dict[str, Any],
+    defaults: dict[str, str] | None = None,
+) -> DrugResult | None:
+    """Parse a drug_data dict into a DrugResult.
+
+    Args:
+        drug_data: Raw drug data dict from MCP response.
+        defaults: Optional default values for missing fields.
+
+    Returns:
+        DrugResult or None if parsing fails.
+    """
+    defaults = defaults or {}
+    try:
+        return DrugResult(
+            name=drug_data.get("name", defaults.get("name", "")),
+            atc_code=drug_data.get("atc_code", defaults.get("atc_code", "")),
+            registration_number=drug_data.get(
+                "registration_number", defaults.get("registration_number", "")
+            ),
+            manufacturer=drug_data.get("manufacturer"),
+            match_score=drug_data.get("match_score"),
+        )
+    except (ValueError, TypeError, KeyError) as e:
+        logger.warning("[drug_agent] Invalid drug data: %s", e)
+        return None
+
+
+# =============================================================================
 # Helper Functions (T018-T020)
 # =============================================================================
 
@@ -395,18 +429,9 @@ async def _search_drugs(client: SUKLMCPClient, query: DrugQuery) -> list[DrugRes
 
     results = []
     for drug_data in response.data.get("drugs", []):
-        try:
-            result = DrugResult(
-                name=drug_data.get("name", ""),
-                atc_code=drug_data.get("atc_code", ""),
-                registration_number=drug_data.get("registration_number", ""),
-                manufacturer=drug_data.get("manufacturer"),
-                match_score=drug_data.get("match_score"),
-            )
+        result = _parse_drug_result(drug_data)
+        if result is not None:
             results.append(result)
-        except (ValueError, TypeError, KeyError) as e:
-            logger.warning("[drug_agent] Invalid drug data: %s", e)
-            continue
 
     logger.info(f"[drug_agent] Found {len(results)} drugs")
     return results
@@ -518,16 +543,9 @@ async def _check_availability(
     try:
         alternatives = []
         for alt_data in data.get("alternatives", []):
-            try:
-                alt = DrugResult(
-                    name=alt_data.get("name", ""),
-                    atc_code=alt_data.get("atc_code", ""),
-                    registration_number=alt_data.get("registration_number", ""),
-                    manufacturer=alt_data.get("manufacturer"),
-                )
+            alt = _parse_drug_result(alt_data)
+            if alt is not None:
                 alternatives.append(alt)
-            except Exception:
-                continue
 
         return AvailabilityInfo(
             registration_number=data.get("registration_number", registration_number),
@@ -566,16 +584,9 @@ async def _search_by_atc(
 
     results = []
     for drug_data in response.data.get("drugs", []):
-        try:
-            result = DrugResult(
-                name=drug_data.get("name", ""),
-                atc_code=drug_data.get("atc_code", atc_code),
-                registration_number=drug_data.get("registration_number", ""),
-                manufacturer=drug_data.get("manufacturer"),
-            )
+        result = _parse_drug_result(drug_data, defaults={"atc_code": atc_code})
+        if result is not None:
             results.append(result)
-        except Exception:
-            continue
 
     return results
 
@@ -605,16 +616,9 @@ async def _search_by_ingredient(
 
     results = []
     for drug_data in response.data.get("drugs", []):
-        try:
-            result = DrugResult(
-                name=drug_data.get("name", ""),
-                atc_code=drug_data.get("atc_code", ""),
-                registration_number=drug_data.get("registration_number", ""),
-                manufacturer=drug_data.get("manufacturer"),
-            )
+        result = _parse_drug_result(drug_data)
+        if result is not None:
             results.append(result)
-        except Exception:
-            continue
 
     return results
 

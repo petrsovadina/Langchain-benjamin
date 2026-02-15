@@ -203,10 +203,15 @@ def validate_agent_names(agents: list[str]) -> list[str]:
 
 
 def fallback_to_keyword_routing(message: str) -> IntentResult:
-    """Fallback to keyword-based routing if LLM classification fails.
+    """Keyword-based routing for user queries.
 
-    Uses existing DRUG_KEYWORDS, RESEARCH_KEYWORDS, GUIDELINES_KEYWORDS
-    from graph.py for backward compatibility.
+    Single source of truth for keyword matching. Used by both:
+    - IntentClassifier (as LLM fallback)
+    - route_query() in graph.py (as direct keyword router)
+
+    Priority: Drug > Research > Guidelines > General.
+
+    Uses DRUG_KEYWORDS, RESEARCH_KEYWORDS, GUIDELINES_KEYWORDS from graph.py.
 
     Args:
         message: User query text.
@@ -226,7 +231,6 @@ def fallback_to_keyword_routing(message: str) -> IntentResult:
 
     message_lower = message.lower()
 
-    # Check keywords (same priority as route_query in graph.py)
     # Drug keywords first (most common use case)
     if any(kw in message_lower for kw in DRUG_KEYWORDS):
         return IntentResult(
@@ -284,15 +288,6 @@ def log_intent_classification(result: IntentResult, message: str) -> None:
         f"Query: {message[:50]}..."
     )
     logger.debug(f"[IntentClassifier] Reasoning: {result.reasoning}")
-
-
-# Map conceptual agent names to graph node names
-AGENT_TO_NODE_MAP: dict[str, str] = {
-    "drug_agent": "drug_agent",
-    "pubmed_agent": "pubmed_agent",  # PubMed with internal CZ→EN translation
-    "guidelines_agent": "guidelines_agent",
-    "general_agent": "general_agent",
-}
 
 
 async def supervisor_node(
@@ -412,8 +407,8 @@ async def supervisor_node(
                 )
                 continue
 
-        # Map agent name to graph node name
-        target_node = AGENT_TO_NODE_MAP.get(agent_name, "general_agent")
+        # Validate agent name (already filtered by validate_agent_names)
+        target_node = agent_name
 
         # Create Send command for this agent
         send_commands.append(Send(target_node, state))
@@ -442,5 +437,4 @@ __all__ = [
     "log_intent_classification",
     "extract_message_content",
     "supervisor_node",
-    "AGENT_TO_NODE_MAP",
 ]
