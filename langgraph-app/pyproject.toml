@@ -92,6 +92,7 @@ convention = "google"
 
 [dependency-groups]
 dev = [
+    "aioresponses>=0.7.8",
     "anyio>=4.7.0",
     "langgraph-cli[inmem]>=0.4.7",
     "mypy>=1.13.0",

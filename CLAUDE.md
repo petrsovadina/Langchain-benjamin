@@ -218,3 +218,10 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 **Playwright mock routes** — Must match `/api/v1/consult` (with version prefix), not `/api/consult`.
 
 **Python version** — Dev: 3.12, Docker: 3.11, minimum: 3.10 (pyproject.toml).
+
+## Active Technologies
+- Python ≥3.10 (per constitution) (013-supabase-migration)
+- Direct asyncpg to Supabase PostgreSQL (pgvector for embeddings) — Note: this is NOT LangGraph checkpointing; guidelines storage is a separate concern outside the graph state (013-supabase-migration)
+
+## Recent Changes
+- 013-supabase-migration: Added Python ≥3.10 (per constitution)
