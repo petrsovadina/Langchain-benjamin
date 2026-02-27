@@ -29,7 +29,6 @@ Example:
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import ssl
@@ -47,6 +46,20 @@ logger = logging.getLogger(__name__)
 # Embedding dimension for text-embedding-ada-002 model.
 # Change this if switching to a different embedding model.
 EMBEDDING_DIMENSIONS = 1536
+
+# Mapping from GuidelineSource to organization display name
+SOURCE_TO_ORG: dict[GuidelineSource, str] = {
+    GuidelineSource.CLS_JEP: "ČLS JEP",
+    GuidelineSource.ESC: "ESC",
+    GuidelineSource.ERS: "ERS",
+}
+
+# Reverse mapping from organization to GuidelineSource
+ORG_TO_SOURCE: dict[str, GuidelineSource] = {
+    "ČLS JEP": GuidelineSource.CLS_JEP,
+    "ESC": GuidelineSource.ESC,
+    "ERS": GuidelineSource.ERS,
+}
 
 
 # =============================================================================
@@ -239,7 +252,7 @@ async def store_guideline(
     guideline_section: GuidelineSection,
     *,
     pool: asyncpg.Pool | None = None,
-) -> int:
+) -> str:
     """Store a guideline section with embedding in the database.
 
     Args:
@@ -247,7 +260,7 @@ async def store_guideline(
         pool: Optional connection pool (uses global pool if not provided).
 
     Returns:
-        int: Database ID of the inserted record.
+        str: UUID of the inserted/updated record.
 
     Raises:
         EmbeddingMissingError: If guideline_section.metadata["embedding"] is missing.
@@ -287,67 +300,71 @@ async def store_guideline(
     if pool is None:
         pool = await get_pool()
 
-    # Prepare metadata without embedding (stored in separate column)
-    metadata_without_embedding = {
-        k: v for k, v in guideline_section.metadata.items() if k != "embedding"
-    }
-
     # Convert embedding to pgvector format (string representation)
     embedding_str = f"[{','.join(str(v) for v in embedding)}]"
 
+    # Derive Supabase columns from GuidelineSection fields
+    pub_date = datetime.strptime(
+        guideline_section.publication_date, "%Y-%m-%d"
+    ).date()
+    organization = SOURCE_TO_ORG[guideline_section.source]
+    keywords = guideline_section.metadata.get("keywords")
+    icd10_codes = guideline_section.metadata.get("icd10_codes")
+
     try:
         async with pool.acquire() as conn:
-            # Use INSERT ... ON CONFLICT for upsert behavior
             row = await conn.fetchrow(
                 """
                 INSERT INTO guidelines (
-                    guideline_id,
+                    external_id,
                     title,
-                    section_name,
-                    content,
+                    organization,
+                    full_content,
+                    publication_year,
                     publication_date,
-                    source,
+                    source_type,
                     url,
                     embedding,
-                    metadata
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::vector, $9::jsonb)
-                ON CONFLICT (guideline_id, section_name)
+                    keywords,
+                    icd10_codes
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7::source_type, $8, $9::vector, $10, $11)
+                ON CONFLICT (external_id)
                 DO UPDATE SET
                     title = EXCLUDED.title,
-                    content = EXCLUDED.content,
+                    organization = EXCLUDED.organization,
+                    full_content = EXCLUDED.full_content,
+                    publication_year = EXCLUDED.publication_year,
                     publication_date = EXCLUDED.publication_date,
-                    source = EXCLUDED.source,
+                    source_type = EXCLUDED.source_type,
                     url = EXCLUDED.url,
                     embedding = EXCLUDED.embedding,
-                    metadata = EXCLUDED.metadata,
-                    updated_at = NOW()
+                    keywords = EXCLUDED.keywords,
+                    icd10_codes = EXCLUDED.icd10_codes
                 RETURNING id
                 """,
                 guideline_section.guideline_id,
                 guideline_section.title,
-                guideline_section.section_name,
+                organization,
                 guideline_section.content,
-                datetime.strptime(
-                    guideline_section.publication_date, "%Y-%m-%d"
-                ).date(),
-                guideline_section.source.value,
+                pub_date.year,
+                pub_date,
+                "guidelines",
                 guideline_section.url,
                 embedding_str,
-                json.dumps(metadata_without_embedding),
+                keywords,
+                icd10_codes,
             )
-            record_id = row["id"]
+            record_id = str(row["id"])
             logger.debug(
-                "Stored guideline section %s/%s with id=%d",
+                "Stored guideline section %s with id=%s",
                 guideline_section.guideline_id,
-                guideline_section.section_name,
                 record_id,
             )
             return record_id
 
     except asyncpg.PostgresError as e:
         raise GuidelineInsertError(
-            f"Failed to insert guideline section {guideline_section.guideline_id}/"
-            f"{guideline_section.section_name}: {e}"
+            f"Failed to insert guideline section {guideline_section.guideline_id}: {e}"
         ) from e
 
 
@@ -373,19 +390,19 @@ async def search_guidelines(
 
     Returns:
         List of guideline sections with similarity scores, ordered by relevance.
-        Each dict contains: id, guideline_id, title, section_name, content,
-        publication_date, source, url, metadata, similarity_score.
+        Each dict uses backward-compatible keys: id, guideline_id, title,
+        section_name, content, publication_date, source, url, metadata,
+        similarity_score.
 
     Raises:
         GuidelineSearchError: If search fails.
         ValueError: If query is invalid.
 
     Example:
-        >>> # Search with embedding vector
         >>> results = await search_guidelines(
         ...     query=[0.1, 0.2, ...],  # 1536-dim embedding
         ...     limit=5,
-        ...     source_filter="cls_jep"
+        ...     source_filter=GuidelineSource.CLS_JEP,
         ... )
         >>> for r in results:
         ...     print(f"{r['title']}: {r['similarity_score']:.3f}")
@@ -415,14 +432,15 @@ async def search_guidelines(
         """
         SELECT
             id,
-            guideline_id,
+            external_id,
             title,
-            section_name,
-            content,
+            organization,
+            full_content,
             publication_date,
-            source,
+            source_type,
             url,
-            metadata,
+            keywords,
+            icd10_codes,
             1 - (embedding <=> $1::vector) as similarity_score
         FROM guidelines
         WHERE embedding IS NOT NULL
@@ -431,15 +449,10 @@ async def search_guidelines(
     params: list[Any] = [f"[{','.join(str(v) for v in query)}]"]
     param_idx = 2
 
-    # Add source filter
+    # Add source filter — all GuidelineSource values map to "guidelines"
     if source_filter is not None:
-        source_value = (
-            source_filter.value
-            if isinstance(source_filter, GuidelineSource)
-            else source_filter
-        )
-        query_parts.append(f"AND source = ${param_idx}")
-        params.append(source_value)
+        query_parts.append(f"AND source_type = ${param_idx}::source_type")
+        params.append("guidelines")
         param_idx += 1
 
     # Add publication date filters
@@ -475,22 +488,22 @@ async def search_guidelines(
 
             results = []
             for row in rows:
-                # Handle metadata: asyncpg decodes JSONB to dict, but may be str in tests
-                raw_metadata = row["metadata"] or {}
-                metadata = (
-                    json.loads(raw_metadata)
-                    if isinstance(raw_metadata, str)
-                    else raw_metadata
-                )
+                # Reconstruct metadata from keywords/icd10_codes columns
+                metadata: dict[str, Any] = {}
+                if row["keywords"] is not None:
+                    metadata["keywords"] = row["keywords"]
+                if row["icd10_codes"] is not None:
+                    metadata["icd10_codes"] = row["icd10_codes"]
+
                 results.append(
                     {
-                        "id": row["id"],
-                        "guideline_id": row["guideline_id"],
+                        "id": str(row["id"]),
+                        "guideline_id": row["external_id"],
                         "title": row["title"],
-                        "section_name": row["section_name"],
-                        "content": row["content"],
+                        "section_name": row["organization"],
+                        "content": row["full_content"] or "",
                         "publication_date": row["publication_date"].isoformat(),
-                        "source": row["source"],
+                        "source": row["source_type"],
                         "url": row["url"],
                         "metadata": metadata,
                         "similarity_score": float(row["similarity_score"]),
@@ -513,40 +526,38 @@ async def get_guideline_section(
     guideline_id: str,
     section_name: str | None = None,
     *,
-    section_id: int | None = None,
+    section_id: str | None = None,
     pool: asyncpg.Pool | None = None,
 ) -> dict[str, Any]:
-    """Get a specific guideline section by ID or guideline_id + section_name.
+    """Get a specific guideline section by external_id or UUID.
 
     Args:
-        guideline_id: Guideline identifier (e.g., CLS-JEP-2024-001).
-        section_name: Section name within the guideline.
-        section_id: Database ID (alternative to guideline_id + section_name).
+        guideline_id: Guideline identifier (maps to external_id, unique).
+        section_name: Ignored in Supabase schema (kept for backward compat).
+        section_id: UUID string (alternative to guideline_id).
         pool: Optional connection pool.
 
     Returns:
-        Dict with guideline section data including id, guideline_id, title,
+        Dict with backward-compatible keys: id, guideline_id, title,
         section_name, content, publication_date, source, url, metadata.
 
     Raises:
         GuidelineNotFoundError: If section is not found.
-        ValueError: If neither section_name nor section_id is provided.
+        ValueError: If no usable identifier is provided.
 
     Example:
-        >>> # Lookup by guideline_id and section_name
         >>> section = await get_guideline_section(
         ...     guideline_id="CLS-JEP-2024-001",
-        ...     section_name="Farmakologická léčba"
         ... )
-        >>>
-        >>> # Lookup by database ID
         >>> section = await get_guideline_section(
-        ...     guideline_id="",  # Ignored when section_id is provided
-        ...     section_id=42
+        ...     guideline_id="",
+        ...     section_id="a1b2c3d4-e5f6-7890-abcd-ef1234567890",
         ... )
     """
-    if section_id is None and section_name is None:
-        raise ValueError("Either section_name or section_id must be provided")
+    if section_id is None and not guideline_id:
+        raise ValueError(
+            "Either guideline_id or section_id must be provided"
+        )
 
     if pool is None:
         pool = await get_pool()
@@ -554,43 +565,26 @@ async def get_guideline_section(
     try:
         async with pool.acquire() as conn:
             if section_id is not None:
-                # Lookup by database ID
                 row = await conn.fetchrow(
                     """
                     SELECT
-                        id,
-                        guideline_id,
-                        title,
-                        section_name,
-                        content,
-                        publication_date,
-                        source,
-                        url,
-                        metadata
+                        id, external_id, title, organization, full_content,
+                        publication_date, source_type, url, keywords, icd10_codes
                     FROM guidelines
-                    WHERE id = $1
+                    WHERE id = $1::uuid
                     """,
                     section_id,
                 )
             else:
-                # Lookup by guideline_id + section_name
                 row = await conn.fetchrow(
                     """
                     SELECT
-                        id,
-                        guideline_id,
-                        title,
-                        section_name,
-                        content,
-                        publication_date,
-                        source,
-                        url,
-                        metadata
+                        id, external_id, title, organization, full_content,
+                        publication_date, source_type, url, keywords, icd10_codes
                     FROM guidelines
-                    WHERE guideline_id = $1 AND section_name = $2
+                    WHERE external_id = $1
                     """,
                     guideline_id,
-                    section_name,
                 )
 
             if row is None:
@@ -600,24 +594,24 @@ async def get_guideline_section(
                     )
                 else:
                     raise GuidelineNotFoundError(
-                        f"Guideline section {guideline_id}/{section_name} not found"
+                        f"Guideline section {guideline_id} not found"
                     )
 
-            # Handle metadata: asyncpg decodes JSONB to dict, but may be str in tests
-            raw_metadata = row["metadata"] or {}
-            metadata = (
-                json.loads(raw_metadata)
-                if isinstance(raw_metadata, str)
-                else raw_metadata
-            )
+            # Reconstruct metadata from keywords/icd10_codes columns
+            metadata: dict[str, Any] = {}
+            if row["keywords"] is not None:
+                metadata["keywords"] = row["keywords"]
+            if row["icd10_codes"] is not None:
+                metadata["icd10_codes"] = row["icd10_codes"]
+
             return {
-                "id": row["id"],
-                "guideline_id": row["guideline_id"],
+                "id": str(row["id"]),
+                "guideline_id": row["external_id"],
                 "title": row["title"],
-                "section_name": row["section_name"],
-                "content": row["content"],
+                "section_name": row["organization"],
+                "content": row["full_content"] or "",
                 "publication_date": row["publication_date"].isoformat(),
-                "source": row["source"],
+                "source": row["source_type"],
                 "url": row["url"],
                 "metadata": metadata,
             }
@@ -630,22 +624,24 @@ async def delete_guideline_section(
     guideline_id: str,
     section_name: str | None = None,
     *,
-    section_id: int | None = None,
+    section_id: str | None = None,
     pool: asyncpg.Pool | None = None,
 ) -> bool:
     """Delete a guideline section from the database.
 
     Args:
-        guideline_id: Guideline identifier.
-        section_name: Section name.
-        section_id: Database ID (alternative).
+        guideline_id: Guideline identifier (maps to external_id).
+        section_name: Ignored in Supabase schema (kept for backward compat).
+        section_id: UUID string (alternative to guideline_id).
         pool: Optional connection pool.
 
     Returns:
         True if deleted, False if not found.
     """
-    if section_id is None and section_name is None:
-        raise ValueError("Either section_name or section_id must be provided")
+    if section_id is None and not guideline_id:
+        raise ValueError(
+            "Either guideline_id or section_id must be provided"
+        )
 
     if pool is None:
         pool = await get_pool()
@@ -654,14 +650,13 @@ async def delete_guideline_section(
         async with pool.acquire() as conn:
             if section_id is not None:
                 result = await conn.execute(
-                    "DELETE FROM guidelines WHERE id = $1",
+                    "DELETE FROM guidelines WHERE id = $1::uuid",
                     section_id,
                 )
             else:
                 result = await conn.execute(
-                    "DELETE FROM guidelines WHERE guideline_id = $1 AND section_name = $2",
+                    "DELETE FROM guidelines WHERE external_id = $1",
                     guideline_id,
-                    section_name,
                 )
 
             # Result format: "DELETE N"

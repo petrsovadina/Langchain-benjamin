@@ -2,6 +2,16 @@
 
 Tests async storage functions for guidelines with pgvector support,
 including insert, search, lookup, and error handling.
+
+These tests target the Supabase schema with the following column mapping:
+  - guideline_id  -> external_id
+  - section_name  -> organization
+  - content       -> full_content
+  - source (text) -> source_type (enum, cast with ::source_type)
+  - id (int)      -> id (UUID)
+  - NEW: publication_year, keywords, icd10_codes
+
+Returned Python dicts use backward-compatible keys so callers are unaffected.
 """
 
 from datetime import date
@@ -203,9 +213,18 @@ class TestStoreGuideline:
         mock_pool: MagicMock,
         mock_connection: MagicMock,
     ) -> None:
-        """Test successful guideline section insertion."""
-        # Setup mock
-        mock_connection.fetchrow.return_value = {"id": 42}
+        """Test successful guideline section insertion returns UUID string.
+
+        The Supabase schema uses UUID primary keys. The SQL must:
+        - Use external_id instead of guideline_id
+        - Use source_type instead of source
+        - Include publication_year column
+        - Use ON CONFLICT (external_id) for upsert
+        """
+        # Setup mock — id is now a UUID string, not an integer
+        mock_connection.fetchrow.return_value = {
+            "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        }
         mock_pool.acquire.return_value.__aenter__ = AsyncMock(
             return_value=mock_connection
         )
@@ -216,17 +235,21 @@ class TestStoreGuideline:
             sample_guideline_with_embedding, pool=mock_pool
         )
 
-        # Verify
-        assert record_id == 42
+        # Return type is now str (UUID), not int
+        assert record_id == "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         mock_connection.fetchrow.assert_called_once()
 
-        # Check the SQL query contains expected columns
+        # Check the SQL query contains Supabase column names
         call_args = mock_connection.fetchrow.call_args
         query = call_args[0][0]
         assert "INSERT INTO guidelines" in query
-        assert "guideline_id" in query
+        # New column name: external_id (not guideline_id)
+        assert "external_id" in query
         assert "embedding" in query
         assert "ON CONFLICT" in query
+        # New columns required by Supabase schema
+        assert "publication_year" in query
+        assert "source_type" in query
 
     @pytest.mark.asyncio
     async def test_missing_embedding_raises_error(
@@ -300,33 +323,35 @@ class TestSearchGuidelines:
     ) -> None:
         """Test successful search returns results ordered by similarity.
 
-        Note: asyncpg decodes JSONB to dict, so metadata should be dict in mocks
-        to simulate real database behavior.
+        Mock rows use the new Supabase column names. The returned Python dicts
+        use backward-compatible keys (guideline_id, section_name, content, source).
         """
-        # Setup mock results (metadata as dict, as asyncpg would return)
+        # Mock rows use new Supabase column names
         mock_rows = [
             {
-                "id": 1,
-                "guideline_id": "CLS-JEP-2024-001",
+                "id": "uuid-1",
+                "external_id": "CLS-JEP-2024-001",
                 "title": "Hypertenze",
-                "section_name": "Léčba",
-                "content": "ACE inhibitory...",
+                "organization": "ČLS JEP",
+                "full_content": "ACE inhibitory...",
                 "publication_date": date(2024, 1, 15),
-                "source": "cls_jep",
+                "source_type": "guidelines",
                 "url": "https://example.com/1",
-                "metadata": {"chunk_index": 1},  # dict, as asyncpg returns
+                "keywords": None,
+                "icd10_codes": None,
                 "similarity_score": 0.95,
             },
             {
-                "id": 2,
-                "guideline_id": "CLS-JEP-2024-002",
+                "id": "uuid-2",
+                "external_id": "CLS-JEP-2024-002",
                 "title": "Diabetes",
-                "section_name": "Úvod",
-                "content": "Diabetes mellitus...",
+                "organization": "ČLS JEP",
+                "full_content": "Diabetes mellitus...",
                 "publication_date": date(2024, 2, 20),
-                "source": "cls_jep",
+                "source_type": "guidelines",
                 "url": "https://example.com/2",
-                "metadata": {},  # dict, as asyncpg returns
+                "keywords": None,
+                "icd10_codes": None,
                 "similarity_score": 0.85,
             },
         ]
@@ -341,12 +366,15 @@ class TestSearchGuidelines:
             query=sample_embedding, limit=5, pool=mock_pool
         )
 
-        # Verify
+        # Verify ranking
         assert len(results) == 2
         assert results[0]["similarity_score"] == 0.95
         assert results[1]["similarity_score"] == 0.85
+
+        # Returned dicts must use backward-compatible keys
         assert results[0]["guideline_id"] == "CLS-JEP-2024-001"
-        assert results[0]["metadata"] == {"chunk_index": 1}
+        assert results[0]["section_name"] == "ČLS JEP"
+        assert results[0]["content"] == "ACE inhibitory..."
 
     @pytest.mark.asyncio
     async def test_search_with_source_filter(
@@ -355,7 +383,11 @@ class TestSearchGuidelines:
         mock_pool: MagicMock,
         mock_connection: MagicMock,
     ) -> None:
-        """Test search with source filter is applied."""
+        """Test that source filter uses source_type column with ::source_type cast.
+
+        In the Supabase schema, all guideline sources map to source_type='guidelines',
+        so the param value is 'guidelines', not the enum value 'cls_jep'.
+        """
         mock_connection.fetch.return_value = []
         mock_pool.acquire.return_value.__aenter__ = AsyncMock(
             return_value=mock_connection
@@ -370,14 +402,14 @@ class TestSearchGuidelines:
             pool=mock_pool,
         )
 
-        # Verify filter was applied in query
+        # Verify filter uses new column name with enum cast
         call_args = mock_connection.fetch.call_args
         query = call_args[0][0]
-        assert "source = $" in query
+        assert "source_type = $" in query
 
-        # Check that cls_jep was passed as parameter
+        # The param value should be "guidelines" (not "cls_jep")
         params = call_args[0][1:]
-        assert "cls_jep" in params
+        assert "guidelines" in params
 
     @pytest.mark.asyncio
     async def test_search_with_date_filters(
@@ -473,19 +505,23 @@ class TestSearchGuidelines:
         mock_pool: MagicMock,
         mock_connection: MagicMock,
     ) -> None:
-        """Test that search handles string metadata (backward compatibility)."""
-        # Some edge cases may return string metadata
+        """Test that search reconstructs metadata from keywords and icd10_codes columns.
+
+        Supabase schema has no metadata column. The metadata dict is reconstructed
+        from the keywords (text[]) and icd10_codes (text[]) columns.
+        """
         mock_rows = [
             {
-                "id": 1,
-                "guideline_id": "CLS-JEP-2024-001",
+                "id": "uuid-1",
+                "external_id": "CLS-JEP-2024-001",
                 "title": "Hypertenze",
-                "section_name": "Léčba",
-                "content": "ACE inhibitory...",
+                "organization": "ČLS JEP",
+                "full_content": "ACE inhibitory...",
                 "publication_date": date(2024, 1, 15),
-                "source": "cls_jep",
+                "source_type": "guidelines",
                 "url": "https://example.com/1",
-                "metadata": '{"chunk_index": 2}',  # string metadata
+                "keywords": ["hypertenze"],
+                "icd10_codes": None,
                 "similarity_score": 0.90,
             },
         ]
@@ -499,9 +535,50 @@ class TestSearchGuidelines:
             query=sample_embedding, limit=5, pool=mock_pool
         )
 
-        # Should handle string metadata without TypeError
+        # Should reconstruct metadata from keywords/icd10_codes without error
         assert len(results) == 1
-        assert results[0]["metadata"] == {"chunk_index": 2}
+        assert results[0]["metadata"] == {"keywords": ["hypertenze"]}
+
+    @pytest.mark.asyncio
+    async def test_search_handles_null_full_content(
+        self,
+        sample_embedding: list[float],
+        mock_pool: MagicMock,
+        mock_connection: MagicMock,
+    ) -> None:
+        """Test that NULL full_content is mapped to empty string in results.
+
+        The Supabase full_content column can be NULL. The backward-compatible
+        'content' key must be an empty string (not None) when full_content is NULL.
+        """
+        mock_rows = [
+            {
+                "id": "uuid-null-content",
+                "external_id": "CLS-JEP-2024-003",
+                "title": "Bez obsahu",
+                "organization": "ČLS JEP",
+                "full_content": None,  # NULL in Supabase
+                "publication_date": date(2024, 3, 1),
+                "source_type": "guidelines",
+                "url": "https://example.com/3",
+                "keywords": None,
+                "icd10_codes": None,
+                "similarity_score": 0.70,
+            },
+        ]
+        mock_connection.fetch.return_value = mock_rows
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(
+            return_value=mock_connection
+        )
+        mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        results = await search_guidelines(
+            query=sample_embedding, limit=5, pool=mock_pool
+        )
+
+        assert len(results) == 1
+        # NULL full_content must map to empty string, not None
+        assert results[0]["content"] == ""
 
 
 # =============================================================================
@@ -518,20 +595,24 @@ class TestGetGuidelineSection:
         mock_pool: MagicMock,
         mock_connection: MagicMock,
     ) -> None:
-        """Test successful lookup by guideline_id and section_name.
+        """Test successful lookup by guideline_id alone (external_id is unique).
 
-        Note: asyncpg decodes JSONB to dict, so metadata should be dict in mocks.
+        In the Supabase schema, external_id is unique so section_name is no
+        longer needed for lookup. The WHERE clause should be:
+            WHERE external_id = $1
+        Returned dict uses backward-compatible keys.
         """
         mock_row = {
-            "id": 42,
-            "guideline_id": "CLS-JEP-2024-001",
+            "id": "uuid-42",
+            "external_id": "CLS-JEP-2024-001",
             "title": "Hypertenze",
-            "section_name": "Léčba",
-            "content": "ACE inhibitory...",
+            "organization": "ČLS JEP",
+            "full_content": "ACE inhibitory...",
             "publication_date": date(2024, 1, 15),
-            "source": "cls_jep",
+            "source_type": "guidelines",
             "url": "https://example.com/1",
-            "metadata": {"chunk_index": 1},  # dict, as asyncpg returns
+            "keywords": None,
+            "icd10_codes": None,
         }
         mock_connection.fetchrow.return_value = mock_row
         mock_pool.acquire.return_value.__aenter__ = AsyncMock(
@@ -539,19 +620,23 @@ class TestGetGuidelineSection:
         )
         mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        # Execute
+        # Can look up with guideline_id alone — no section_name required
         result = await get_guideline_section(
             guideline_id="CLS-JEP-2024-001",
-            section_name="Léčba",
             pool=mock_pool,
         )
 
-        # Verify
-        assert result["id"] == 42
+        # Verify SQL uses external_id column
+        call_args = mock_connection.fetchrow.call_args
+        query = call_args[0][0]
+        assert "WHERE external_id = $1" in query
+
+        # Verify backward-compatible keys in result
+        assert result["id"] == "uuid-42"
         assert result["guideline_id"] == "CLS-JEP-2024-001"
-        assert result["section_name"] == "Léčba"
+        assert result["section_name"] == "ČLS JEP"
+        assert result["content"] == "ACE inhibitory..."
         assert result["publication_date"] == "2024-01-15"
-        assert result["metadata"] == {"chunk_index": 1}
 
     @pytest.mark.asyncio
     async def test_lookup_by_section_id(
@@ -559,17 +644,18 @@ class TestGetGuidelineSection:
         mock_pool: MagicMock,
         mock_connection: MagicMock,
     ) -> None:
-        """Test successful lookup by database ID."""
+        """Test successful lookup by UUID section_id."""
         mock_row = {
-            "id": 42,
-            "guideline_id": "CLS-JEP-2024-001",
+            "id": "uuid-42",
+            "external_id": "CLS-JEP-2024-001",
             "title": "Hypertenze",
-            "section_name": "Léčba",
-            "content": "ACE inhibitory...",
+            "organization": "ČLS JEP",
+            "full_content": "ACE inhibitory...",
             "publication_date": date(2024, 1, 15),
-            "source": "cls_jep",
+            "source_type": "guidelines",
             "url": "https://example.com/1",
-            "metadata": None,
+            "keywords": None,
+            "icd10_codes": None,
         }
         mock_connection.fetchrow.return_value = mock_row
         mock_pool.acquire.return_value.__aenter__ = AsyncMock(
@@ -577,19 +663,18 @@ class TestGetGuidelineSection:
         )
         mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        # Execute
+        # section_id is now a UUID string, not an integer
         result = await get_guideline_section(
-            guideline_id="",  # Ignored
-            section_id=42,
+            guideline_id="",
+            section_id="uuid-42",
             pool=mock_pool,
         )
 
-        # Verify lookup was by ID
+        # Verify lookup was by UUID id
         call_args = mock_connection.fetchrow.call_args
         query = call_args[0][0]
         assert "WHERE id = $1" in query
-        assert result["id"] == 42
-        assert result["metadata"] == {}
+        assert result["id"] == "uuid-42"
 
     @pytest.mark.asyncio
     async def test_not_found_raises_error(
@@ -604,10 +689,10 @@ class TestGetGuidelineSection:
         )
         mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
 
+        # Lookup by guideline_id alone is now valid (no section_name required)
         with pytest.raises(GuidelineNotFoundError) as exc_info:
             await get_guideline_section(
                 guideline_id="CLS-JEP-2024-999",
-                section_name="NonExistent",
                 pool=mock_pool,
             )
 
@@ -619,14 +704,23 @@ class TestGetGuidelineSection:
         self,
         mock_pool: MagicMock,
     ) -> None:
-        """Test that missing section_name and section_id raises ValueError."""
+        """Test that empty guideline_id without section_id raises ValueError.
+
+        With Supabase, lookup by guideline_id alone is valid (external_id is
+        unique). A ValueError must only be raised when guideline_id is empty
+        (or falsy) AND section_id is None — i.e., there is truly no identifier.
+        """
         with pytest.raises(ValueError) as exc_info:
             await get_guideline_section(
-                guideline_id="CLS-JEP-2024-001",
+                guideline_id="",  # Empty — no usable identifier
+                section_id=None,
                 pool=mock_pool,
             )
 
-        assert "section_name or section_id" in str(exc_info.value)
+        # Error message should indicate that some identifier is required
+        assert "guideline_id" in str(exc_info.value) or "section_id" in str(
+            exc_info.value
+        )
 
     @pytest.mark.asyncio
     async def test_database_error(
@@ -646,7 +740,6 @@ class TestGetGuidelineSection:
         with pytest.raises(GuidelinesStorageError) as exc_info:
             await get_guideline_section(
                 guideline_id="CLS-JEP-2024-001",
-                section_name="Léčba",
                 pool=mock_pool,
             )
 
@@ -658,17 +751,22 @@ class TestGetGuidelineSection:
         mock_pool: MagicMock,
         mock_connection: MagicMock,
     ) -> None:
-        """Test that get handles string metadata (backward compatibility)."""
+        """Test that get reconstructs metadata from keywords and icd10_codes columns.
+
+        Supabase schema has no metadata column. keywords/icd10_codes are separate
+        text[] columns that are reconstructed into a metadata dict in Python.
+        """
         mock_row = {
-            "id": 42,
-            "guideline_id": "CLS-JEP-2024-001",
+            "id": "uuid-42",
+            "external_id": "CLS-JEP-2024-001",
             "title": "Hypertenze",
-            "section_name": "Léčba",
-            "content": "ACE inhibitory...",
+            "organization": "ČLS JEP",
+            "full_content": "ACE inhibitory...",
             "publication_date": date(2024, 1, 15),
-            "source": "cls_jep",
+            "source_type": "guidelines",
             "url": "https://example.com/1",
-            "metadata": '{"chunk_index": 3}',  # string metadata
+            "keywords": ["hypertenze", "ACE"],
+            "icd10_codes": ["I10"],
         }
         mock_connection.fetchrow.return_value = mock_row
         mock_pool.acquire.return_value.__aenter__ = AsyncMock(
@@ -678,12 +776,14 @@ class TestGetGuidelineSection:
 
         result = await get_guideline_section(
             guideline_id="CLS-JEP-2024-001",
-            section_name="Léčba",
             pool=mock_pool,
         )
 
-        # Should handle string metadata without TypeError
-        assert result["metadata"] == {"chunk_index": 3}
+        # Metadata reconstructed from keywords and icd10_codes
+        assert result["metadata"] == {
+            "keywords": ["hypertenze", "ACE"],
+            "icd10_codes": ["I10"],
+        }
 
 
 # =============================================================================
@@ -700,20 +800,30 @@ class TestDeleteGuidelineSection:
         mock_pool: MagicMock,
         mock_connection: MagicMock,
     ) -> None:
-        """Test successful deletion."""
+        """Test successful deletion using external_id column.
+
+        In the Supabase schema, external_id is unique, so deletion by
+        guideline_id alone (no section_name needed) targets the correct row.
+        The SQL should be: DELETE FROM guidelines WHERE external_id = $1
+        """
         mock_connection.execute.return_value = "DELETE 1"
         mock_pool.acquire.return_value.__aenter__ = AsyncMock(
             return_value=mock_connection
         )
         mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
 
+        # No section_name required — external_id is unique
         result = await delete_guideline_section(
             guideline_id="CLS-JEP-2024-001",
-            section_name="Léčba",
             pool=mock_pool,
         )
 
         assert result is True
+
+        # Verify the SQL targets external_id, not (guideline_id, section_name)
+        call_args = mock_connection.execute.call_args
+        query = call_args[0][0]
+        assert "WHERE external_id = $1" in query
 
     @pytest.mark.asyncio
     async def test_delete_not_found(
@@ -730,7 +840,6 @@ class TestDeleteGuidelineSection:
 
         result = await delete_guideline_section(
             guideline_id="CLS-JEP-2024-999",
-            section_name="NonExistent",
             pool=mock_pool,
         )
 
@@ -742,16 +851,17 @@ class TestDeleteGuidelineSection:
         mock_pool: MagicMock,
         mock_connection: MagicMock,
     ) -> None:
-        """Test delete by section_id."""
+        """Test delete by UUID section_id."""
         mock_connection.execute.return_value = "DELETE 1"
         mock_pool.acquire.return_value.__aenter__ = AsyncMock(
             return_value=mock_connection
         )
         mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
 
+        # section_id is now a UUID string, not an integer
         result = await delete_guideline_section(
             guideline_id="",
-            section_id=42,
+            section_id="uuid-42",
             pool=mock_pool,
         )
 

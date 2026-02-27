@@ -20,7 +20,7 @@
 **Language/Version**: Python ≥3.10 (per constitution)
 **Primary Framework**: LangGraph ≥1.0.0 (per constitution)
 **Additional Dependencies**: [e.g., langchain, anthropic, openai or NEEDS CLARIFICATION]
-**Storage**: LangGraph checkpointing (per constitution - no direct ORM)
+**Storage**: LangGraph checkpointing for graph state; asyncpg to Supabase PostgreSQL for application data (per constitution dual persistence model)
 **Testing**: pytest (per constitution)
 **Target Platform**: LangGraph Server via `langgraph dev`
 **Project Type**: LangGraph Agent (single graph in `src/agent/graph.py`)

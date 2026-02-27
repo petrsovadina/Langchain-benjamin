@@ -1,33 +1,40 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 1.1.1 → 1.1.2 (PATCH)
-- Bump rationale: Routing architecture section updated to reflect DRY
-  consolidation (route_query delegates to fallback_to_keyword_routing).
-  Test metrics updated after AGENT_TO_NODE_MAP test removal.
-  Node structure clarification (all agents in nodes/).
+- Version change: 1.2.0 → 1.2.1 (PATCH)
+- Bump rationale: Test metrics corrected from 442/442 to 444/449 after
+  validation run. 5 translation tests fail due to unmocked LLM calls
+  (known bug, not API credit issue). Description updated accordingly.
 - Modified principles: None (all 5 principles unchanged)
 - Enhanced sections:
-  * Routing Architecture: Updated delegation model description
-  * Testing: Updated test metrics to 442/442 = 100% (post-refactoring)
-  * Principle V rationale: Added node location convention
+  * Testing: Corrected test count and translation test failure description
+- Templates requiring updates: None
+- Follow-up TODOs:
+  * Fix 5 translation tests (add LLM mock or pytest.mark.skipif)
+
+PREVIOUS REPORT (1.1.2 → 1.2.0):
+- Supabase migration introduces asyncpg as mandatory backend technology
+  and materially modifies the persistence constraint. Guidelines storage
+  now uses direct asyncpg to Supabase PostgreSQL with pgvector.
+- Enhanced sections:
+  * Technology Stack - Backend Mandatory Technologies: Added asyncpg
+  * Technology Stack - Recommended Integrations: Added Supabase
+  * Technology Stack - Constraints: Rewritten persistence constraint to
+    distinguish graph state (LangGraph checkpointing) from application data
+    (asyncpg to Supabase PostgreSQL)
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates:
-  ✅ plan-template.md - No changes needed (Principle references intact)
+  ⚠ plan-template.md - Storage line updated (was: "LangGraph checkpointing
+    (per constitution - no direct ORM)" → now reflects dual persistence model)
   ✅ spec-template.md - No changes needed
-  ✅ tasks-template.md - No changes needed (node paths advisory, not prescriptive)
+  ✅ tasks-template.md - No changes needed
   ✅ checklist-template.md - No changes needed
 - Follow-up TODOs: None
-- Change context:
-  * Refactoring session: 8 changes applied (see commit on branch `new`)
-  * general_agent_node extracted from graph.py → nodes/general_agent.py
-  * route_query() now delegates to fallback_to_keyword_routing() (DRY)
-  * AGENT_TO_NODE_MAP removed (identity map, no functional purpose)
-  * Dead code __post_init__ removed from State dataclass
-  * DRY helpers: _parse_drug_result, _build_terminology_warning,
-    _extract_message_content_raw
-  * Bugfix: general_agent added to SSE event filters in routes.py
-  * Test suite: 442 passed, 0 failed
+
+PREVIOUS REPORT (1.1.1 → 1.1.2):
+- Routing architecture section updated to reflect DRY consolidation
+- Test metrics updated to 442/442 = 100%
+- Node structure clarification (all agents in nodes/)
 
 PREVIOUS REPORT (1.1.0 → 1.1.1):
 - Corrected stale test metrics and fixed translation test count (6 → 5)
@@ -124,6 +131,7 @@ PREVIOUS REPORT (1.0.4 → 1.1.0):
 - **LangGraph**: >=1.0.0 (core framework)
 - **LangGraph CLI**: For local development server (`langgraph dev`)
 - **FastAPI**: Bridge layer for SSE streaming (`src/api/`)
+- **asyncpg**: Direct async PostgreSQL access for application data (guidelines storage with pgvector)
 - **pytest**: Testing framework with conftest.py fixtures
 - **ruff**: Linting and formatting (configured in pyproject.toml)
 - **mypy**: Type checking with --strict mode enforcement
@@ -149,6 +157,7 @@ MCP (Model Context Protocol) clients communicate with external data sources:
 
 ### Recommended Integrations
 
+- **Supabase**: Managed PostgreSQL platform (pgvector, auth, storage)
 - **LangSmith**: Tracing and monitoring (via `LANGSMITH_API_KEY`)
 - **python-dotenv**: Environment variable management
 - **LangGraph Studio**: Visual debugging and development
@@ -156,7 +165,7 @@ MCP (Model Context Protocol) clients communicate with external data sources:
 
 ### Constraints
 
-- **No direct database ORM**: Use LangGraph checkpointing for persistence
+- **Dual persistence model**: LangGraph checkpointing handles graph state; application data (e.g., guidelines with embeddings) uses asyncpg to Supabase PostgreSQL. No ORM layer — use raw asyncpg queries.
 - **Async-first**: All node functions must be `async def`
 - **Minimal external dependencies**: Justify new dependencies against core LangGraph patterns
 
@@ -179,11 +188,13 @@ MCP (Model Context Protocol) clients communicate with external data sources:
 - HTTP clients MUST implement async context manager (`__aenter__`/`__aexit__`)
 - Sessions MUST be set to `None` on close to prevent stale references
 - Timeouts MUST be configured for all external HTTP calls
+- Database connections MUST use connection pools with bounded size
 
 ### Exception Handling
 
 - Catch specific exception types, not bare `except Exception`
 - Network errors: `aiohttp.ClientError`, `TimeoutError`, `OSError`
+- Database errors: `asyncpg.PostgresError`, `asyncpg.InterfaceError`
 - Parse errors: `ValueError`, `KeyError`, `TypeError`
 - Use `logger.exception()` for unexpected errors (preserves traceback)
 - Use `logger.warning()` for expected fallback scenarios
@@ -232,9 +243,9 @@ All code MUST pass these enforced quality checks before merge:
 - Use `r"""` prefix if docstring contains backslashes
 
 #### Testing
-- **Test coverage**: Minimum 80% for node implementations (current: 442/442 = 100%)
+- **Test coverage**: Minimum 80% for node implementations (current: 444/449 = 98.9%)
 - All tests MUST pass: `pytest tests/`
-- Note: 5 translation tests require API credits (expected skip without ANTHROPIC_API_KEY)
+- Note: 5 translation tests fail due to unmocked LLM calls (known issue, needs fix)
 - Performance benchmarks for latency-critical nodes
 - Regression tests MUST accompany routing priority or keyword changes
 
@@ -288,4 +299,4 @@ This constitution is a living document. Amendments require:
 - Use `.specify/memory/constitution.md` as single source of truth for development standards
 - Security standards MUST be verified during code review
 
-**Version**: 1.1.2 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-15
+**Version**: 1.2.1 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-27

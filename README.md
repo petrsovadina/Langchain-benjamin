@@ -1,6 +1,6 @@
 # Czech MedAI (Benjamin)
 
-Multi-agentní AI asistent pro české lékaře postavený na LangGraph frameworku s Next.js frontendem a FastAPI bridge vrstvou. Poskytuje klinickou rozhodovací podporu založenou na důkazech, integrující specializované AI agenty pro dotazování českých medicínských zdrojů (SÚKL, VZP, ČLS JEP) a mezinárodního výzkumu (PubMed) s kompletním sledováním citací.
+Multi-agentní AI asistent pro české lékaře postavený na LangGraph frameworku s Next.js frontendem a FastAPI bridge vrstvou. Poskytuje klinickou rozhodovací podporu založenou na důkazech, integrující specializované AI agenty pro dotazování českých medicínských zdrojů (SÚKL, ČLS JEP) a mezinárodního výzkumu (PubMed) s kompletním sledováním citací.
 
 ## Quick Start
 
@@ -80,7 +80,7 @@ Frontend a backend komunikují přes Server-Sent Events na `POST /api/v1/consult
 | **Frontend** | Next.js 14, React 18, TypeScript, Tailwind v4, shadcn/ui, OKLCH design tokens |
 | **API Bridge** | FastAPI, SSE streaming, Redis cache, slowapi rate limiting |
 | **Orchestrace** | LangGraph ≥1.0.0, Python ≥3.10, async-first |
-| **Data** | MCP protocol (SÚKL-mcp, BioMCP), pgvector, Supabase |
+| **Data** | MCP protocol (SÚKL-mcp, BioMCP), Supabase PostgreSQL + pgvector, asyncpg |
 | **Kvalita** | mypy --strict, ruff, Vitest, Playwright, pytest |
 | **Observability** | LangSmith tracing, structured JSON logging |
 | **MCP Servery** | [SÚKL-mcp](https://github.com/petrsovadina/SUKL-mcp), [BioMCP](https://github.com/genomoncology/biomcp) |
@@ -131,7 +131,8 @@ Langchain-benjamin/
 │   └── e2e/                   # Playwright E2E testy
 ├── langgraph-app/             # Python backend
 │   ├── src/agent/graph.py     # Core LangGraph graph (State, Context, nodes)
-│   ├── src/agent/nodes/       # supervisor, drug_agent, pubmed_agent, guidelines_agent, general_agent, synthesizer
+│   ├── src/agent/nodes/       # supervisor, drug_agent, pubmed_agent, guidelines_agent, general_agent, synthesizer, translation
+│   ├── src/agent/utils/       # guidelines_storage.py (asyncpg + pgvector)
 │   ├── src/agent/mcp/         # MCP client wrappers (SÚKL, BioMCP)
 │   ├── src/agent/models/      # Pydantic modely (DrugQuery, ResearchQuery, GuidelineQuery)
 │   ├── src/api/               # FastAPI server (routes, cache, config, logging)
@@ -141,7 +142,7 @@ Langchain-benjamin/
 │   ├── ROADMAP.md             # Master roadmap (12 features, 4 fáze)
 │   └── NNN-feature-name/      # spec.md, plan.md, tasks.md
 ├── PRD-docs/                  # PRD dokumentace (strategie, architektura, UX)
-└── .specify/                  # SpecKit framework + Constitution v1.1.1
+└── .specify/                  # SpecKit framework + Constitution v1.2.1
 ```
 
 ## Feature Development Workflow (SpecKit)
@@ -154,7 +155,7 @@ make speckit_new FEATURE="Description"   # Vytvoří branch + spec
 
 ## Constitution (5 Principů)
 
-Definováno v `.specify/memory/constitution.md` v1.1.1:
+Definováno v `.specify/memory/constitution.md` v1.2.1:
 
 1. **Graph-Centric Architecture** - Vše jako LangGraph nodes/edges, Send API
 2. **Type Safety** - mypy --strict, typed dataclasses/TypedDict
@@ -197,7 +198,7 @@ Plus **Security Standards**: input validation, thread-safe IDs, async context ma
 
 **`uv run pytest` zamrzne na importu** - Těžký dependency graph spouští MCP client init. Použijte `.venv/bin/pytest` s `PYTHONPATH=src` prefixem.
 
-**Translation testy selhávají/přeskočeny** - 5 testů vyžaduje `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY` v `.env`. Očekávané přeskočení v lokálním vývoji.
+**Translation testy selhávají** - 5 testů v `test_translation.py` volá LLM bez mockování (mock_runtime s neexistujícím modelem "test-model" → Anthropic 404). Vyžaduje opravu — přidat LLM mock nebo `pytest.mark.skipif`.
 
 **Testy prosakují na reálné MCP servery** - Vždy `patch("agent.graph.get_mcp_clients")` v testech. Viz `tests/conftest.py`.
 
@@ -210,10 +211,13 @@ Plus **Security Standards**: input validation, thread-safe IDs, async context ma
 - **[QUICKSTART.md](./QUICKSTART.md)** - Rychlý start guide
 - **[CLAUDE.md](./CLAUDE.md)** - Guide pro Claude Code
 - **[MCP_INTEGRATION.md](./MCP_INTEGRATION.md)** - MCP integrace
+- **[docs/architecture.md](./docs/architecture.md)** - Architektura systému (Mermaid diagramy)
+- **[docs/api-reference.md](./docs/api-reference.md)** - API reference (endpointy, SSE protokol, příklady)
+- **[docs/development-guide.md](./docs/development-guide.md)** - Vývojářská příručka
 - **[.specify/README.md](./.specify/README.md)** - SpecKit framework
-- **[.specify/memory/constitution.md](./.specify/memory/constitution.md)** - Constitution v1.1.1
+- **[.specify/memory/constitution.md](./.specify/memory/constitution.md)** - Constitution v1.2.1
 - **[specs/ROADMAP.md](./specs/ROADMAP.md)** - Detailní roadmap
 
 ---
 
-**Verze:** 0.0.1 | **Aktualizováno:** 2026-02-15
+**Verze:** 0.0.1 | **Aktualizováno:** 2026-02-27

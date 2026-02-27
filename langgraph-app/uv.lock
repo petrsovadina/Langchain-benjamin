@@ -55,6 +55,7 @@ dev = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "aioresponses" },
     { name = "anyio" },
     { name = "langgraph-cli", extra = ["inmem"] },
     { name = "mypy" },
@@ -96,6 +97,7 @@ provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "aioresponses", specifier = ">=0.7.8" },
     { name = "anyio", specifier = ">=4.7.0" },
     { name = "langgraph-cli", extras = ["inmem"], specifier = ">=0.4.7" },
     { name = "mypy", specifier = ">=1.13.0" },
