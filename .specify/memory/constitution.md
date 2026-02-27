@@ -1,11 +1,20 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 1.1.2 → 1.2.0 (MINOR)
-- Bump rationale: Supabase migration (branch 013-supabase-migration) introduces
-  asyncpg as a mandatory backend technology and materially modifies the
-  persistence constraint. Guidelines storage now uses direct asyncpg to
-  Supabase PostgreSQL with pgvector — separate from LangGraph checkpointing.
+- Version change: 1.2.0 → 1.2.1 (PATCH)
+- Bump rationale: Test metrics corrected from 442/442 to 444/449 after
+  validation run. 5 translation tests fail due to unmocked LLM calls
+  (known bug, not API credit issue). Description updated accordingly.
 - Modified principles: None (all 5 principles unchanged)
+- Enhanced sections:
+  * Testing: Corrected test count and translation test failure description
+- Templates requiring updates: None
+- Follow-up TODOs:
+  * Fix 5 translation tests (add LLM mock or pytest.mark.skipif)
+
+PREVIOUS REPORT (1.1.2 → 1.2.0):
+- Supabase migration introduces asyncpg as mandatory backend technology
+  and materially modifies the persistence constraint. Guidelines storage
+  now uses direct asyncpg to Supabase PostgreSQL with pgvector.
 - Enhanced sections:
   * Technology Stack - Backend Mandatory Technologies: Added asyncpg
   * Technology Stack - Recommended Integrations: Added Supabase
@@ -234,9 +243,9 @@ All code MUST pass these enforced quality checks before merge:
 - Use `r"""` prefix if docstring contains backslashes
 
 #### Testing
-- **Test coverage**: Minimum 80% for node implementations (current: 442/442 = 100%)
+- **Test coverage**: Minimum 80% for node implementations (current: 444/449 = 98.9%)
 - All tests MUST pass: `pytest tests/`
-- Note: 5 translation tests require API credits (expected skip without ANTHROPIC_API_KEY)
+- Note: 5 translation tests fail due to unmocked LLM calls (known issue, needs fix)
 - Performance benchmarks for latency-critical nodes
 - Regression tests MUST accompany routing priority or keyword changes
 
@@ -290,4 +299,4 @@ This constitution is a living document. Amendments require:
 - Use `.specify/memory/constitution.md` as single source of truth for development standards
 - Security standards MUST be verified during code review
 
-**Version**: 1.2.0 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-24
+**Version**: 1.2.1 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-27

@@ -305,7 +305,7 @@ Langchain-benjamin/
 │   │       ├── schemas.py       # Request/response models
 │   │       └── config.py        # Pydantic Settings
 │   ├── tests/
-│   │   ├── unit_tests/          # 442 tests
+│   │   ├── unit_tests/          # 449 tests (444 passing, 5 translation failing)
 │   │   ├── integration_tests/
 │   │   ├── quality/
 │   │   └── conftest.py
@@ -317,7 +317,7 @@ Langchain-benjamin/
 ├── specs/                       # Feature specifications
 │   └── ROADMAP.md
 └── .specify/                    # SpecKit configuration
-    └── memory/constitution.md   # Project constitution v1.2.0
+    └── memory/constitution.md   # Project constitution v1.2.1
 ```
 
 ## Key Design Decisions

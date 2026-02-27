@@ -142,7 +142,7 @@ Langchain-benjamin/
 │   ├── ROADMAP.md             # Master roadmap (12 features, 4 fáze)
 │   └── NNN-feature-name/      # spec.md, plan.md, tasks.md
 ├── PRD-docs/                  # PRD dokumentace (strategie, architektura, UX)
-└── .specify/                  # SpecKit framework + Constitution v1.2.0
+└── .specify/                  # SpecKit framework + Constitution v1.2.1
 ```
 
 ## Feature Development Workflow (SpecKit)
@@ -155,7 +155,7 @@ make speckit_new FEATURE="Description"   # Vytvoří branch + spec
 
 ## Constitution (5 Principů)
 
-Definováno v `.specify/memory/constitution.md` v1.2.0:
+Definováno v `.specify/memory/constitution.md` v1.2.1:
 
 1. **Graph-Centric Architecture** - Vše jako LangGraph nodes/edges, Send API
 2. **Type Safety** - mypy --strict, typed dataclasses/TypedDict
@@ -198,7 +198,7 @@ Plus **Security Standards**: input validation, thread-safe IDs, async context ma
 
 **`uv run pytest` zamrzne na importu** - Těžký dependency graph spouští MCP client init. Použijte `.venv/bin/pytest` s `PYTHONPATH=src` prefixem.
 
-**Translation testy selhávají/přeskočeny** - 5 testů vyžaduje `ANTHROPIC_API_KEY` nebo `OPENAI_API_KEY` v `.env`. Očekávané přeskočení v lokálním vývoji.
+**Translation testy selhávají** - 5 testů v `test_translation.py` volá LLM bez mockování (mock_runtime s neexistujícím modelem "test-model" → Anthropic 404). Vyžaduje opravu — přidat LLM mock nebo `pytest.mark.skipif`.
 
 **Testy prosakují na reálné MCP servery** - Vždy `patch("agent.graph.get_mcp_clients")` v testech. Viz `tests/conftest.py`.
 
@@ -215,9 +215,9 @@ Plus **Security Standards**: input validation, thread-safe IDs, async context ma
 - **[docs/api-reference.md](./docs/api-reference.md)** - API reference (endpointy, SSE protokol, příklady)
 - **[docs/development-guide.md](./docs/development-guide.md)** - Vývojářská příručka
 - **[.specify/README.md](./.specify/README.md)** - SpecKit framework
-- **[.specify/memory/constitution.md](./.specify/memory/constitution.md)** - Constitution v1.2.0
+- **[.specify/memory/constitution.md](./.specify/memory/constitution.md)** - Constitution v1.2.1
 - **[specs/ROADMAP.md](./specs/ROADMAP.md)** - Detailní roadmap
 
 ---
 
-**Verze:** 0.0.1 | **Aktualizováno:** 2026-02-25
+**Verze:** 0.0.1 | **Aktualizováno:** 2026-02-27

@@ -1,6 +1,6 @@
 # Czech MedAI — Stav projektu
 
-**Vygenerováno**: 2026-02-26 | **Branch**: `013-supabase-migration` | **Konstituce**: v1.2.0
+**Vygenerováno**: 2026-02-27 | **Branch**: `013-supabase-migration` | **Konstituce**: v1.2.1
 
 ---
 
@@ -13,7 +13,7 @@ implementovány bez formálního SpecKit workflow.
 
 ```
 Roadmap:   ████████████████████░░░░  83 % features implementováno
-Testy:     ████████████████████████  307 backend + 27 e2e + 17 unit frontend
+Testy:     ████████████████████████  538 backend (449 unit + 89 integration) + 27 e2e + 17 unit frontend
 Spec gap:  7/12 features nemá formální specifikaci (ale jsou implementovány)
 Blokující: DB migrace (guidelines tabulka), Feature 004 (VZP)
 ```
@@ -170,9 +170,10 @@ Blokující: DB migrace (guidelines tabulka), Feature 004 (VZP)
 | Models | 37 | 1 | GuidelineQuery, GuidelineSection, validátory |
 | Utils | 29 | 2 | guidelines_storage (6), pdf_processor (23) |
 | Routing | 21 | 2 | fallback_to_keyword_routing (20), konfigurace (1) |
-| **Unit celkem** | **288** | **17** | |
-| Integration | 19 | 3 | API server (12), parallel execution (5), synthesizer flow (2) |
-| **Backend celkem** | **307** | **20** | |
+| Translation | 6 | 1 | CZ↔EN překlad (5 failing — unmocked LLM) |
+| **Unit celkem** | **449** | — | ověřeno `pytest --co -q` |
+| Integration | 89 | — | API server, parallel execution, synthesizer flow, MCP |
+| **Backend celkem** | **538** | — | 444 unit passing + 5 failing + 89 integration |
 
 ### Frontend (frontend/)
 
@@ -337,6 +338,6 @@ Foundation       Core Agents        Integration           UX & Deploy
 
 ---
 
-**Celkové hodnocení**: Projekt je ve stavu **"funkční MVP s production-ready infrastrukturou"**. Hlavní architektura je solidní, testovací pokrytí je velmi dobré (307 backend + 44 frontend testů), a frontend je deployment-ready. Hlavní mezery jsou databázová infrastruktura pro guidelines a chybějící VZP agent.
+**Celkové hodnocení**: Projekt je ve stavu **"funkční MVP s production-ready infrastrukturou"**. Hlavní architektura je solidní, testovací pokrytí je velmi dobré (538 backend + 44 frontend testů), a frontend je deployment-ready. Hlavní mezery jsou databázová infrastruktura pro guidelines a chybějící VZP agent.
 
 **Verze**: 1.0 | **Vygenerováno**: 2026-02-26

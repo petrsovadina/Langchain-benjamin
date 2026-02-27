@@ -173,16 +173,16 @@ docker compose up                       # API (8000) + Redis (6379) + PostgreSQL
 - `components/CitedResponse.tsx` + `CitationBadge.tsx` — citation rendering
 
 ### Governance
-- `.specify/memory/constitution.md` — Project constitution v1.2.0 (5 principles + security standards)
+- `.specify/memory/constitution.md` — Project constitution v1.2.1 (5 principles + security standards)
 - `specs/ROADMAP.md` — Master roadmap (12 features, 4 phases)
 
 ## Constitution (5 Principles)
 
-Defined in `.specify/memory/constitution.md` v1.2.0:
+Defined in `.specify/memory/constitution.md` v1.2.1:
 
 1. **Graph-Centric Architecture** — All features as LangGraph nodes/edges, Send API routing
 2. **Type Safety** — mypy --strict, typed dataclasses/TypedDict, zero errors
-3. **Test-First Development** — Tests before implementation (TDD), 442/442 passing
+3. **Test-First Development** — Tests before implementation (TDD), 444/449 passing
 4. **Observability** — LangSmith tracing, structured logging, specific exception types
 5. **Modular Design** — Single responsibility per node in `nodes/`, IMCPClient interface, config in Context
 
@@ -216,7 +216,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 **Tests leak to real MCP servers** — Always `patch("agent.graph.get_mcp_clients")` in tests. See `tests/conftest.py`.
 
-**Translation tests skip** — 5 tests require `ANTHROPIC_API_KEY` in `.env`. Expected in local dev.
+**Translation tests fail** — 5 tests in `test_translation.py` call LLM without mocking (use `mock_runtime` with fake model "test-model" → Anthropic 404). These need LLM mock or `pytest.mark.skipif` to fix.
 
 **Playwright mock routes** — Must match `/api/v1/consult` (with version prefix), not `/api/consult`.
 
@@ -224,7 +224,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 ## Persistence Model
 
-Dual persistence (per constitution v1.2.0):
+Dual persistence (per constitution v1.2.1):
 
 - **Graph state** — LangGraph checkpointing (automatic, managed by framework)
 - **Application data** — asyncpg to Supabase PostgreSQL with pgvector (guidelines storage, embeddings). No ORM — raw asyncpg queries in `src/agent/utils/guidelines_storage.py`

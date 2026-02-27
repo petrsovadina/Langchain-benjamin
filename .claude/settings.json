@@ -1,8 +1,10 @@
 {
-  "enabledPlugins": {
-    "planning-with-files@planning-with-files": true
-  },
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "enabledPlugins": {
+    "planning-with-files@planning-with-files": true,
+    "agent-development@context-engineering-marketplace": true,
+    "feature-dev@claude-plugins-official": true
   }
 }
