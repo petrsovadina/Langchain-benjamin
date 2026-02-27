@@ -317,7 +317,7 @@ Langchain-benjamin/
 ├── specs/                       # Feature specifications
 │   └── ROADMAP.md
 └── .specify/                    # SpecKit configuration
-    └── memory/constitution.md   # Project constitution v1.1.2
+    └── memory/constitution.md   # Project constitution v1.2.0
 ```
 
 ## Key Design Decisions

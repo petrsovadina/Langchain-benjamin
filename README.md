@@ -80,7 +80,7 @@ Frontend a backend komunikují přes Server-Sent Events na `POST /api/v1/consult
 | **Frontend** | Next.js 14, React 18, TypeScript, Tailwind v4, shadcn/ui, OKLCH design tokens |
 | **API Bridge** | FastAPI, SSE streaming, Redis cache, slowapi rate limiting |
 | **Orchestrace** | LangGraph ≥1.0.0, Python ≥3.10, async-first |
-| **Data** | MCP protocol (SÚKL-mcp, BioMCP), PostgreSQL + pgvector |
+| **Data** | MCP protocol (SÚKL-mcp, BioMCP), Supabase PostgreSQL + pgvector, asyncpg |
 | **Kvalita** | mypy --strict, ruff, Vitest, Playwright, pytest |
 | **Observability** | LangSmith tracing, structured JSON logging |
 | **MCP Servery** | [SÚKL-mcp](https://github.com/petrsovadina/SUKL-mcp), [BioMCP](https://github.com/genomoncology/biomcp) |
@@ -131,7 +131,8 @@ Langchain-benjamin/
 │   └── e2e/                   # Playwright E2E testy
 ├── langgraph-app/             # Python backend
 │   ├── src/agent/graph.py     # Core LangGraph graph (State, Context, nodes)
-│   ├── src/agent/nodes/       # supervisor, drug_agent, pubmed_agent, guidelines_agent, general_agent, synthesizer
+│   ├── src/agent/nodes/       # supervisor, drug_agent, pubmed_agent, guidelines_agent, general_agent, synthesizer, translation
+│   ├── src/agent/utils/       # guidelines_storage.py (asyncpg + pgvector)
 │   ├── src/agent/mcp/         # MCP client wrappers (SÚKL, BioMCP)
 │   ├── src/agent/models/      # Pydantic modely (DrugQuery, ResearchQuery, GuidelineQuery)
 │   ├── src/api/               # FastAPI server (routes, cache, config, logging)
@@ -141,7 +142,7 @@ Langchain-benjamin/
 │   ├── ROADMAP.md             # Master roadmap (12 features, 4 fáze)
 │   └── NNN-feature-name/      # spec.md, plan.md, tasks.md
 ├── PRD-docs/                  # PRD dokumentace (strategie, architektura, UX)
-└── .specify/                  # SpecKit framework + Constitution v1.1.2
+└── .specify/                  # SpecKit framework + Constitution v1.2.0
 ```
 
 ## Feature Development Workflow (SpecKit)
@@ -154,7 +155,7 @@ make speckit_new FEATURE="Description"   # Vytvoří branch + spec
 
 ## Constitution (5 Principů)
 
-Definováno v `.specify/memory/constitution.md` v1.1.2:
+Definováno v `.specify/memory/constitution.md` v1.2.0:
 
 1. **Graph-Centric Architecture** - Vše jako LangGraph nodes/edges, Send API
 2. **Type Safety** - mypy --strict, typed dataclasses/TypedDict
@@ -214,9 +215,9 @@ Plus **Security Standards**: input validation, thread-safe IDs, async context ma
 - **[docs/api-reference.md](./docs/api-reference.md)** - API reference (endpointy, SSE protokol, příklady)
 - **[docs/development-guide.md](./docs/development-guide.md)** - Vývojářská příručka
 - **[.specify/README.md](./.specify/README.md)** - SpecKit framework
-- **[.specify/memory/constitution.md](./.specify/memory/constitution.md)** - Constitution v1.1.2
+- **[.specify/memory/constitution.md](./.specify/memory/constitution.md)** - Constitution v1.2.0
 - **[specs/ROADMAP.md](./specs/ROADMAP.md)** - Detailní roadmap
 
 ---
 
-**Verze:** 0.0.1 | **Aktualizováno:** 2026-02-15
+**Verze:** 0.0.1 | **Aktualizováno:** 2026-02-25

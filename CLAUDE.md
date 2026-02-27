@@ -158,10 +158,11 @@ docker compose up                       # API (8000) + Redis (6379) + PostgreSQL
 
 ### Backend
 - `src/agent/graph.py` — State, Context, route_query, keyword sets, graph compilation
-- `src/agent/nodes/` — supervisor, drug_agent, pubmed_agent, guidelines_agent, general_agent, synthesizer
+- `src/agent/nodes/` — supervisor, drug_agent, pubmed_agent, guidelines_agent, general_agent, synthesizer, translation
 - `src/agent/mcp/` — `adapters/` (SUKLMCPClient, BioMCPClient), `domain/` (IMCPClient port, entities, exceptions)
 - `src/api/routes.py` — `/api/v1/consult` (SSE), `/health`
 - `src/api/main.py` — CORS, rate limiting (10/min), security headers, request ID middleware
+- `src/agent/utils/guidelines_storage.py` — asyncpg storage for guidelines with pgvector embeddings (Supabase PostgreSQL)
 - `src/agent/models/` — Pydantic models (DrugQuery, ResearchQuery, GuidelineQuery, IntentResult)
 - `tests/conftest.py` — shared fixtures (mock_runtime, sample_state)
 
@@ -172,12 +173,12 @@ docker compose up                       # API (8000) + Redis (6379) + PostgreSQL
 - `components/CitedResponse.tsx` + `CitationBadge.tsx` — citation rendering
 
 ### Governance
-- `.specify/memory/constitution.md` — Project constitution v1.1.2 (5 principles + security standards)
+- `.specify/memory/constitution.md` — Project constitution v1.2.0 (5 principles + security standards)
 - `specs/ROADMAP.md` — Master roadmap (12 features, 4 phases)
 
 ## Constitution (5 Principles)
 
-Defined in `.specify/memory/constitution.md` v1.1.2:
+Defined in `.specify/memory/constitution.md` v1.2.0:
 
 1. **Graph-Centric Architecture** — All features as LangGraph nodes/edges, Send API routing
 2. **Type Safety** — mypy --strict, typed dataclasses/TypedDict, zero errors
@@ -193,7 +194,9 @@ ANTHROPIC_API_KEY=sk-ant-...     # Required: supervisor + agent LLM calls
 OPENAI_API_KEY=sk-...            # Guidelines embeddings (pgvector)
 SUKL_MCP_URL=...                 # SÚKL MCP server
 BIOMCP_COMMAND=...               # BioMCP REST client
-DATABASE_URL=postgresql://...    # pgvector for guidelines
+DATABASE_URL=postgresql://...    # Supabase PostgreSQL (pgvector for guidelines)
+SUPABASE_URL=https://...         # Supabase project URL (alternative to DATABASE_URL)
+SUPABASE_KEY=...                 # Supabase service role key (optional)
 REDIS_URL=redis://localhost:6379 # Response cache
 LANGSMITH_API_KEY=lsv2_pt_...    # Optional: LangSmith tracing
 ```
@@ -219,9 +222,9 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 **Python version** — Dev: 3.12, Docker: 3.11, minimum: 3.10 (pyproject.toml).
 
-## Active Technologies
-- Python ≥3.10 (per constitution) (013-supabase-migration)
-- Direct asyncpg to Supabase PostgreSQL (pgvector for embeddings) — Note: this is NOT LangGraph checkpointing; guidelines storage is a separate concern outside the graph state (013-supabase-migration)
+## Persistence Model
 
-## Recent Changes
-- 013-supabase-migration: Added Python ≥3.10 (per constitution)
+Dual persistence (per constitution v1.2.0):
+
+- **Graph state** — LangGraph checkpointing (automatic, managed by framework)
+- **Application data** — asyncpg to Supabase PostgreSQL with pgvector (guidelines storage, embeddings). No ORM — raw asyncpg queries in `src/agent/utils/guidelines_storage.py`
