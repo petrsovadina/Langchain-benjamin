@@ -10,6 +10,7 @@ const AGENT_LABELS: Record<string, string> = {
   drug_agent: "\u{1F48A} Drug Agent - Prohled\u00E1v\u00E1m S\u00DAKL",
   pubmed_agent: "\u{1F30D} PubMed Agent - Prohled\u00E1v\u00E1m PubMed",
   guidelines_agent: "\u{1F4D6} Guidelines Agent - Prohled\u00E1v\u00E1m \u010CLS JEP",
+  general_agent: "\u{1FA7A} General Agent - Zpracov\u00E1v\u00E1m obecn\u00FD dotaz",
   synthesizer: "\u{1F4DD} Synthesizer - Form\u00E1tuji odpov\u011B\u010F",
 };
 
@@ -18,10 +19,11 @@ const AGENT_COLORS: Record<string, string> = {
   drug_agent: "text-agent-drug",
   pubmed_agent: "text-agent-pubmed",
   guidelines_agent: "text-agent-guidelines",
+  general_agent: "text-agent-guidelines",
   synthesizer: "text-agent-synthesizer",
 };
 
-const ALL_AGENTS = ["supervisor", "drug_agent", "pubmed_agent", "guidelines_agent", "synthesizer"];
+const ALL_AGENTS = ["supervisor", "drug_agent", "pubmed_agent", "guidelines_agent", "general_agent", "synthesizer"];
 
 export function AgentThoughtStream({ agents }: AgentThoughtStreamProps) {
   if (agents.length === 0) return null;

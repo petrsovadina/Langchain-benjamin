@@ -52,6 +52,8 @@ export function useConsult() {
                 a.name === event.agent ? { ...a, status: "complete" } : a
               )
             );
+          } else if (event.type === "cache_hit") {
+            setAgentStatuses([{ name: "cache", status: "complete" }]);
           } else if (event.type === "final") {
             resetRetry();
             setMessages((prev) =>

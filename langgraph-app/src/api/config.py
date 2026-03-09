@@ -67,7 +67,7 @@ class Settings(BaseSettings):
         return v
 
     class Config:
-        env_file = ".env.production"
+        env_file = ".env"
         case_sensitive = False
 
 
