@@ -14,6 +14,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage
 from langgraph.runtime import Runtime
 
+from agent.constants import DEFAULT_MODEL_NAME
 from agent.models.research_models import ResearchQuery
 from agent.utils.translation_prompts import CZ_TO_EN_PROMPT, EN_TO_CZ_PROMPT
 
@@ -68,7 +69,7 @@ async def translate_cz_to_en_node(
 
     # Initialize LLM
     context = runtime.context or {}
-    model_name = context.get("model_name", "claude-sonnet-4-5-20250929")
+    model_name = context.get("model_name", DEFAULT_MODEL_NAME)
     llm = ChatAnthropic(model_name=model_name, temperature=0, timeout=None, stop=None)
 
     # Format prompt
@@ -139,7 +140,7 @@ async def translate_en_to_cz_node(
 
     # Initialize LLM
     context = runtime.context or {}
-    model_name = context.get("model_name", "claude-sonnet-4-5-20250929")
+    model_name = context.get("model_name", DEFAULT_MODEL_NAME)
     _ = context.get("batch_size", 5)  # Reserved for future parallel translation
     llm = ChatAnthropic(model_name=model_name, temperature=0, timeout=None, stop=None)
 

@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from agent.constants import DEFAULT_MODEL_NAME
 from agent.graph import Context, graph
 from agent.utils.guidelines_storage import get_pool
 from api.cache import get_cached_response, set_cached_response
@@ -188,7 +189,7 @@ async def consult_stream_generator(
 
         # Build context with all required fields including MCP clients
         context: Context = {
-            "model_name": "claude-sonnet-4-5-20250929",
+            "model_name": DEFAULT_MODEL_NAME,
             "temperature": 0.0,
             "mode": mode,
             "user_id": user_id,

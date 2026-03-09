@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
 
+from agent.constants import DEFAULT_MODEL_NAME
 from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
@@ -597,7 +598,7 @@ async def synthesizer_node(
 
     # Combine using LLM
     context = runtime.context or {}
-    model_name = context.get("model_name", "claude-sonnet-4-5-20250929")
+    model_name = context.get("model_name", DEFAULT_MODEL_NAME)
 
     try:
         llm = ChatAnthropic(

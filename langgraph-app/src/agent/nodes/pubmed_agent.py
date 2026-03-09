@@ -23,6 +23,7 @@ from agent.models.research_models import (
     ResearchQuery,
 )
 from agent.utils.message_utils import extract_message_content
+from agent.constants import DEFAULT_MODEL_NAME
 from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
@@ -423,7 +424,7 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
     logger.info("Starting PubMed search")
 
     context = runtime.context or {}
-    model_name = context.get("model_name", "claude-sonnet-4-5-20250929")
+    model_name = context.get("model_name", DEFAULT_MODEL_NAME)
 
     # Get research_query from state
     research_query = state.research_query
