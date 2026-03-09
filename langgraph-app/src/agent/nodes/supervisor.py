@@ -39,6 +39,7 @@ from agent.nodes.supervisor_prompts import (
     build_classification_prompt,
     build_function_schema,
 )
+from agent.constants import DEFAULT_MODEL_NAME
 from agent.utils.message_utils import extract_message_content
 
 if TYPE_CHECKING:
@@ -85,8 +86,7 @@ class IntentClassifier:
                  classify_intent call (avoids requiring ANTHROPIC_API_KEY
                  at import/construction time).
         """
-        import os
-        self.model_name = model_name or os.getenv("DEFAULT_MODEL_NAME", "claude-sonnet-4-20250514")
+        self.model_name = model_name or DEFAULT_MODEL_NAME
         self.temperature = temperature
         self.llm = llm
 
@@ -351,7 +351,7 @@ async def supervisor_node(
     # Classify intent
     context = runtime.context or {}
     classifier = IntentClassifier(
-        model_name=context.get("model_name", "claude-sonnet-4-20250514"),
+        model_name=context.get("model_name", DEFAULT_MODEL_NAME),
         temperature=context.get("temperature", 0.0),
     )
 

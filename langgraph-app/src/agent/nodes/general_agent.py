@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from agent.constants import DEFAULT_MODEL_NAME
 from agent.utils.message_utils import extract_message_content
 
 if TYPE_CHECKING:
@@ -44,7 +45,7 @@ async def general_agent_node(state: State, runtime: Runtime[Context]) -> dict[st
     from langchain_core.messages import HumanMessage, SystemMessage
 
     context = runtime.context or {}
-    model_name = context.get("model_name", "claude-sonnet-4-5-20250929")
+    model_name = context.get("model_name", DEFAULT_MODEL_NAME)
 
     logger.info("general_agent_node executing with model=%s", model_name)
 
