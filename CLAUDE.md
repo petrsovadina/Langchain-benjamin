@@ -172,12 +172,12 @@ docker compose up                       # API (8000) + Redis (6379) + PostgreSQL
 - `components/CitedResponse.tsx` + `CitationBadge.tsx` — citation rendering
 
 ### Governance
-- `.specify/memory/constitution.md` — Project constitution v1.2.1 (5 principles + security standards)
+- `.specify/memory/constitution.md` — Project constitution v1.3.1 (5 principles + security standards)
 - `specs/ROADMAP.md` — Master roadmap (12 features, 4 phases)
 
 ## Constitution (5 Principles)
 
-Defined in `.specify/memory/constitution.md` v1.2.1:
+Defined in `.specify/memory/constitution.md` v1.3.1:
 
 1. **Graph-Centric Architecture** — All features as LangGraph nodes/edges, Send API routing
 2. **Type Safety** — mypy --strict, typed dataclasses/TypedDict, zero errors
@@ -223,7 +223,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 ## Persistence Model
 
-Dual persistence (per constitution v1.2.1):
+Dual persistence (per constitution v1.3.1):
 
 - **Graph state** — LangGraph checkpointing (automatic, managed by framework)
 - **Application data** — asyncpg to Supabase PostgreSQL with pgvector (guidelines storage, embeddings). No ORM — raw asyncpg queries in `src/agent/utils/guidelines_storage.py`

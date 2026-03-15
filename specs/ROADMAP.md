@@ -1,365 +1,312 @@
 # Czech MedAI (Benjamin) - Feature Roadmap
 
 **Project**: LangGraph-based AI Assistant for Czech Physicians
-**Constitution**: v1.0.1
+**Constitution**: v1.3.1
 **Generated**: 2026-01-13
+**Last Updated**: 2026-03-15
 
 ---
 
-## 📊 Feature Decomposition Strategy
+## Feature Decomposition Strategy
 
-Tento projekt jsme rozložili na **12 featur** organizovaných do **4 fází** podle závislostí a priorit z PRD dokumentace.
+Projekt je rozložen na **12+ featur** organizovaných do **4 fází** podle závislostí a priorit. Průběžně přibývají cross-cutting features (audit, migrace).
 
 ### Strategie rozkladu:
 1. **Phase 0: Foundation** - Infrastruktura a základní LangGraph setup
 2. **Phase 1: Core Agents** - Implementace 4 specializovaných agentů
 3. **Phase 2: Integration** - Supervisor orchestrace a citační systém
 4. **Phase 3: UX & Deployment** - Frontend a production readiness
+5. **Cross-cutting** - Audit, migrace, refaktoring (probíhají průběžně)
 
 ---
 
-## 🏗️ Phase 0: Foundation (Týden 1-2)
+## Phase 0: Foundation
 
-### 001-langgraph-foundation
-**Priority**: P0 (CRITICAL - blocking all)
-**Branch**: `001-langgraph-foundation`
-**Estimate**: 5 days
+### 001-langgraph-foundation — DONE
+**Branch**: `001-langgraph-foundation` (merged)
+**Status**: Implementováno
 
-**Scope**:
-- Setup LangGraph State schema (`AgentState` TypedDict)
-- Implement basic `Context` configuration
-- Configure pytest fixtures for graph testing
-- Setup LangSmith tracing integration
-- Create base graph structure in `src/agent/graph.py`
-
-**PRD References**: 
-- MVP Spec §3.1 (Architecture)
-- Tech Doc §2.1 (State Schema)
-
-**Constitution Check**:
-- ✅ Principle I: Graph-centric (core graph setup)
-- ✅ Principle II: Type safety (State/Context typing)
-- ✅ Principle III: Test-first (pytest fixtures)
-- ✅ Principle IV: Observability (LangSmith)
+- State schema (`State` dataclass s `add_messages`, `add_documents` reducery)
+- `Context` TypedDict s runtime konfigurací
+- pytest fixtures v `tests/conftest.py`
+- LangSmith tracing integrace
+- Base graph v `src/agent/graph.py`
 
 ---
 
-### 002-mcp-infrastructure
-**Priority**: P0 (CRITICAL - blocking agents)
-**Branch**: `002-mcp-infrastructure`
-**Estimate**: 4 days
+### 002-mcp-infrastructure — DONE
+**Branch**: `002-mcp-infrastructure` (merged)
+**Status**: Implementováno
 
-**Scope**:
-- Setup MCP protocol base classes
-- Configure Docker network for BioMCP integration
-- Create MCP client wrapper utilities
-- Implement health check endpoints for MCP servers
-- Setup Supabase connection with pgvector extension
-
-**PRD References**:
-- Architecture Doc §3 (MCP Strategy)
-- Infrastructure §4 (Docker Network)
-
-**Dependencies**: None (parallel with 001)
+- Hexagonální MCP architektura (`domain/ports.py` → `IMCPClient` interface)
+- `adapters/sukl_client.py` (JSON-RPC 2.0) + `adapters/biomcp_client.py` (REST)
+- Domain entities a exceptions
+- Health check endpointy
 
 ---
 
-## 🤖 Phase 1: Core Agents (Týden 3-6)
+## Phase 1: Core Agents
 
-### 003-sukl-drug-agent
-**Priority**: P0 (Must Have - US-004)
-**Branch**: `003-sukl-drug-agent`
-**Estimate**: 8 days
+### 003-sukl-drug-agent — DONE
+**Branch**: `003-sukl-drug-agent` (merged)
+**Status**: Implementováno
 
-**Scope**:
-- Build `agent_local` node for drug queries
-- Implement SÚKL vector search (pgvector + embeddings)
-- Create tools: `search_drugs`, `get_drug_details`, `get_spc`
-- Parse SÚKL OpenData CSV (Windows-1250 encoding)
-- Vector indexing for ~100k drug records
-- Unit tests for drug search accuracy
-
-**PRD References**:
-- MVP Spec §4.2 (Drug Agent)
-- User Stories: US-004
-- Functional Req: F-001, F-004
-
-**Dependencies**: 001, 002
+- `drug_agent_node` v `src/agent/nodes/drug_agent.py`
+- SÚKL MCP integrace (search, details, reimbursement, ATC, ingredient)
+- Query klasifikace (6 intent typů)
+- Fuzzy matching přes SÚKL server
+- Unit testy + integration testy
 
 ---
 
-### 004-vzp-pricing-agent
-**Priority**: P1 (Should Have - US-005, US-006)
-**Branch**: `004-vzp-pricing-agent`
-**Estimate**: 6 days
+### 004-vzp-pricing-agent — PLANNED
+**Priority**: P1 (Should Have)
+**Status**: Dosud neimplementováno
 
 **Scope**:
 - Build `agent_pricing` node
-- Implement VZP LEK-13 parser (exact search, no vectors)
+- Implement VZP LEK-13 parser
 - Create tools: `get_pricing`, `find_alternatives`
-- Monthly data update automation
-- Unit tests for pricing accuracy
-- Alternative drug suggestions logic
-
-**PRD References**:
-- MVP Spec §4.4 (Pricing Agent)
-- User Stories: US-005, US-006
-- Functional Req: F-005
 
 **Dependencies**: 003 (shares SÚKL codes)
 
 ---
 
-### 005-biomcp-pubmed-agent
-**Priority**: P0 (Must Have - US-001)
-**Branch**: `005-biomcp-pubmed-agent`
-**Estimate**: 7 days
+### 005-biomcp-pubmed-agent — DONE
+**Branch**: `005-biomcp-pubmed-agent` (merged)
+**Status**: Implementováno
 
-**Scope**:
-- Build `agent_research` node
-- Integrate BioMCP Docker container (article_searcher)
-- Implement "Sandwich Pattern" (CZ→EN→CZ translation)
-- Create tools: `search_pubmed`, `get_abstract`
+- `pubmed_agent_node` v `src/agent/nodes/pubmed_agent.py`
+- BioMCP REST integrace
+- Sandwich Pattern překlad (CZ→EN→CZ) v `translation.py`
 - Citation extraction (PMID/DOI)
-- MeSH term query expansion
-- Unit tests for translation & retrieval
-
-**PRD References**:
-- Architecture Doc §3.B (Global Layer)
-- MVP Spec §4.3 (PubMed Agent)
-- User Stories: US-001
-
-**Dependencies**: 002 (MCP infrastructure)
+- Research query klasifikace
 
 ---
 
-### 006-guidelines-agent
-**Priority**: P1 (Should Have - post-MVP consideration)
-**Branch**: `006-guidelines-agent`
-**Estimate**: 8 days
+### 006-guidelines-agent — DONE
+**Branch**: merged via multiple PRs
+**Status**: Implementováno
 
-**Scope**:
-- Build `agent_guidelines` node
-- PDF ingestion pipeline for ČLS JEP guidelines
-- Vector embeddings for guideline sections
-- Create tools: `search_guidelines`, `get_guideline_section`
-- Semantic chunking strategy
-- Citation with guideline IDs
-- Unit tests for guideline retrieval
-
-**PRD References**:
-- MVP Spec §4.5 (Guidelines Agent)
-- User Stories: US-003
-
-**Dependencies**: 001, 002 (can run parallel with 003-005)
+- `guidelines_agent_node` v `src/agent/nodes/guidelines_agent.py`
+- `search_guidelines()` v `utils/guidelines_storage.py` (asyncpg + pgvector)
+- Supabase PostgreSQL integrace
+- Semantic search s embedding vektory
 
 ---
 
-## 🔄 Phase 2: Integration (Týden 7-9)
+## Phase 2: Integration
 
-### 007-supervisor-orchestration
-**Priority**: P0 (CRITICAL - core routing)
-**Branch**: `007-supervisor-orchestration`
-**Estimate**: 9 days
+### 007-supervisor-orchestration — DONE
+**Status**: Implementováno (součást core development)
 
-**Scope**:
-- Implement `supervisor_node` with Claude function calling
-- Build intent classifier (8 intent types)
-- Multi-agent routing logic (single & compound queries)
-- Conditional edges based on intent
-- Query delegation to specialized agents
-- Fallback handling for unavailable agents
-- Integration tests for routing accuracy
-
-**PRD References**:
-- Architecture Doc §2.2 (Supervisor Node)
-- MVP Spec §5 (Query Classification)
-- Functional Req: F-002
-
-**Dependencies**: 003, 004, 005, 006 (requires all agents ready)
+- `supervisor_node` v `src/agent/nodes/supervisor.py`
+- LLM intent klasifikace (8 intent typů)
+- Send API pro paralelní dispatch
+- Keyword fallback routing (`fallback_to_keyword_routing()`)
+- Priority: Drug > Research > Guidelines > General
 
 ---
 
-### 008-citation-system
-**Priority**: P0 (Must Have - US-002)
-**Branch**: `008-citation-system`
-**Estimate**: 6 days
+### 008-citation-system — DONE
+**Status**: Implementováno (součást synthesizer)
 
-**Scope**:
-- Unified Citation schema for all sources
-- Inline citation insertion `[1][2][3]`
-- Reference list generation at response end
-- Citation link formatting (PMID, SÚKL, DOI, ČLS JEP)
-- Citation deduplication logic
-- Integration tests for citation accuracy
-
-**PRD References**:
-- Functional Req: F-003
-- User Stories: US-002
-
-**Dependencies**: 007 (requires synthesized responses)
+- `extract_citations_from_message()` + `renumber_citations()` v `synthesizer.py`
+- Inline citace `[1][2][3]` s globálním přečíslováním
+- Reference list generování
+- Podpora PMID, SUKL, CLS JEP zdrojů
 
 ---
 
-### 009-synthesizer-node
-**Priority**: P0 (Must Have - final output)
-**Branch**: `009-synthesizer-node`
-**Estimate**: 5 days
+### 009-synthesizer-node — DONE
+**Status**: Implementováno
 
-**Scope**:
-- Implement `synthesizer_node` (final response generation)
-- Combine multi-agent outputs into coherent answer
-- Apply citation system
-- Czech medical terminology validation
-- Response formatting (3-5 sentences for QuickConsult)
-- Confidence scoring
-- Integration tests for synthesis quality
-
-**PRD References**:
-- Architecture Doc §5 (Data Flow)
-- Functional Req: F-001
-
-**Dependencies**: 007, 008
+- `synthesizer_node` v `src/agent/nodes/synthesizer.py`
+- Multi-agent response agregace
+- Citation renumbering přes paralelní agenty
+- Czech terminology validace (DM2T, ICHS, T2DM warnings)
+- QuickConsult (single agent) vs Compound (multi-agent) formátování
+- Confidence scoring (placeholder — implementace pending)
 
 ---
 
-## 🎨 Phase 3: UX & Deployment (Týden 10-12)
+## Phase 3: UX & Deployment
 
-### 010-czech-localization
-**Priority**: P0 (Must Have - US-003)
-**Branch**: `010-czech-localization`
-**Estimate**: 4 days
+### 010-czech-localization — DONE
+**Status**: Integrováno do všech agentů
 
-**Scope**:
-- Czech UI strings and error messages
-- Medical abbreviations dictionary (80+ terms)
-- Term glossary with first-mention explanations
-- Czech medical terminology validation rules
-- Unit tests for abbreviation expansion
-
-**PRD References**:
-- Functional Req: F-004
-- User Stories: US-003
-
-**Dependencies**: 009 (applies to final output)
+- Czech UI strings a error messages
+- Medical abbreviation validace v synthesizeru
+- Translation prompts v `utils/translation_prompts.py`
 
 ---
 
-### 011-fastapi-backend
-**Priority**: P0 (Must Have - API layer)
-**Branch**: `011-fastapi-backend`
-**Estimate**: 6 days
+### 011-fastapi-backend — DONE
+**Status**: Implementováno
 
-**Scope**:
-- FastAPI server setup with SSE streaming
-- REST endpoints for graph invocation
-- Health check endpoints for all MCP servers
-- Request/response validation with Pydantic
-- Error handling and logging
-- OpenAPI documentation
-- Integration tests for API layer
-
-**PRD References**:
-- Tech Stack (FastAPI)
-- Infrastructure Doc §4
-
-**Dependencies**: 009 (requires complete graph)
+- FastAPI server v `src/api/`
+- SSE streaming (`/api/v1/consult`)
+- Health check (`/health`)
+- Redis cache, rate limiting (10/min)
+- CORS, security headers, request ID middleware
+- Pydantic validace vstupu
 
 ---
 
-### 012-nextjs-frontend
-**Priority**: P0 (Must Have - user interface)
-**Branch**: `012-nextjs-frontend`
-**Estimate**: 10 days
+### 012-nextjs-frontend — DONE
+**Status**: Implementováno
 
-**Scope**:
-- Next.js 14 app with TypeScript
-- Chat interface with streaming responses
-- Citation badge components
-- Czech medical UI (Radix UI + Tailwind)
-- Loading states and error handling
-- Mobile responsive design
-- E2E tests with Playwright
-
-**PRD References**:
-- Component Spec: Frontend UX Design
-- Tech Stack (Next.js 14.x)
-
-**Dependencies**: 011 (requires API endpoints)
+- Next.js 14 (TypeScript, React 18, Tailwind v4, shadcn/ui)
+- Chat interface se streaming responses
+- `CitedResponse` + `CitationBadge` komponenty
+- `useConsult` hook s SSE klientem
+- Playwright E2E testy
 
 ---
 
-## 📈 Feature Dependency Graph
+## Cross-cutting Features
+
+### 013-supabase-migration — DONE
+**Branch**: `013-supabase-migration` (merged, PR #18-#20)
+**Status**: Implementováno
+
+- Migrace guidelines storage na Supabase PostgreSQL + pgvector
+- asyncpg connection pooling
+- `GuidelinesStorage` class s embedding search
+- Dual persistence model (LangGraph checkpointing + asyncpg)
+
+---
+
+### 005-remove-translation-layer — DONE
+**Status**: Specifikováno (specs existují)
+
+- Analýza odstranění translation layer
+- Spec + plan + tasks v `specs/005-remove-translation-layer/`
+
+---
+
+### 001-audit-remediation — DONE
+**Branch**: `001-audit-remediation` (merged, PR #21)
+**Status**: Implementováno (57/57 tasks)
+
+**P0 Security**:
+- Error detail sanitization v produkci
+- CORS fail-fast validace
+- LLM timeout 60s přes `get_llm()` cache
+- user_id validace
+
+**P1 Hardening**:
+- Full SHA-256 cache keys
+- Docker credentials → env vars
+- Stub testy opraveny
+- Nové testy: cache, CORS, error sanitization
+
+**P2 Cleanup**:
+- LLM instance pooling (`llm_cache.py`)
+- Odstraněn double execution fallback
+- Unified pyproject.toml + uv.lock
+- Odstraněn dead `State.next` field
+- Unified `RESEARCH_KEYWORDS`
+- Opraven `source_filter` bug
+
+---
+
+## Feature Dependency Graph
 
 ```
-Phase 0:
-  001-langgraph-foundation  ──┐
-  002-mcp-infrastructure    ──┼──┐
-                              │  │
-Phase 1:                      │  │
-  003-sukl-drug-agent     ────┤  │
-  004-vzp-pricing-agent   ────┘  │
-  005-biomcp-pubmed-agent ───────┤
-  006-guidelines-agent    ───────┘
-                              │
-Phase 2:                      │
+Phase 0 (DONE):
+  001-langgraph-foundation    ──┐
+  002-mcp-infrastructure      ──┼──┐
+                                │  │
+Phase 1 (3/4 DONE):            │  │
+  003-sukl-drug-agent       ────┤  │  DONE
+  004-vzp-pricing-agent     ────┘  │  PLANNED
+  005-biomcp-pubmed-agent   ───────┤  DONE
+  006-guidelines-agent      ───────┘  DONE
+                                │
+Phase 2 (DONE):                 │
   007-supervisor-orchestration ──┤
-  008-citation-system        ────┤
-  009-synthesizer-node       ────┘
-                              │
-Phase 3:                      │
-  010-czech-localization     ────┤
-  011-fastapi-backend        ────┤
-  012-nextjs-frontend        ────┘
+  008-citation-system          ──┤
+  009-synthesizer-node         ──┘
+                                │
+Phase 3 (DONE):                 │
+  010-czech-localization       ──┤
+  011-fastapi-backend          ──┤
+  012-nextjs-frontend          ──┘
+
+Cross-cutting (DONE):
+  013-supabase-migration
+  001-audit-remediation (57 tasks)
 ```
 
 ---
 
-## 🎯 MVP Completion Criteria
+## MVP Status
 
-**Minimum features for MVP launch**:
-- ✅ Features 001-005 (Foundation + Drug/Pricing/PubMed agents)
-- ✅ Features 007-009 (Orchestration + Citations + Synthesis)
-- ✅ Features 010-012 (Localization + Backend + Frontend)
+**11/12 originálních featur implementováno.**
 
-**Optional for MVP** (can defer to v1.1):
-- ⚠️ Feature 006 (Guidelines Agent) - can launch without ČLS JEP integration
+| Feature | Status |
+|---------|--------|
+| 001-langgraph-foundation | DONE |
+| 002-mcp-infrastructure | DONE |
+| 003-sukl-drug-agent | DONE |
+| 004-vzp-pricing-agent | PLANNED |
+| 005-biomcp-pubmed-agent | DONE |
+| 006-guidelines-agent | DONE |
+| 007-supervisor-orchestration | DONE |
+| 008-citation-system | DONE |
+| 009-synthesizer-node | DONE |
+| 010-czech-localization | DONE |
+| 011-fastapi-backend | DONE |
+| 012-nextjs-frontend | DONE |
+| 013-supabase-migration | DONE |
+| 001-audit-remediation | DONE |
 
 ---
 
-## 📝 Next Steps
+## Remaining Work (Priority Order)
 
-### 1. Create Feature Branches
-```bash
-# Start with foundation
-git checkout -b 001-langgraph-foundation
-git checkout -b 002-mcp-infrastructure
-```
+### P0 — Blokující pro produkci
+1. **API key autentizace** — Constitution manduje auth na `/api/v1/consult`
+2. **BioMCP deployment** — PubMed agent nefunkční bez remote BioMCP serveru
 
-### 2. Run Spec Kit Workflow for Each Feature
+### P1 — Vysoká priorita
+3. **004-vzp-pricing-agent** — Jediný neimplementovaný core agent
+4. **Frontend CSP/Permissions-Policy** headers
+5. **Confidence scoring** implementace (aktuálně placeholder 0.0)
+
+### P2 — Střední priorita
+6. **Next.js 14 → 15** upgrade
+7. **GDPR dokumentace** LangSmith tracingu
+8. **Agent-layer Settings** centralizace (constitution manduje)
+
+### P3 — Nice to have
+9. **paper-search-mcp** deployment pro rozšířený výzkum
+10. **Migrace MCP klientů** na oficiální Python SDK
+
+---
+
+## SpecKit Workflow
+
+Pro každou novou feature:
 ```bash
-# For each feature branch:
-/speckit.specify [popis z roadmap scope]
-/speckit.plan [technické detaily]
+/speckit.specify [popis feature]
+/speckit.clarify
+/speckit.plan
 /speckit.tasks
+/speckit.analyze
 /speckit.implement
 ```
 
-### 3. Track Progress
-- Update this ROADMAP.md as features complete
-- Link PRD documents to respective `specs/###-feature/spec.md`
-- Maintain constitution compliance checklist
+---
+
+## Related Documents
+
+- [Constitution v1.3.1](../.specify/memory/constitution.md)
+- [CLAUDE.md](../CLAUDE.md) — Development guidelines
+- [SpecKit README](../.specify/README.md) — Framework documentation
 
 ---
 
-## 🔗 Related Documents
-
-- [Constitution v1.0.1](../.specify/memory/constitution.md)
-- [PRD Documentation](../PRD-docs/)
-- [MVP Specification](../PRD-docs/04-specifikace-komponent/01-mvp-specifikace.md)
-- [Architecture Analysis](../PRD-docs/03-architektura-a-technicka-dokumentace/01-architektura-hlubkova-analyza.md)
-
----
-
-**Status**: Ready for implementation
-**Next Action**: Create branch `001-langgraph-foundation` and run `/speckit.specify`
+**Status**: 11/12 core features done, audit complete, production readiness in progress
+**Next Action**: Implement API key authentication or 004-vzp-pricing-agent

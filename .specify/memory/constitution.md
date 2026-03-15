@@ -1,51 +1,33 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 1.2.1 → 1.3.0 (MINOR)
-- Bump rationale: Materially expanded Security Standards with 4 new
-  subsections based on comprehensive security audit (2026-03-12).
-  Added Production Readiness Standards section. Updated test metrics
-  to reflect translation test mock fix. This is a MINOR bump because
-  new mandatory requirements are added.
+- Version change: 1.3.0 → 1.3.1 (PATCH)
+- Bump rationale: Post-audit cleanup — resolved Known Issues section
+  (all 3 issues fixed in 001-audit-remediation), updated test metrics,
+  updated LLM client configuration to reflect implemented get_llm() cache,
+  cleared completed follow-up TODOs. No new principles or standards added.
 - Modified principles: None (all 5 principles unchanged)
-- Enhanced sections:
-  * Security Standards — 4 new subsections: Error Response Sanitization,
-    CORS Policy, LLM Client Configuration, Cache Security
-  * Technology Stack — Test metrics corrected, translation test note updated
-  * Routing Architecture — Added known issues subsection
-- Added sections:
-  * Production Readiness Standards (auth, config management, Docker)
-- Removed sections: None
+- Updated sections:
+  * Routing Architecture — Removed "Known Issues" subsection (all 3 resolved)
+  * LLM Client Configuration — Updated from SHOULD to MUST for instance reuse,
+    documented get_llm() in llm_cache.py as canonical implementation
+  * Testing metrics — Updated from 449/449 to 472+ unit, 553 total
+- Added sections: None
+- Removed sections:
+  * "Known Issues (as of 2026-03-12 audit)" — all items resolved
 - Templates requiring updates:
-  ✅ plan-template.md — No changes needed (Constitution Check references
-     principles I-V which are unchanged)
+  ✅ plan-template.md — No changes needed
   ✅ spec-template.md — No changes needed
-  ✅ tasks-template.md — No changes needed (security hardening phase
-     already exists as "Phase N: Polish & Cross-Cutting")
+  ✅ tasks-template.md — No changes needed
   ✅ checklist-template.md — No changes needed
-- Follow-up TODOs:
-  * Implement API key authentication (constitution now mandates it)
-  * Add startup CORS validation for production environment
-  * Set LLM timeout to ≤60s on all ChatAnthropic instances
-  * Use full SHA-256 hash for cache keys
+- Follow-up TODOs (remaining from v1.3.0):
+  * Implement API key authentication (constitution mandates it)
   * Centralize agent-layer configuration into validated Settings class
 
-PREVIOUS REPORT (1.2.0 → 1.2.1):
-- Test metrics corrected from 442/442 to 444/449 after validation run.
-  5 translation tests fail due to unmocked LLM calls (known bug).
-
-PREVIOUS REPORT (1.1.2 → 1.2.0):
-- Supabase migration introduces asyncpg as mandatory backend technology.
-  Guidelines storage uses direct asyncpg to Supabase PostgreSQL with pgvector.
-
-PREVIOUS REPORT (1.1.1 → 1.1.2):
-- Routing architecture section updated to reflect DRY consolidation.
-
-PREVIOUS REPORT (1.1.0 → 1.1.1):
-- Corrected stale test metrics and fixed translation test count.
-
-PREVIOUS REPORT (1.0.4 → 1.1.0):
-- Materially expanded guidance — added Security Standards, Frontend
-  Tech Stack, MCP Protocol. 12 new tests added.
+PREVIOUS REPORT (1.2.1 → 1.3.0):
+- Materially expanded Security Standards with 4 new subsections.
+  Added Production Readiness Standards section. MINOR bump.
+  Follow-up TODOs: CORS validation ✅, LLM timeout ✅, SHA-256 cache ✅,
+  API key auth (pending), Settings centralization (pending).
 -->
 
 # Langchain-Benjamin Constitution
@@ -197,7 +179,9 @@ MCP (Model Context Protocol) clients communicate with external data sources:
 
 - All `ChatAnthropic` instances MUST set an explicit `timeout` value (≤60 seconds)
 - `timeout=None` is PROHIBITED — it disables per-call timeout and creates DoS risk even when outer `asyncio.timeout` is present
-- LLM instances SHOULD be reused across requests where model parameters are identical, rather than instantiated per-request
+- LLM instances MUST be obtained via `get_llm()` from `agent.utils.llm_cache` — direct `ChatAnthropic()` instantiation in node code is PROHIBITED
+- `get_llm()` caches instances by `(model_name, temperature, timeout, max_tokens)` tuple, eliminating ~100ms overhead per request
+- `LLM_TIMEOUT` constant in `agent.constants` (currently 60s) is the single source of truth for default timeout
 
 ### Cache Security
 
@@ -306,9 +290,10 @@ All code MUST pass these enforced quality checks before merge:
 - Use `r"""` prefix if docstring contains backslashes
 
 #### Testing
-- **Test coverage**: Minimum 80% for node implementations (current: 449/449 unit tests passing, 89 integration tests)
+- **Test coverage**: Minimum 80% for node implementations (current: 472+ unit tests passing, 81+ integration tests, 553 total)
 - All tests MUST pass: `pytest tests/`
-- Translation tests now use `_mock_llm()` context manager — no live LLM calls required
+- Translation tests use `_mock_llm()` context manager — no live LLM calls required
+- LLM mocks MUST target `agent.utils.llm_cache.ChatAnthropic` (not node-level imports) and call `_llm_cache.clear()` before mock usage
 - Performance benchmarks for latency-critical nodes
 - Regression tests MUST accompany routing priority or keyword changes
 - Stub/placeholder tests (e.g., `assert isinstance(graph, Pregel)`) MUST be replaced with behavioral tests or removed
@@ -339,11 +324,9 @@ Query routing follows this strict priority (highest to lowest):
 
 `fallback_to_keyword_routing()` in `supervisor.py` is the canonical keyword routing implementation. `route_query()` in `graph.py` delegates to it for keyword-based decisions (after checking explicit queries). This eliminates duplicate keyword logic and ensures both paths always agree.
 
-### Known Issues (as of 2026-03-12 audit)
+`RESEARCH_KEYWORDS` is defined once in `graph.py`; `pubmed_agent.py` uses a lazy import to avoid circular dependency.
 
-- `RESEARCH_KEYWORDS` is duplicated between `graph.py` and `pubmed_agent.py` with diverging sets — MUST be consolidated
-- `source_filter` parameter in `guidelines_storage.py` is silently replaced with hardcoded `"guidelines"` regardless of input — the API is misleading
-- `State.next` field is populated by every agent node but never read by graph routing — dead code that SHOULD be removed
+`DEFAULT_MODEL_NAME` and `LLM_TIMEOUT` in `agent.constants` are the single source of truth for model configuration.
 
 ## Governance
 
@@ -370,4 +353,4 @@ This constitution is a living document. Amendments require:
 - Security standards MUST be verified during code review
 - Production readiness standards MUST be verified before any public deployment
 
-**Version**: 1.3.0 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-03-12
+**Version**: 1.3.1 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-03-15
