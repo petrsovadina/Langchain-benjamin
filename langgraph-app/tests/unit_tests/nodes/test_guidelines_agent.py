@@ -287,11 +287,11 @@ class TestSemanticSearch:
                 mock_search.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_search_guidelines_semantic_with_source_filter(
+    async def test_search_guidelines_semantic_with_specialty_filter(
         self,
         mock_openai_embeddings_client: MagicMock,
     ) -> None:
-        """Test semantic search with specialty filter."""
+        """Test semantic search calls search_guidelines without source_filter."""
         query = GuidelineQuery(
             query_text="heart failure treatment",
             query_type=GuidelineQueryType.SEARCH,
@@ -312,9 +312,10 @@ class TestSemanticSearch:
 
                 await search_guidelines_semantic(query, mock_runtime)
 
-                # Verify source_filter was set to "esc" for cardiology
-                call_args = mock_search.call_args
-                assert call_args[1]["source_filter"] == "esc"
+                # Verify search_guidelines was called (source_filter removed)
+                mock_search.assert_called_once()
+                call_kwargs = mock_search.call_args[1]
+                assert "source_filter" not in call_kwargs
 
     @pytest.mark.asyncio
     async def test_search_guidelines_semantic_missing_api_key(
@@ -421,7 +422,6 @@ class TestGuidelinesAgentNode:
                 # Verify response structure
                 assert "messages" in result
                 assert "retrieved_docs" in result
-                assert result["next"] == "__end__"
 
                 # Verify message content
                 assert len(result["messages"]) == 1

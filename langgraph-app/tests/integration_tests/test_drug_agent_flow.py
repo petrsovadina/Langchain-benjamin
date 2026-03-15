@@ -30,7 +30,6 @@ class TestDrugAgentSearchDetailsFlow:
         # Create state with search query
         state = State(
             messages=[{"role": "user", "content": "Najdi Ibalgin"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 
@@ -47,7 +46,6 @@ class TestDrugAgentSearchDetailsFlow:
         # Step 2: Get details for first result
         state_with_details = State(
             messages=[{"role": "user", "content": "Podrobnosti o Ibalginu"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 
@@ -66,7 +64,6 @@ class TestDrugAgentSearchDetailsFlow:
         """Test search using explicit DrugQuery in state."""
         state = State(
             messages=[],
-            next="drug_agent",
             retrieved_docs=[],
             drug_query=DrugQuery(
                 query_text="Paralen",
@@ -91,7 +88,6 @@ class TestDrugAgentSearchDetailsFlow:
         """Test reimbursement query flow."""
         state = State(
             messages=[{"role": "user", "content": "Kolik stojí Ibalgin?"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 
@@ -109,7 +105,6 @@ class TestDrugAgentSearchDetailsFlow:
         """Test availability check flow."""
         state = State(
             messages=[{"role": "user", "content": "Je Ibalgin dostupný?"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 
@@ -152,7 +147,6 @@ class TestDrugAgentSearchDetailsFlow:
 
         state = State(
             messages=[{"role": "user", "content": "Léky s kódem M01AE01"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 
@@ -185,7 +179,6 @@ class TestDrugAgentErrorHandling:
 
         state = State(
             messages=[{"role": "user", "content": "Najdi Ibalgin"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 
@@ -209,7 +202,6 @@ class TestDrugAgentErrorHandling:
 
         state = State(
             messages=[{"role": "user", "content": "Najdi Ibalgin"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 
@@ -235,7 +227,6 @@ class TestDrugAgentErrorHandling:
 
         state = State(
             messages=[{"role": "user", "content": "Najdi XYZ123"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 
@@ -253,7 +244,6 @@ class TestDrugAgentErrorHandling:
         """Test error when SÚKL client is not configured."""
         state = State(
             messages=[{"role": "user", "content": "Najdi Ibalgin"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 
@@ -273,7 +263,6 @@ class TestDrugAgentErrorHandling:
         """Test handling of empty/missing query."""
         state = State(
             messages=[],  # No messages
-            next="drug_agent",
             retrieved_docs=[],
             drug_query=None,  # No explicit query
         )
@@ -302,7 +291,6 @@ class TestFullGraphExecution:
         """Verify State dataclass has drug_query field for graph execution."""
         state = State(
             messages=[{"role": "user", "content": "test"}],
-            next="general_agent",
             retrieved_docs=[],
         )
 
@@ -322,7 +310,6 @@ class TestFullGraphExecution:
         """Verify drug_agent_node returns state compatible with graph."""
         state = State(
             messages=[{"role": "user", "content": "Najdi Ibalgin"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 
@@ -335,7 +322,6 @@ class TestFullGraphExecution:
         assert isinstance(result, dict)
         assert "messages" in result
         assert "retrieved_docs" in result
-        assert "next" in result
 
         # Verify messages format
         assert isinstance(result["messages"], list)
@@ -347,7 +333,6 @@ class TestFullGraphExecution:
         assert isinstance(result["retrieved_docs"], list)
 
         # Verify next is valid
-        assert result["next"] == "__end__"
 
     @pytest.mark.asyncio
     async def test_multiple_queries_in_sequence(
@@ -367,7 +352,6 @@ class TestFullGraphExecution:
         for query_text in queries:
             state = State(
                 messages=[{"role": "user", "content": query_text}],
-                next="drug_agent",
                 retrieved_docs=[],
             )
 
@@ -385,7 +369,6 @@ class TestFullGraphExecution:
         """Verify retrieved documents have proper metadata for citations."""
         state = State(
             messages=[{"role": "user", "content": "Najdi Ibalgin"}],
-            next="drug_agent",
             retrieved_docs=[],
         )
 

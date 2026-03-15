@@ -23,7 +23,6 @@ Example:
     >>> results = await search_guidelines(
     ...     query=[0.1, 0.2, ...],
     ...     limit=5,
-    ...     source_filter="cls_jep"
     ... )
 """
 
@@ -304,9 +303,7 @@ async def store_guideline(
     embedding_str = f"[{','.join(str(v) for v in embedding)}]"
 
     # Derive Supabase columns from GuidelineSection fields
-    pub_date = datetime.strptime(
-        guideline_section.publication_date, "%Y-%m-%d"
-    ).date()
+    pub_date = datetime.strptime(guideline_section.publication_date, "%Y-%m-%d").date()
     organization = SOURCE_TO_ORG[guideline_section.source]
     keywords = guideline_section.metadata.get("keywords")
     icd10_codes = guideline_section.metadata.get("icd10_codes")
@@ -372,7 +369,6 @@ async def search_guidelines(
     query: str | Sequence[float],
     limit: int = 10,
     *,
-    source_filter: str | GuidelineSource | None = None,
     publication_date_from: str | date | None = None,
     publication_date_to: str | date | None = None,
     pool: asyncpg.Pool | None = None,
@@ -383,7 +379,6 @@ async def search_guidelines(
         query: Query embedding vector (1536 dimensions) or query text.
             If string is provided, it must be pre-embedded before calling.
         limit: Maximum number of results (1-100).
-        source_filter: Filter by source (cls_jep, esc, ers).
         publication_date_from: Filter by publication date (inclusive).
         publication_date_to: Filter by publication date (inclusive).
         pool: Optional connection pool.
@@ -402,7 +397,6 @@ async def search_guidelines(
         >>> results = await search_guidelines(
         ...     query=[0.1, 0.2, ...],  # 1536-dim embedding
         ...     limit=5,
-        ...     source_filter=GuidelineSource.CLS_JEP,
         ... )
         >>> for r in results:
         ...     print(f"{r['title']}: {r['similarity_score']:.3f}")
@@ -449,11 +443,10 @@ async def search_guidelines(
     params: list[Any] = [f"[{','.join(str(v) for v in query)}]"]
     param_idx = 2
 
-    # Add source filter — all GuidelineSource values map to "guidelines"
-    if source_filter is not None:
-        query_parts.append(f"AND source_type = ${param_idx}::source_type")
-        params.append("guidelines")
-        param_idx += 1
+    # Source filter: always filter to "guidelines" (single source type in DB)
+    query_parts.append(f"AND source_type = ${param_idx}::source_type")
+    params.append("guidelines")
+    param_idx += 1
 
     # Add publication date filters
     if publication_date_from is not None:
@@ -511,10 +504,9 @@ async def search_guidelines(
                 )
 
             logger.debug(
-                "Search returned %d results (limit=%d, source=%s)",
+                "Search returned %d results (limit=%d)",
                 len(results),
                 limit,
-                source_filter,
             )
             return results
 
@@ -555,9 +547,7 @@ async def get_guideline_section(
         ... )
     """
     if section_id is None and not guideline_id:
-        raise ValueError(
-            "Either guideline_id or section_id must be provided"
-        )
+        raise ValueError("Either guideline_id or section_id must be provided")
 
     if pool is None:
         pool = await get_pool()
@@ -639,9 +629,7 @@ async def delete_guideline_section(
         True if deleted, False if not found.
     """
     if section_id is None and not guideline_id:
-        raise ValueError(
-            "Either guideline_id or section_id must be provided"
-        )
+        raise ValueError("Either guideline_id or section_id must be provided")
 
     if pool is None:
         pool = await get_pool()

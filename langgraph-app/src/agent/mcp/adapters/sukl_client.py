@@ -75,18 +75,22 @@ PARAM_MAP: dict[str, dict[str, str | None]] = {
     "get-medicine-details": {"registration_number": "sukl_code"},
     "get-atc-info": {"atc_code": "code"},
     "get-reimbursement": {"registration_number": "sukl_code"},
-    "check-availability": {"registration_number": "sukl_code", "include_alternatives": None},
+    "check-availability": {
+        "registration_number": "sukl_code",
+        "include_alternatives": None,
+    },
     "get-pil-content": {"registration_number": "sukl_code"},
     "get-spc-content": {"registration_number": "sukl_code"},
     "find-pharmacies": {"city": "city", "postal_code": "postalCode"},
 }
 
 # ReDoS-safe pattern: line-anchored, no backtracking ambiguity
-_DRUG_LINE_PATTERN = re.compile(r'^\d+\.\s+([^(]+)\s+\((\d{4,8})\)\s*-\s*(.+)$')
+_DRUG_LINE_PATTERN = re.compile(r"^\d+\.\s+([^(]+)\s+\((\d{4,8})\)\s*-\s*(.+)$")
 
 
 class DrugSearchResult(BaseModel):
     """Schema for search_drugs response."""
+
     name: str
     atc_code: str = ""
     registration_number: str = ""
@@ -208,10 +212,13 @@ class SUKLMCPClient(IMCPClient):
             mcp_tool, mcp_params = self._map_tool_and_params(tool_name, parameters)
 
             # Build JSON-RPC envelope
-            payload = self._build_rpc_request("tools/call", {
-                "name": mcp_tool,
-                "arguments": mcp_params,
-            })
+            payload = self._build_rpc_request(
+                "tools/call",
+                {
+                    "name": mcp_tool,
+                    "arguments": mcp_params,
+                },
+            )
 
             start_time = datetime.now()
 
@@ -349,16 +356,18 @@ class SUKLMCPClient(IMCPClient):
             text = text[:MAX_TEXT_LENGTH]
 
         drugs: list[dict[str, str]] = []
-        for line in text.split('\n'):
+        for line in text.split("\n"):
             match = _DRUG_LINE_PATTERN.match(line.strip())
             if match:
                 name, code, ingredient = match.groups()
-                drugs.append({
-                    "name": name.strip(),
-                    "registration_number": code.strip(),
-                    "atc_code": "",
-                    "active_ingredient": ingredient.strip(),
-                })
+                drugs.append(
+                    {
+                        "name": name.strip(),
+                        "registration_number": code.strip(),
+                        "atc_code": "",
+                        "active_ingredient": ingredient.strip(),
+                    }
+                )
 
         if drugs:
             return {"drugs": drugs, "raw_text": text}
@@ -436,14 +445,54 @@ class SUKLMCPClient(IMCPClient):
 
         # Fallback: hardcoded list
         return [
-            MCPToolMetadata(name="search-medicine", description="Search drugs by name", parameters={"query": "string"}, returns={}),
-            MCPToolMetadata(name="get-medicine-details", description="Get drug details by SÚKL code", parameters={"suklCode": "string"}, returns={}),
-            MCPToolMetadata(name="get-atc-info", description="Search by ATC code", parameters={"code": "string"}, returns={}),
-            MCPToolMetadata(name="get-reimbursement", description="Get pricing/reimbursement", parameters={"suklCode": "string"}, returns={}),
-            MCPToolMetadata(name="check-availability", description="Check drug availability", parameters={"suklCode": "string"}, returns={}),
-            MCPToolMetadata(name="get-pil-content", description="Patient Information Leaflet", parameters={"suklCode": "string"}, returns={}),
-            MCPToolMetadata(name="get-spc-content", description="Summary of Product Characteristics", parameters={"suklCode": "string"}, returns={}),
-            MCPToolMetadata(name="find-pharmacies", description="Search pharmacies", parameters={"city": "string"}, returns={}),
+            MCPToolMetadata(
+                name="search-medicine",
+                description="Search drugs by name",
+                parameters={"query": "string"},
+                returns={},
+            ),
+            MCPToolMetadata(
+                name="get-medicine-details",
+                description="Get drug details by SÚKL code",
+                parameters={"suklCode": "string"},
+                returns={},
+            ),
+            MCPToolMetadata(
+                name="get-atc-info",
+                description="Search by ATC code",
+                parameters={"code": "string"},
+                returns={},
+            ),
+            MCPToolMetadata(
+                name="get-reimbursement",
+                description="Get pricing/reimbursement",
+                parameters={"suklCode": "string"},
+                returns={},
+            ),
+            MCPToolMetadata(
+                name="check-availability",
+                description="Check drug availability",
+                parameters={"suklCode": "string"},
+                returns={},
+            ),
+            MCPToolMetadata(
+                name="get-pil-content",
+                description="Patient Information Leaflet",
+                parameters={"suklCode": "string"},
+                returns={},
+            ),
+            MCPToolMetadata(
+                name="get-spc-content",
+                description="Summary of Product Characteristics",
+                parameters={"suklCode": "string"},
+                returns={},
+            ),
+            MCPToolMetadata(
+                name="find-pharmacies",
+                description="Search pharmacies",
+                parameters={"city": "string"},
+                returns={},
+            ),
         ]
 
     async def close(self) -> None:

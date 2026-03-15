@@ -489,6 +489,7 @@ class TestIntentClassifierInit:
 
         # Default model from constants.DEFAULT_MODEL_NAME
         from agent.constants import DEFAULT_MODEL_NAME
+
         assert classifier.model_name == DEFAULT_MODEL_NAME
         assert classifier.temperature == 0.0
         # LLM is lazily initialized - None until first classify_intent call
@@ -528,15 +529,14 @@ class TestIntentClassifierInit:
         )
 
         with patch(
-            "agent.nodes.supervisor.ChatAnthropic", return_value=mock_chat
+            "agent.utils.llm_cache.ChatAnthropic", return_value=mock_chat
         ) as mock_cls:
             await classifier.classify_intent("Test query")
 
             mock_cls.assert_called_once_with(
                 model="claude-sonnet-4-20250514",
                 temperature=0.0,
-                timeout=None,
-                stop=None,
+                timeout=60,
             )
         assert classifier.llm is mock_chat
 
@@ -638,7 +638,6 @@ class TestSupervisorNode:
         """Test supervisor routes drug query to drug_agent via Send."""
         state = State(
             messages=[{"role": "user", "content": "Jaké je složení Ibalginu?"}],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -665,7 +664,6 @@ class TestSupervisorNode:
         """Test supervisor routes guideline query to guidelines_agent via Send."""
         state = State(
             messages=[{"role": "user", "content": "Guidelines pro hypertenzi"}],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -691,7 +689,6 @@ class TestSupervisorNode:
         """Test supervisor routes research query to pubmed_agent via Send."""
         state = State(
             messages=[{"role": "user", "content": "Studie o diabetu"}],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -723,7 +720,6 @@ class TestSupervisorNode:
                     "content": "Metformin - guidelines a studie",
                 }
             ],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -753,7 +749,6 @@ class TestSupervisorNode:
         """Test supervisor routes out_of_scope to general_agent via Send."""
         state = State(
             messages=[{"role": "user", "content": "Jaké je počasí?"}],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -779,7 +774,6 @@ class TestSupervisorNode:
         """Test supervisor handles empty messages with general_agent Send."""
         state = State(
             messages=[],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -793,7 +787,6 @@ class TestSupervisorNode:
         """Test supervisor falls back to keyword routing Send on classification error."""
         state = State(
             messages=[{"role": "user", "content": "Najdi lék Ibalgin"}],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -817,7 +810,6 @@ class TestSupervisorNode:
 
         state = State(
             messages=[{"role": "user", "content": "anything"}],
-            next="__end__",
             retrieved_docs=[],
             drug_query=DrugQuery(query_text="Ibalgin", query_type=QueryType.SEARCH),
         )
@@ -834,7 +826,6 @@ class TestSupervisorNode:
 
         state = State(
             messages=[{"role": "user", "content": "anything"}],
-            next="__end__",
             retrieved_docs=[],
             research_query=ResearchQuery(query_text="diabetes", query_type="search"),
         )
@@ -851,7 +842,6 @@ class TestSupervisorNode:
 
         state = State(
             messages=[{"role": "user", "content": "anything"}],
-            next="__end__",
             retrieved_docs=[],
             guideline_query=GuidelineQuery(
                 query_text="hypertenze",
@@ -869,7 +859,6 @@ class TestSupervisorNode:
         """Test supervisor fallback when SUKL client unavailable."""
         state = State(
             messages=[{"role": "user", "content": "Složení Ibalginu"}],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -899,7 +888,6 @@ class TestSupervisorNode:
         """Test supervisor fallback when BioMCP client unavailable."""
         state = State(
             messages=[{"role": "user", "content": "Studie o diabetu"}],
-            next="__end__",
             retrieved_docs=[],
         )
 

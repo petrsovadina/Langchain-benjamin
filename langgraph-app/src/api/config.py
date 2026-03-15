@@ -1,9 +1,8 @@
 """Production configuration with environment validation."""
 
-import os
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -28,7 +27,9 @@ class Settings(BaseSettings):
     cors_allow_credentials: bool = True
 
     # Database
-    database_url: str = Field(default="postgresql://postgres:postgres@localhost:5432/czech_medai")
+    database_url: str = Field(
+        default="postgresql://postgres:postgres@localhost:5432/czech_medai"
+    )
     db_pool_min_size: int = 10
     db_pool_max_size: int = 50
 
@@ -57,6 +58,22 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
         return v
+
+    @model_validator(mode="after")
+    def validate_cors_production(self) -> "Settings":
+        """Validate CORS is properly configured for production."""
+        if self.environment == "production":
+            if not self.cors_origins:
+                raise ValueError(
+                    "CORS_ORIGINS must be set for production environment. "
+                    "Use comma-separated origins (e.g., 'https://app.example.com')."
+                )
+            if "*" in self.cors_origins:
+                raise ValueError(
+                    "Wildcard '*' CORS origin is not allowed in production. "
+                    "Specify explicit origins."
+                )
+        return self
 
     @field_validator("database_url")
     @classmethod

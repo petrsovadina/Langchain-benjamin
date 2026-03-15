@@ -44,10 +44,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
 
     # Startup
-    logger.info("🚀 Czech MedAI API server starting...", extra={
-        "environment": settings.environment,
-        "workers": settings.api_workers,
-    })
+    logger.info(
+        "🚀 Czech MedAI API server starting...",
+        extra={
+            "environment": settings.environment,
+            "workers": settings.api_workers,
+        },
+    )
     logger.info("📊 LangGraph multi-agent system ready")
 
     # Verify MCP clients (non-blocking)
@@ -96,7 +99,7 @@ Klinická rozhodovací podpora založená na důkazech z českých i mezinárodn
 Multi-agentní systém na bázi LangGraph s paralelním zpracováním přes Send API.
 Agenti: `drug_agent`, `pubmed_agent`, `guidelines_agent` → `synthesizer`.
     """,
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -128,7 +131,7 @@ Agenti: `drug_agent`, `pubmed_agent`, `guidelines_agent` → `synthesizer`.
 # CORS middleware with restricted origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins if settings.cors_origins else ["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=settings.cors_allow_credentials,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
@@ -250,7 +253,7 @@ async def root() -> RootResponse:
     """Root endpoint s informacemi o API a navigačními odkazy."""
     return RootResponse(
         name="Czech MedAI API",
-        version="0.1.0",
+        version="0.2.0",
         description="AI asistent pro české lékaře",
         docs="/docs",
         health="/health",

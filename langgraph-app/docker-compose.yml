@@ -12,7 +12,7 @@ services:
     environment:
       - ENVIRONMENT=production
       - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/czech_medai
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/${POSTGRES_DB:-czech_medai}
       - LOG_LEVEL=INFO
     env_file:
       - .env.production
@@ -30,8 +30,8 @@ services:
     image: redis:7-alpine
     container_name: czech-medai-redis
     ports:
-      - "6379:6379"
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+      - "127.0.0.1:6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-changeme}
     restart: unless-stopped
     networks:
       - czech-medai-network
@@ -43,10 +43,10 @@ services:
     image: ankane/pgvector:latest
     container_name: czech-medai-postgres
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
       - POSTGRES_DB=czech_medai
     restart: unless-stopped
     networks:

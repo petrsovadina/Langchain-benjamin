@@ -19,10 +19,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
 
-from agent.constants import DEFAULT_MODEL_NAME
+from agent.constants import DEFAULT_MODEL_NAME, LLM_TIMEOUT
 from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
@@ -406,9 +405,7 @@ def _build_terminology_warning(validation: dict[str, list[str]]) -> str:
 
     warning_section = "## Terminologické upozornění\n"
     if validation["warnings"]:
-        warning_section += (
-            "\n".join(f"- {w}" for w in validation["warnings"]) + "\n\n"
-        )
+        warning_section += "\n".join(f"- {w}" for w in validation["warnings"]) + "\n\n"
     if validation["suggestions"]:
         warning_section += (
             "\n".join(f"- {s}" for s in validation["suggestions"]) + "\n\n"
@@ -535,7 +532,6 @@ async def synthesizer_node(
                 }
             ],
             "retrieved_docs": [],
-            "next": "__end__",
         }
 
     # If single agent message, pass through with minimal processing
@@ -574,7 +570,6 @@ async def synthesizer_node(
         return {
             "messages": [{"role": "assistant", "content": formatted}],
             "retrieved_docs": [],
-            "next": "__end__",
         }
 
     # Multiple agent messages - full synthesis
@@ -601,11 +596,12 @@ async def synthesizer_node(
     model_name = context.get("model_name", DEFAULT_MODEL_NAME)
 
     try:
-        llm = ChatAnthropic(
-            model=model_name,
+        from agent.utils.llm_cache import get_llm
+
+        llm = get_llm(
+            model_name=model_name,
             temperature=0.0,
-            timeout=None,
-            stop=None,
+            timeout=LLM_TIMEOUT,
             max_tokens=4096,
         )
 
@@ -677,5 +673,4 @@ async def synthesizer_node(
     return {
         "messages": [{"role": "assistant", "content": formatted}],
         "retrieved_docs": [],
-        "next": "__end__",
     }

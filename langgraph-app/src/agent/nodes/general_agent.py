@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from agent.constants import DEFAULT_MODEL_NAME
+from agent.constants import DEFAULT_MODEL_NAME, LLM_TIMEOUT
 from agent.utils.message_utils import extract_message_content
 
 if TYPE_CHECKING:
@@ -41,7 +41,6 @@ async def general_agent_node(state: State, runtime: Runtime[Context]) -> dict[st
             - messages: list with new assistant message
             - next: "__end__"
     """
-    from langchain_anthropic import ChatAnthropic
     from langchain_core.messages import HumanMessage, SystemMessage
 
     context = runtime.context or {}
@@ -53,17 +52,17 @@ async def general_agent_node(state: State, runtime: Runtime[Context]) -> dict[st
     if not last_message:
         return {
             "messages": [{"role": "assistant", "content": "Nebyl zadán žádný dotaz."}],
-            "next": "__end__",
         }
 
     user_content = extract_message_content(last_message)
 
     try:
-        llm = ChatAnthropic(
-            model=model_name,
+        from agent.utils.llm_cache import get_llm
+
+        llm = get_llm(
+            model_name=model_name,
             temperature=0.0,
-            timeout=None,
-            stop=None,
+            timeout=LLM_TIMEOUT,
             max_tokens=2048,
         )
 
@@ -76,10 +75,12 @@ async def general_agent_node(state: State, runtime: Runtime[Context]) -> dict[st
             "NIKDY nevymýšlej citace ani zdroje, které nemáš k dispozici."
         )
 
-        response = await llm.ainvoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_content),
-        ])
+        response = await llm.ainvoke(
+            [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_content),
+            ]
+        )
 
         answer = (
             response.content
@@ -94,4 +95,4 @@ async def general_agent_node(state: State, runtime: Runtime[Context]) -> dict[st
             "Zkuste prosím specifičtější lékařský dotaz."
         )
 
-    return {"messages": [{"role": "assistant", "content": answer}], "next": "__end__"}
+    return {"messages": [{"role": "assistant", "content": answer}]}

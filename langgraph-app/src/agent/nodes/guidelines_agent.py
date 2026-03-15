@@ -240,18 +240,12 @@ async def search_guidelines_semantic(
     # Create embedding for query
     embedding = await _create_query_embedding(query.query_text, api_key)
 
-    # Map specialty to source filter
-    source_filter = _map_specialty_to_source(query.specialty_filter)
-
-    logger.debug(
-        f"[guidelines_agent] Searching with source_filter={source_filter}, limit={query.limit}"
-    )
+    logger.debug(f"[guidelines_agent] Searching with limit={query.limit}")
 
     # Search with filters
     results = await search_guidelines(
         query=embedding,
         limit=query.limit,
-        source_filter=source_filter,
     )
 
     return results
@@ -329,7 +323,6 @@ async def guidelines_agent_node(
                 }
             ],
             "retrieved_docs": [],
-            "next": "__end__",
         }
 
     # Process query based on type
@@ -432,7 +425,6 @@ async def guidelines_agent_node(
                                 }
                             ],
                             "retrieved_docs": [],
-                            "next": "__end__",
                         }
                     else:
                         logger.warning("[guidelines_agent_node] No guidelines found")
@@ -444,7 +436,6 @@ async def guidelines_agent_node(
                                 }
                             ],
                             "retrieved_docs": [],
-                            "next": "__end__",
                         }
 
                 # Transform to documents
@@ -490,7 +481,6 @@ async def guidelines_agent_node(
                         }
                     ],
                     "retrieved_docs": [],
-                    "next": "__end__",
                 }
 
     except GuidelinesStorageError as e:
@@ -518,7 +508,6 @@ async def guidelines_agent_node(
     return {
         "messages": [{"role": "assistant", "content": response_text}],
         "retrieved_docs": documents,
-        "next": "__end__",
     }
 
 

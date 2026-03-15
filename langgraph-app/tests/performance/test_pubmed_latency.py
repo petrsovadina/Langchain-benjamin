@@ -14,7 +14,7 @@ Translation sandwich removed - pubmed_agent handles CZ→EN internally.
 
 import time
 from typing import List
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -39,7 +39,6 @@ class TestPubMedLatencyBenchmark:
 
         state = State(
             messages=[{"role": "user", "content": "Studie o diabetu typu 2"}],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="type 2 diabetes studies", query_type="search"
@@ -72,7 +71,6 @@ class TestPubMedLatencyBenchmark:
 
         state = State(
             messages=[{"role": "user", "content": "Zobraz PMID:12345678"}],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="12345678", query_type="pmid_lookup"
@@ -94,9 +92,7 @@ class TestPubMedLatencyBenchmark:
         )
 
     @pytest.mark.asyncio
-    async def test_multi_article_search_latency(
-        self, mock_biomcp_client, mock_runtime
-    ):
+    async def test_multi_article_search_latency(self, mock_biomcp_client, mock_runtime):
         """Test latency for search returning multiple articles (5 articles).
 
         No separate EN→CZ translation step anymore.
@@ -109,7 +105,6 @@ class TestPubMedLatencyBenchmark:
             messages=[
                 {"role": "user", "content": "Studie o hypertenzi za poslední rok"}
             ],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="hypertension studies last year", query_type="search"
@@ -139,12 +134,13 @@ class TestPubMedLatencyBenchmark:
 
         state = State(
             messages=[{"role": "user", "content": "Studie o diabetu typu 2"}],
-            next="",
             retrieved_docs=[],
             # No research_query → triggers internal translation
         )
 
-        with patch("agent.nodes.pubmed_agent._translate_query_to_english") as mock_translate:
+        with patch(
+            "agent.nodes.pubmed_agent._translate_query_to_english"
+        ) as mock_translate:
             mock_translate.return_value = ("type 2 diabetes studies", "search")
 
             start_time = time.perf_counter()

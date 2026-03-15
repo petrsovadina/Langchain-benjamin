@@ -101,7 +101,6 @@ class TestSupervisorNodeSendAPI:
         """Test single agent query returns single Send command."""
         state = State(
             messages=[HumanMessage(content="Jaké je složení Ibalginu?")],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -129,7 +128,6 @@ class TestSupervisorNodeSendAPI:
         """Test compound query returns list of Send commands for parallel execution."""
         state = State(
             messages=[HumanMessage(content="Metformin - guidelines a kontraindikace")],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -162,7 +160,6 @@ class TestSupervisorNodeSendAPI:
 
         state = State(
             messages=[HumanMessage(content="anything")],
-            next="__end__",
             retrieved_docs=[],
             drug_query=DrugQuery(query_text="Ibalgin", query_type=QueryType.SEARCH),
         )
@@ -181,7 +178,6 @@ class TestSupervisorNodeSendAPI:
 
         state = State(
             messages=[HumanMessage(content="anything")],
-            next="__end__",
             retrieved_docs=[],
             research_query=ResearchQuery(query_text="diabetes", query_type="search"),
         )
@@ -200,7 +196,6 @@ class TestSupervisorNodeSendAPI:
 
         state = State(
             messages=[HumanMessage(content="anything")],
-            next="__end__",
             retrieved_docs=[],
             guideline_query=GuidelineQuery(
                 query_text="hypertenze",
@@ -220,7 +215,6 @@ class TestSupervisorNodeSendAPI:
         """Test empty messages returns Send to general_agent."""
         state = State(
             messages=[],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -236,7 +230,6 @@ class TestSupervisorNodeSendAPI:
         """Test classification error fallback returns Send."""
         state = State(
             messages=[HumanMessage(content="Najdi lék Ibalgin")],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -260,7 +253,6 @@ class TestSupervisorNodeSendAPI:
         """Test out_of_scope intent returns Send to general_agent."""
         state = State(
             messages=[HumanMessage(content="Jaké je počasí?")],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -288,7 +280,6 @@ class TestSupervisorNodeSendAPI:
         """Test unavailable agent is skipped in compound query."""
         state = State(
             messages=[HumanMessage(content="Metformin - guidelines a studie")],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -322,7 +313,6 @@ class TestSupervisorNodeSendAPI:
         """Test all MCP agents unavailable returns general_agent."""
         state = State(
             messages=[HumanMessage(content="Metformin - studie a léky")],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -355,7 +345,6 @@ class TestSupervisorNodeSendAPI:
         """Test pubmed_agent routes to pubmed_agent node."""
         state = State(
             messages=[HumanMessage(content="Studie o diabetu")],
-            next="__end__",
             retrieved_docs=[],
         )
 
@@ -412,7 +401,6 @@ class TestTimeoutWrapper:
 
         assert "překročil časový limit" in result["messages"][0]["content"]
         assert result["retrieved_docs"] == []
-        assert result["next"] == "__end__"
 
     @pytest.mark.asyncio
     async def test_timeout_preserves_function_name(self) -> None:

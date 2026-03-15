@@ -63,7 +63,7 @@ def generate_cache_key(query: str, mode: str) -> str:
     Returns:
         Cache key (e.g., "consult:abc123def456:quick").
     """
-    query_hash = hashlib.sha256(query.encode()).hexdigest()[:16]
+    query_hash = hashlib.sha256(query.encode()).hexdigest()
     return f"consult:{query_hash}:{mode}"
 
 
@@ -140,12 +140,13 @@ async def invalidate_cache(pattern: str = "consult:*") -> int:
         return 0
 
     try:
-        keys = await client.keys(pattern)
-        if keys:
-            deleted = await client.delete(*keys)
+        deleted = 0
+        async for key in client.scan_iter(match=pattern, count=100):
+            await client.delete(key)
+            deleted += 1
+        if deleted:
             logger.info(f"🗑️  Invalidated {deleted} cache entries")
-            return deleted
-        return 0
+        return deleted
     except RedisError as e:
         logger.warning(f"Redis invalidate error: {e}")
         return 0

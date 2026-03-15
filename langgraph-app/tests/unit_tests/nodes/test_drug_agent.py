@@ -93,7 +93,6 @@ class TestDrugSearch:
         # Verify response structure
         assert "messages" in result
         assert "retrieved_docs" in result
-        assert result["next"] == "__end__"
 
         # Verify message content
         assert len(result["messages"]) == 1

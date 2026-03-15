@@ -377,41 +377,6 @@ class TestSearchGuidelines:
         assert results[0]["content"] == "ACE inhibitory..."
 
     @pytest.mark.asyncio
-    async def test_search_with_source_filter(
-        self,
-        sample_embedding: list[float],
-        mock_pool: MagicMock,
-        mock_connection: MagicMock,
-    ) -> None:
-        """Test that source filter uses source_type column with ::source_type cast.
-
-        In the Supabase schema, all guideline sources map to source_type='guidelines',
-        so the param value is 'guidelines', not the enum value 'cls_jep'.
-        """
-        mock_connection.fetch.return_value = []
-        mock_pool.acquire.return_value.__aenter__ = AsyncMock(
-            return_value=mock_connection
-        )
-        mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
-
-        # Execute with source filter
-        await search_guidelines(
-            query=sample_embedding,
-            limit=10,
-            source_filter=GuidelineSource.CLS_JEP,
-            pool=mock_pool,
-        )
-
-        # Verify filter uses new column name with enum cast
-        call_args = mock_connection.fetch.call_args
-        query = call_args[0][0]
-        assert "source_type = $" in query
-
-        # The param value should be "guidelines" (not "cls_jep")
-        params = call_args[0][1:]
-        assert "guidelines" in params
-
-    @pytest.mark.asyncio
     async def test_search_with_date_filters(
         self,
         sample_embedding: list[float],

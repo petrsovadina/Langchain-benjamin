@@ -17,13 +17,13 @@ from typing import TYPE_CHECKING, Any
 from langchain_core.documents import Document
 from langgraph.runtime import Runtime
 
+from agent.constants import DEFAULT_MODEL_NAME, LLM_TIMEOUT
 from agent.models.research_models import (
     CitationReference,
     PubMedArticle,
     ResearchQuery,
 )
 from agent.utils.message_utils import extract_message_content
-from agent.constants import DEFAULT_MODEL_NAME
 from agent.utils.timeout import with_timeout
 
 if TYPE_CHECKING:
@@ -55,26 +55,6 @@ CRITICAL RULES:
 Czech query: {czech_query}
 
 English translation (query only, no explanations):"""
-
-# Research keywords for query classification (Czech + English)
-RESEARCH_KEYWORDS = {
-    # Czech
-    "studie",
-    "výzkum",
-    "pubmed",
-    "článek",
-    "články",
-    "literatura",
-    "pmid",
-    "výzkumný",
-    "klinická studie",
-    # English fallback
-    "study",
-    "research",
-    "article",
-    "literature",
-    "paper",
-}
 
 
 def classify_research_query(message: str) -> ResearchQuery | None:
@@ -115,7 +95,9 @@ def classify_research_query(message: str) -> ResearchQuery | None:
             query_type="pmid_lookup",
         )
 
-    # Check for research keywords
+    # Check for research keywords (lazy import to avoid circular dependency)
+    from agent.graph import RESEARCH_KEYWORDS
+
     has_research_keyword = any(
         keyword in message_lower for keyword in RESEARCH_KEYWORDS
     )
@@ -375,10 +357,11 @@ async def _translate_query_to_english(
         return pmid_match.group(1), "pmid_lookup"
 
     # LLM-based translation CZ→EN
-    from langchain_anthropic import ChatAnthropic
     from langchain_core.messages import HumanMessage
 
-    llm = ChatAnthropic(model_name=model_name, temperature=0, timeout=None, stop=None)
+    from agent.utils.llm_cache import get_llm
+
+    llm = get_llm(model_name=model_name, temperature=0, timeout=LLM_TIMEOUT)
     prompt = CZ_TO_EN_PROMPT.format(czech_query=czech_query)
     response = await llm.ainvoke([HumanMessage(content=prompt)])
 
@@ -456,7 +439,6 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
                     "content": "Nerozumím vašemu dotazu. Zkuste zadat dotaz typu 'Jaké jsou studie o diabetu?'",
                 }
             ],
-            "next": "__end__",
         }
 
     # Get MCP clients with fallback to module-level instances
@@ -474,7 +456,6 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
                     "content": "PubMed služba dočasně nedostupná. Zkuste to prosím později.",
                 }
             ],
-            "next": "__end__",
         }
 
     try:
@@ -511,7 +492,6 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
                         "content": f"Nenalezeny žádné relevantní studie pro dotaz: {research_query.query_text}",
                     }
                 ],
-                "next": "__end__",
             }
 
         # Transform articles to Documents (with English abstracts)
@@ -560,7 +540,6 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
         return {
             "retrieved_docs": documents,
             "messages": [{"role": "assistant", "content": summary}],
-            "next": "__end__",
         }
 
     except Exception as e:
@@ -573,5 +552,4 @@ async def pubmed_agent_node(state: State, runtime: Runtime[Context]) -> dict[str
                     "content": f"Nastala chyba při vyhledávání: {str(e)}. Zkuste to prosím později.",
                 }
             ],
-            "next": "__end__",
         }

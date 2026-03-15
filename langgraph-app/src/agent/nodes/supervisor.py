@@ -30,6 +30,7 @@ import aiohttp
 from langchain_anthropic import ChatAnthropic
 from langgraph.types import Send
 
+from agent.constants import DEFAULT_MODEL_NAME, LLM_TIMEOUT
 from agent.models.supervisor_models import (
     VALID_AGENT_NAMES,
     IntentResult,
@@ -39,7 +40,6 @@ from agent.nodes.supervisor_prompts import (
     build_classification_prompt,
     build_function_schema,
 )
-from agent.constants import DEFAULT_MODEL_NAME
 from agent.utils.message_utils import extract_message_content
 
 if TYPE_CHECKING:
@@ -123,11 +123,12 @@ class IntentClassifier:
         try:
             # Lazy-init LLM on first call (avoids requiring API key at construction)
             if self.llm is None:
-                self.llm = ChatAnthropic(
-                    model=self.model_name,
+                from agent.utils.llm_cache import get_llm
+
+                self.llm = get_llm(
+                    model_name=self.model_name,
                     temperature=self.temperature,
-                    timeout=None,
-                    stop=None,
+                    timeout=LLM_TIMEOUT,
                 )
 
             # Build prompt with few-shot examples

@@ -65,7 +65,10 @@ class TestMultiAgentSynthesis:
             "Studie prokázala účinnost [2]."
         )
 
-        with patch("agent.nodes.synthesizer.ChatAnthropic") as mock_cls:
+        import agent.utils.llm_cache as llm_cache_mod
+
+        llm_cache_mod._llm_cache.clear()
+        with patch("agent.utils.llm_cache.ChatAnthropic") as mock_cls:
             mock_llm = MagicMock()
             mock_llm.ainvoke = AsyncMock(return_value=mock_response)
             mock_cls.return_value = mock_llm
@@ -236,7 +239,10 @@ class TestMultiAgentSynthesis:
         mock_runtime = MagicMock()
         mock_runtime.context = {"model_name": "test-model"}
 
-        with patch("agent.nodes.synthesizer.ChatAnthropic") as mock_cls:
+        import agent.utils.llm_cache as llm_cache_mod
+
+        llm_cache_mod._llm_cache.clear()
+        with patch("agent.utils.llm_cache.ChatAnthropic") as mock_cls:
             mock_llm = MagicMock()
             mock_response = MagicMock()
             mock_response.content = "Combined response."
@@ -287,7 +293,10 @@ class TestMultiAgentSynthesis:
             "Účinnost prokázána [3], potvrzena [4][5]."
         )
 
-        with patch("agent.nodes.synthesizer.ChatAnthropic") as mock_cls:
+        import agent.utils.llm_cache as llm_cache_mod
+
+        llm_cache_mod._llm_cache.clear()
+        with patch("agent.utils.llm_cache.ChatAnthropic") as mock_cls:
             mock_llm = MagicMock()
             mock_llm.ainvoke = AsyncMock(return_value=mock_response)
             mock_cls.return_value = mock_llm
@@ -330,7 +339,10 @@ class TestMultiAgentSynthesis:
         mock_response = MagicMock()
         mock_response.content = "Shrnutí: léky [1], studie [2], guidelines [3]."
 
-        with patch("agent.nodes.synthesizer.ChatAnthropic") as mock_cls:
+        import agent.utils.llm_cache as llm_cache_mod
+
+        llm_cache_mod._llm_cache.clear()
+        with patch("agent.utils.llm_cache.ChatAnthropic") as mock_cls:
             mock_llm = MagicMock()
             mock_llm.ainvoke = AsyncMock(return_value=mock_response)
             mock_cls.return_value = mock_llm
@@ -374,7 +386,10 @@ class TestMultiAgentSynthesis:
             "PubMed studie prokázala účinnost [2]."
         )
 
-        with patch("agent.nodes.synthesizer.ChatAnthropic") as mock_cls:
+        import agent.utils.llm_cache as llm_cache_mod
+
+        llm_cache_mod._llm_cache.clear()
+        with patch("agent.utils.llm_cache.ChatAnthropic") as mock_cls:
             mock_llm = MagicMock()
             mock_llm.ainvoke = AsyncMock(return_value=mock_response)
             mock_cls.return_value = mock_llm
