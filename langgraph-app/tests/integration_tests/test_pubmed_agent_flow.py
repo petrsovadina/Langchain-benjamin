@@ -34,12 +34,13 @@ class TestFullPubMedFlow:
                     "content": "Jaké jsou nejnovější studie o diabetu typu 2?",
                 }
             ],
-            next="",
             retrieved_docs=[],
         )
 
         # Mock the LLM translation call inside pubmed_agent
-        with patch("agent.nodes.pubmed_agent._translate_query_to_english") as mock_translate:
+        with patch(
+            "agent.nodes.pubmed_agent._translate_query_to_english"
+        ) as mock_translate:
             mock_translate.return_value = ("type 2 diabetes studies", "search")
 
             result = await pubmed_agent_node(state, mock_runtime)
@@ -65,7 +66,6 @@ class TestFullPubMedFlow:
             messages=[
                 {"role": "user", "content": "Studie za poslední 2 roky o hypertenzi"}
             ],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="hypertension studies last 2 years",
@@ -85,12 +85,13 @@ class TestFullPubMedFlow:
 
         state = State(
             messages=[{"role": "user", "content": "Ukaž mi článek PMID:12345678"}],
-            next="",
             retrieved_docs=[],
         )
 
         # PMID detection happens inside _translate_query_to_english (regex, no LLM)
-        with patch("agent.nodes.pubmed_agent._translate_query_to_english") as mock_translate:
+        with patch(
+            "agent.nodes.pubmed_agent._translate_query_to_english"
+        ) as mock_translate:
             mock_translate.return_value = ("12345678", "pmid_lookup")
 
             result = await pubmed_agent_node(state, mock_runtime)
@@ -126,7 +127,6 @@ class TestFullPubMedFlow:
 
         state = State(
             messages=[{"role": "user", "content": "Zobraz PMID:12345678"}],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="12345678", query_type="pmid_lookup"
@@ -155,7 +155,6 @@ class TestFullPubMedFlow:
         # First query with existing research_query
         state1 = State(
             messages=[{"role": "user", "content": "Studie o diabetu typu 2"}],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="type 2 diabetes studies", query_type="search"
@@ -174,7 +173,6 @@ class TestFullPubMedFlow:
                 {"role": "assistant", "content": "Previous response"},
                 {"role": "user", "content": "Studie o hypertenzi"},
             ],
-            next="",
             retrieved_docs=result1["retrieved_docs"],
             research_query=ResearchQuery(
                 query_text="hypertension studies", query_type="search"
@@ -194,7 +192,6 @@ class TestFullPubMedFlow:
 
         state = State(
             messages=[{"role": "user", "content": "Studie o diabetu typu 2"}],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="type 2 diabetes studies", query_type="search"
@@ -227,7 +224,6 @@ class TestFullPubMedFlow:
 
         state = State(
             messages=[{"role": "user", "content": "Studie o diabetu"}],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="diabetes studies", query_type="search"

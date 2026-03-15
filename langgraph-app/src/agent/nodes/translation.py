@@ -9,12 +9,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage
 from langgraph.runtime import Runtime
 
-from agent.constants import DEFAULT_MODEL_NAME
+from agent.constants import DEFAULT_MODEL_NAME, LLM_TIMEOUT
 from agent.models.research_models import ResearchQuery
 from agent.utils.translation_prompts import CZ_TO_EN_PROMPT, EN_TO_CZ_PROMPT
 
@@ -70,7 +69,9 @@ async def translate_cz_to_en_node(
     # Initialize LLM
     context = runtime.context or {}
     model_name = context.get("model_name", DEFAULT_MODEL_NAME)
-    llm = ChatAnthropic(model_name=model_name, temperature=0, timeout=None, stop=None)
+    from agent.utils.llm_cache import get_llm
+
+    llm = get_llm(model_name=model_name, temperature=0, timeout=LLM_TIMEOUT)
 
     # Format prompt
     prompt = CZ_TO_EN_PROMPT.format(czech_query=czech_query)
@@ -142,7 +143,9 @@ async def translate_en_to_cz_node(
     context = runtime.context or {}
     model_name = context.get("model_name", DEFAULT_MODEL_NAME)
     _ = context.get("batch_size", 5)  # Reserved for future parallel translation
-    llm = ChatAnthropic(model_name=model_name, temperature=0, timeout=None, stop=None)
+    from agent.utils.llm_cache import get_llm
+
+    llm = get_llm(model_name=model_name, temperature=0, timeout=LLM_TIMEOUT)
 
     translated_docs = []
 
@@ -171,7 +174,10 @@ async def translate_en_to_cz_node(
 
         logger.debug(
             "Doc %d/%d: Translated %d → %d chars",
-            i + 1, len(state.retrieved_docs), len(english_abstract), len(czech_abstract),
+            i + 1,
+            len(state.retrieved_docs),
+            len(english_abstract),
+            len(czech_abstract),
         )
 
         # Update page_content with Czech abstract

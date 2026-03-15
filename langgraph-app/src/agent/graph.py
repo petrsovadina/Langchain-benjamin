@@ -44,9 +44,13 @@ try:
         os.environ.setdefault("LANGSMITH_TRACING", "true")
         logger.info("LangSmith tracing enabled")
     else:
-        logger.info("LangSmith: No API key found - tracing disabled (graceful degradation)")
+        logger.info(
+            "LangSmith: No API key found - tracing disabled (graceful degradation)"
+        )
 except (ImportError, OSError, ValueError) as e:
-    logger.warning("LangSmith tracing initialization warning: %s - continuing without tracing", e)
+    logger.warning(
+        "LangSmith tracing initialization warning: %s - continuing without tracing", e
+    )
 
 # Initialize MCP clients for dev server (Feature 002)
 _mcp_config = MCPConfig.from_env()
@@ -61,7 +65,9 @@ try:
     )
     logger.info("SÚKL MCP client initialized: %s", _mcp_config.sukl_url)
 except (OSError, ConnectionError, ValueError) as e:
-    logger.warning("Failed to initialize SÚKL client: %s - drug agent will be unavailable", e)
+    logger.warning(
+        "Failed to initialize SÚKL client: %s - drug agent will be unavailable", e
+    )
 
 try:
     _biomcp_client = BioMCPClient(
@@ -72,7 +78,9 @@ try:
     )
     logger.info("BioMCP client initialized: %s", _mcp_config.biomcp_url)
 except (OSError, ConnectionError, ValueError) as e:
-    logger.warning("Failed to initialize BioMCP client: %s - PubMed agent will be unavailable", e)
+    logger.warning(
+        "Failed to initialize BioMCP client: %s - PubMed agent will be unavailable", e
+    )
 
 
 def get_mcp_clients(
@@ -108,11 +116,6 @@ def get_mcp_clients(
         biomcp = _biomcp_client
 
     return sukl, biomcp
-
-
-def _keep_last(existing: str, new: str) -> str:
-    """Reducer for next field: keep last value (supports parallel agent updates)."""
-    return new
 
 
 def add_documents(
@@ -197,7 +200,6 @@ class State:
     Attributes:
         messages: Conversation history (user + AI messages).
                   Uses add_messages reducer for automatic appending.
-        next: Name of next node to execute (routing control).
         retrieved_docs: Documents retrieved by agents with citations.
         drug_query: Optional drug query for SÚKL agent (Feature 003).
         research_query: Optional research query for PubMed agent (Feature 005).
@@ -205,7 +207,6 @@ class State:
     """
 
     messages: Annotated[list[AnyMessage], add_messages]
-    next: Annotated[str, _keep_last] = "__end__"
     retrieved_docs: Annotated[list[Document], add_documents] = field(
         default_factory=list
     )
@@ -215,7 +216,6 @@ class State:
     research_query: ResearchQuery | None = None
     # Feature 006: Guidelines Agent
     guideline_query: GuidelineQuery | None = None
-
 
 
 # Drug-related keywords for routing (Czech + English)

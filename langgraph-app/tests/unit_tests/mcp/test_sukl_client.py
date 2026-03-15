@@ -82,7 +82,7 @@ class TestSUKLMCPClientCallTool:
                         "content": [
                             {
                                 "type": "text",
-                                "text": 'Found 1 medicine:\n\n1. Aspirin (12345) - acetylsalicylic acid',
+                                "text": "Found 1 medicine:\n\n1. Aspirin (12345) - acetylsalicylic acid",
                             }
                         ]
                     },
@@ -212,10 +212,14 @@ class TestSUKLMCPClientCallTool:
         mcp_tool, _ = client._map_tool_and_params("search_drugs", {"query": "test"})
         assert mcp_tool == "search-medicine"
 
-        mcp_tool, _ = client._map_tool_and_params("get_drug_details", {"registration_number": "123"})
+        mcp_tool, _ = client._map_tool_and_params(
+            "get_drug_details", {"registration_number": "123"}
+        )
         assert mcp_tool == "get-medicine-details"
 
-        mcp_tool, _ = client._map_tool_and_params("get_pricing_info", {"registration_number": "123"})
+        mcp_tool, _ = client._map_tool_and_params(
+            "get_pricing_info", {"registration_number": "123"}
+        )
         assert mcp_tool == "get-reimbursement"
         await client.close()
 
@@ -230,7 +234,12 @@ class TestSUKLMCPClientHealthCheck:
                 BASE_URL,
                 payload={
                     "jsonrpc": "2.0",
-                    "result": {"tools": [{"name": "search-medicine"}, {"name": "get-medicine-details"}]},
+                    "result": {
+                        "tools": [
+                            {"name": "search-medicine"},
+                            {"name": "get-medicine-details"},
+                        ]
+                    },
                     "id": 1,
                 },
                 status=200,
@@ -297,7 +306,13 @@ class TestSUKLMCPClientListTools:
                     "jsonrpc": "2.0",
                     "result": {
                         "tools": [
-                            {"name": "search-medicine", "description": "Search drugs", "inputSchema": {"properties": {"query": {"type": "string"}}}},
+                            {
+                                "name": "search-medicine",
+                                "description": "Search drugs",
+                                "inputSchema": {
+                                    "properties": {"query": {"type": "string"}}
+                                },
+                            },
                         ]
                     },
                     "id": 1,
@@ -365,7 +380,10 @@ class TestSUKLMCPClientParseContent:
     def test_parse_content_non_text_blocks_ignored(self):
         """Test that non-text content blocks are ignored."""
         client = SUKLMCPClient(base_url=BASE_URL)
-        content = [{"type": "image", "data": "base64..."}, {"type": "text", "text": "No results"}]
+        content = [
+            {"type": "image", "data": "base64..."},
+            {"type": "text", "text": "No results"},
+        ]
         result = client._parse_content(content)
         assert "raw_text" in result
 
@@ -490,8 +508,6 @@ class TestSUKLMCPClientParamMapping:
     def test_unknown_tool_passes_through(self):
         """Test that unknown tool names pass through unchanged."""
         client = SUKLMCPClient(base_url=BASE_URL)
-        tool, params = client._map_tool_and_params(
-            "unknown_tool", {"foo": "bar"}
-        )
+        tool, params = client._map_tool_and_params("unknown_tool", {"foo": "bar"})
         assert tool == "unknown_tool"
         assert params == {"foo": "bar"}

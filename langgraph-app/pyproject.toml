@@ -1,9 +1,9 @@
 [project]
 name = "agent"
-version = "0.0.1"
-description = "Starter template for making a new agent LangGraph."
+version = "0.2.0"
+description = "Czech MedAI — AI asistent pro české lékaře"
 authors = [
-    { name = "William Fu-Hinthorn", email = "13333726+hinthornw@users.noreply.github.com" },
+    { name = "Petr Sovadina" },
 ]
 readme = "README.md"
 license = { text = "MIT" }
@@ -31,7 +31,6 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",  # ASGI server with websockets support
     "slowapi>=0.1.9",  # Rate limiting for FastAPI
-    "sse-starlette>=2.1.3",  # SSE streaming helper
     # Feature 011: Production readiness
     "redis[hiredis]>=5.0.0",  # Redis client with C parser for caching
     "python-json-logger>=2.0.7",  # JSON logging for production
@@ -40,14 +39,6 @@ dependencies = [
 ]
 
 
-[project.optional-dependencies]
-dev = [
-    "mypy>=1.11.1",
-    "ruff>=0.6.1",
-    "aioresponses>=0.7.6",  # HTTP mocking for MCP client tests
-    "reportlab>=4.0.0",     # For creating test PDFs
-    "locust>=2.20.0",       # Load testing for production readiness
-]
 
 [build-system]
 requires = ["setuptools>=73.0.0", "wheel"]

@@ -14,14 +14,19 @@ from agent.nodes.translation import translate_cz_to_en_node, translate_en_to_cz_
 
 def _mock_llm(response_text: str):
     """Create a patched ChatAnthropic context manager returning response_text."""
+    import agent.utils.llm_cache as llm_cache_mod
+
     mock_response = MagicMock()
     mock_response.content = response_text
 
     mock_llm_instance = MagicMock()
     mock_llm_instance.ainvoke = AsyncMock(return_value=mock_response)
 
+    # Clear LLM cache so mock is used for new instances
+    llm_cache_mod._llm_cache.clear()
+
     return patch(
-        "agent.nodes.translation.ChatAnthropic",
+        "agent.utils.llm_cache.ChatAnthropic",
         return_value=mock_llm_instance,
     )
 
@@ -34,9 +39,11 @@ class TestCzToEnTranslation:
         """Test basic Czech → English translation."""
         state = State(
             messages=[
-                {"role": "user", "content": "Jaké jsou nejnovější studie o diabetu typu 2?"}
+                {
+                    "role": "user",
+                    "content": "Jaké jsou nejnovější studie o diabetu typu 2?",
+                }
             ],
-            next="",
             retrieved_docs=[],
         )
 
@@ -60,7 +67,6 @@ class TestMedicalTermPreservation:
             messages=[
                 {"role": "user", "content": "Studie o diabetes mellitus a hypertensio"}
             ],
-            next="",
             retrieved_docs=[],
         )
 
@@ -80,11 +86,12 @@ class TestAbbreviationExpansion:
         """Test that Czech abbreviations are expanded to full English terms."""
         state = State(
             messages=[{"role": "user", "content": "Léčba DM2 u pacientů s ICHS"}],
-            next="",
             retrieved_docs=[],
         )
 
-        with _mock_llm("Treatment of type 2 diabetes in patients with ischemic heart disease"):
+        with _mock_llm(
+            "Treatment of type 2 diabetes in patients with ischemic heart disease"
+        ):
             result = await translate_cz_to_en_node(state, mock_runtime)
 
         english_query = result["research_query"].query_text
@@ -100,7 +107,6 @@ class TestTranslationErrors:
         """Test that empty messages raise ValueError."""
         state = State(
             messages=[],
-            next="",
             retrieved_docs=[],
         )
 
@@ -134,7 +140,6 @@ class TestEnToCzTranslation:
 
         state = State(
             messages=[{"role": "user", "content": "test"}],
-            next="",
             retrieved_docs=docs,
         )
 
@@ -172,7 +177,6 @@ class TestMetadataPreservation:
 
         state = State(
             messages=[{"role": "user", "content": "test"}],
-            next="",
             retrieved_docs=[original_doc],
         )
 
@@ -182,7 +186,10 @@ class TestMetadataPreservation:
         translated_doc = result["retrieved_docs"][0]
         assert translated_doc.metadata["source"] == "PubMed"
         assert translated_doc.metadata["pmid"] == "12345678"
-        assert translated_doc.metadata["url"] == "https://pubmed.ncbi.nlm.nih.gov/12345678/"
+        assert (
+            translated_doc.metadata["url"]
+            == "https://pubmed.ncbi.nlm.nih.gov/12345678/"
+        )
         assert translated_doc.metadata["authors"] == "Smith, John"
         assert translated_doc.metadata["journal"] == "NEJM"
         assert translated_doc.metadata["doi"] == "10.1056/test"

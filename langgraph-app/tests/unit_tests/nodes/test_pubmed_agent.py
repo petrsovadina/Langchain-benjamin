@@ -41,7 +41,6 @@ class TestPubMedSearch:
                     "content": "Jaké jsou nejnovější studie o diabetu typu 2?",
                 }
             ],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="What are the latest studies on type 2 diabetes?",
@@ -88,7 +87,6 @@ class TestNoResults:
             messages=[
                 {"role": "user", "content": "Velmi specifický dotaz bez výsledků"}
             ],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="Very specific query with no results", query_type="search"
@@ -135,7 +133,6 @@ class TestErrorHandling:
 
         state = State(
             messages=[{"role": "user", "content": "Studie o diabetu"}],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="Studies on diabetes", query_type="search"
@@ -564,7 +561,6 @@ class TestInternalTranslation:
 
         state = State(
             messages=[{"role": "user", "content": "Studie o hypertenzi"}],
-            next="",
             retrieved_docs=[],
             # No research_query → triggers internal translation
         )
@@ -601,7 +597,6 @@ class TestInternalTranslation:
 
         state = State(
             messages=[{"role": "user", "content": "Studie o hypertenzi"}],
-            next="",
             retrieved_docs=[],
             research_query=ResearchQuery(
                 query_text="hypertension studies", query_type="search"

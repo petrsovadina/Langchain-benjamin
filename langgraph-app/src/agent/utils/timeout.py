@@ -63,7 +63,6 @@ def with_timeout(
                         }
                     ],
                     "retrieved_docs": [],
-                    "next": "__end__",
                 }
 
         return wrapper

@@ -21,7 +21,8 @@ Performance Targets:
 
 import json
 import random
-from locust import HttpUser, task, between
+
+from locust import HttpUser, between, task
 
 
 class MedAIUser(HttpUser):
@@ -64,8 +65,8 @@ class MedAIUser(HttpUser):
                 events = []
                 for line in response.iter_lines():
                     if line:
-                        line_str = line.decode('utf-8')
-                        if line_str.startswith('data:'):
+                        line_str = line.decode("utf-8")
+                        if line_str.startswith("data:"):
                             try:
                                 data = json.loads(line_str[5:].strip())
                                 events.append(data)
@@ -73,7 +74,7 @@ class MedAIUser(HttpUser):
                                 pass
 
                 # Verify final response
-                final_events = [e for e in events if e.get('type') == 'final']
+                final_events = [e for e in events if e.get("type") == "final"]
                 if final_events:
                     response.success()
                 else:

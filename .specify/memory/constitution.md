@@ -1,52 +1,51 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 1.2.0 → 1.2.1 (PATCH)
-- Bump rationale: Test metrics corrected from 442/442 to 444/449 after
-  validation run. 5 translation tests fail due to unmocked LLM calls
-  (known bug, not API credit issue). Description updated accordingly.
+- Version change: 1.2.1 → 1.3.0 (MINOR)
+- Bump rationale: Materially expanded Security Standards with 4 new
+  subsections based on comprehensive security audit (2026-03-12).
+  Added Production Readiness Standards section. Updated test metrics
+  to reflect translation test mock fix. This is a MINOR bump because
+  new mandatory requirements are added.
 - Modified principles: None (all 5 principles unchanged)
 - Enhanced sections:
-  * Testing: Corrected test count and translation test failure description
-- Templates requiring updates: None
-- Follow-up TODOs:
-  * Fix 5 translation tests (add LLM mock or pytest.mark.skipif)
-
-PREVIOUS REPORT (1.1.2 → 1.2.0):
-- Supabase migration introduces asyncpg as mandatory backend technology
-  and materially modifies the persistence constraint. Guidelines storage
-  now uses direct asyncpg to Supabase PostgreSQL with pgvector.
-- Enhanced sections:
-  * Technology Stack - Backend Mandatory Technologies: Added asyncpg
-  * Technology Stack - Recommended Integrations: Added Supabase
-  * Technology Stack - Constraints: Rewritten persistence constraint to
-    distinguish graph state (LangGraph checkpointing) from application data
-    (asyncpg to Supabase PostgreSQL)
-- Added sections: None
+  * Security Standards — 4 new subsections: Error Response Sanitization,
+    CORS Policy, LLM Client Configuration, Cache Security
+  * Technology Stack — Test metrics corrected, translation test note updated
+  * Routing Architecture — Added known issues subsection
+- Added sections:
+  * Production Readiness Standards (auth, config management, Docker)
 - Removed sections: None
 - Templates requiring updates:
-  ⚠ plan-template.md - Storage line updated (was: "LangGraph checkpointing
-    (per constitution - no direct ORM)" → now reflects dual persistence model)
-  ✅ spec-template.md - No changes needed
-  ✅ tasks-template.md - No changes needed
-  ✅ checklist-template.md - No changes needed
-- Follow-up TODOs: None
+  ✅ plan-template.md — No changes needed (Constitution Check references
+     principles I-V which are unchanged)
+  ✅ spec-template.md — No changes needed
+  ✅ tasks-template.md — No changes needed (security hardening phase
+     already exists as "Phase N: Polish & Cross-Cutting")
+  ✅ checklist-template.md — No changes needed
+- Follow-up TODOs:
+  * Implement API key authentication (constitution now mandates it)
+  * Add startup CORS validation for production environment
+  * Set LLM timeout to ≤60s on all ChatAnthropic instances
+  * Use full SHA-256 hash for cache keys
+  * Centralize agent-layer configuration into validated Settings class
+
+PREVIOUS REPORT (1.2.0 → 1.2.1):
+- Test metrics corrected from 442/442 to 444/449 after validation run.
+  5 translation tests fail due to unmocked LLM calls (known bug).
+
+PREVIOUS REPORT (1.1.2 → 1.2.0):
+- Supabase migration introduces asyncpg as mandatory backend technology.
+  Guidelines storage uses direct asyncpg to Supabase PostgreSQL with pgvector.
 
 PREVIOUS REPORT (1.1.1 → 1.1.2):
-- Routing architecture section updated to reflect DRY consolidation
-- Test metrics updated to 442/442 = 100%
-- Node structure clarification (all agents in nodes/)
+- Routing architecture section updated to reflect DRY consolidation.
 
 PREVIOUS REPORT (1.1.0 → 1.1.1):
-- Corrected stale test metrics and fixed translation test count (6 → 5)
-- Test suite: 444 passed, 5 skipped (translation tests requiring API credits)
+- Corrected stale test metrics and fixed translation test count.
 
 PREVIOUS REPORT (1.0.4 → 1.1.0):
-- Materially expanded guidance - added Security Standards, Frontend Tech Stack,
-  MCP Protocol
-- Test coverage improved: 177/183 → 444/449 (98.9%)
-- 12 new tests added (4 routing regression + 8 security)
-- Security hardening: thread-safe IDs, size limits, async context manager,
-  ReDoS-safe regex
+- Materially expanded guidance — added Security Standards, Frontend
+  Tech Stack, MCP Protocol. 12 new tests added.
 -->
 
 # Langchain-Benjamin Constitution
@@ -177,6 +176,34 @@ MCP (Model Context Protocol) clients communicate with external data sources:
 - Content size MUST be bounded (`MAX_CONTENT_SIZE` for HTTP responses, `MAX_TEXT_LENGTH` for parsed text)
 - Regex patterns MUST be line-anchored to prevent ReDoS attacks
 - JSON parsing MUST catch `RecursionError` for deeply nested payloads
+- User-supplied identifiers (e.g., `user_id`) MUST be validated for format, length, and character set before use in logs or context
+
+### Error Response Sanitization
+
+- External-facing error responses MUST NOT expose internal implementation details
+- SSE stream error events MUST use generic messages in production: `"An unexpected error occurred"`
+- Raw exception messages (`str(e)`) MUST only be sent to clients when `settings.environment != "production"`
+- Health endpoint status fields MUST NOT expose raw database or connection error details to unauthenticated callers
+- All errors MUST be logged server-side with full detail (`logger.error(..., exc_info=True)`) regardless of what is sent to clients
+
+### CORS Policy
+
+- `allow_origins` MUST NOT fall back to `["*"]` in production
+- Application MUST validate at startup that `cors_origins` is non-empty when `environment == "production"` and fail fast if not
+- `allow_credentials=True` MUST NOT be combined with wildcard origins
+- Development environments MAY use `["*"]` origins with explicit environment check
+
+### LLM Client Configuration
+
+- All `ChatAnthropic` instances MUST set an explicit `timeout` value (≤60 seconds)
+- `timeout=None` is PROHIBITED — it disables per-call timeout and creates DoS risk even when outer `asyncio.timeout` is present
+- LLM instances SHOULD be reused across requests where model parameters are identical, rather than instantiated per-request
+
+### Cache Security
+
+- Cache keys MUST use the full cryptographic hash digest (not truncated)
+- SHA-256 truncation to <32 characters is PROHIBITED for medical query caching due to collision risk in patient-safety-critical context
+- Cache invalidation MUST use `SCAN` pattern, not `KEYS *` (which is O(n) and blocks Redis)
 
 ### Thread Safety
 
@@ -199,6 +226,42 @@ MCP (Model Context Protocol) clients communicate with external data sources:
 - Use `logger.exception()` for unexpected errors (preserves traceback)
 - Use `logger.warning()` for expected fallback scenarios
 - All external-facing functions MUST have fallback behavior (graceful degradation)
+
+### Privacy & Data Protection
+
+- Medical query content MUST NOT be logged at INFO level; use DEBUG or hash the content for correlation
+- LangSmith tracing sends full query content to a third-party service; `LANGSMITH_TRACING` MUST default to `false` in `.env.example`
+- Log fields containing user-supplied data MUST be sanitized to prevent log injection (newlines, JSON-breaking characters)
+
+## Production Readiness Standards
+
+### Authentication
+
+- All data-mutating and LLM-consuming endpoints MUST require authentication before public deployment
+- At minimum, API key authentication MUST be implemented on `/api/v1/consult`
+- The `jwt_secret` configuration field in `Settings` MUST be utilized or removed (no dead config)
+- `user_id` MUST be bound to authenticated identity, not accepted from unauthenticated client input
+
+### Configuration Management
+
+- The API layer (`src/api/`) MUST use `pydantic-settings` `BaseSettings` for all configuration
+- The agent layer (`src/agent/`) MUST NOT use ad-hoc `os.getenv()` calls for configuration; a validated configuration class MUST be used
+- Environment variable defaults MUST be safe for production (no `["*"]` CORS, no disabled auth)
+- Project version MUST be consistent across `pyproject.toml`, API metadata, and `Settings`
+
+### Docker & Deployment
+
+- Docker Compose MUST NOT contain hardcoded database credentials in `environment:` blocks
+- All secrets MUST be provided via `env_file` or environment injection, not inline YAML
+- Redis MUST require authentication (`--requirepass`) in production
+- Database and cache ports MUST NOT be exposed to `0.0.0.0` in production Compose profiles
+- Docker images MUST use non-root users (already implemented via `appuser`)
+
+### Dependency Management
+
+- A lock file (`uv.lock`) MUST be committed for reproducible builds
+- `[project.optional-dependencies]` and `[dependency-groups]` MUST NOT define the same tool with different versions
+- Unused dependencies MUST be removed (e.g., `sse-starlette` if not imported)
 
 ## Development Workflow
 
@@ -243,11 +306,12 @@ All code MUST pass these enforced quality checks before merge:
 - Use `r"""` prefix if docstring contains backslashes
 
 #### Testing
-- **Test coverage**: Minimum 80% for node implementations (current: 444/449 = 98.9%)
+- **Test coverage**: Minimum 80% for node implementations (current: 449/449 unit tests passing, 89 integration tests)
 - All tests MUST pass: `pytest tests/`
-- Note: 5 translation tests fail due to unmocked LLM calls (known issue, needs fix)
+- Translation tests now use `_mock_llm()` context manager — no live LLM calls required
 - Performance benchmarks for latency-critical nodes
 - Regression tests MUST accompany routing priority or keyword changes
+- Stub/placeholder tests (e.g., `assert isinstance(graph, Pregel)`) MUST be replaced with behavioral tests or removed
 
 #### Package Configuration
 - Use `[tool.setuptools.packages.find]` in pyproject.toml for package discovery
@@ -275,6 +339,12 @@ Query routing follows this strict priority (highest to lowest):
 
 `fallback_to_keyword_routing()` in `supervisor.py` is the canonical keyword routing implementation. `route_query()` in `graph.py` delegates to it for keyword-based decisions (after checking explicit queries). This eliminates duplicate keyword logic and ensures both paths always agree.
 
+### Known Issues (as of 2026-03-12 audit)
+
+- `RESEARCH_KEYWORDS` is duplicated between `graph.py` and `pubmed_agent.py` with diverging sets — MUST be consolidated
+- `source_filter` parameter in `guidelines_storage.py` is silently replaced with hardcoded `"guidelines"` regardless of input — the API is misleading
+- `State.next` field is populated by every agent node but never read by graph routing — dead code that SHOULD be removed
+
 ## Governance
 
 ### Amendment Process
@@ -298,5 +368,6 @@ This constitution is a living document. Amendments require:
 - Violations (e.g., adding non-graph logic) MUST be justified in "Complexity Tracking" table
 - Use `.specify/memory/constitution.md` as single source of truth for development standards
 - Security standards MUST be verified during code review
+- Production readiness standards MUST be verified before any public deployment
 
-**Version**: 1.2.1 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-02-27
+**Version**: 1.3.0 | **Ratified**: 2026-01-13 | **Last Amended**: 2026-03-12

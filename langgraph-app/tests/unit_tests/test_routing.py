@@ -15,7 +15,7 @@ def test_route_query_with_string_content():
     """
     # Arrange
     state = State(
-        messages=[{"role": "user", "content": "jaká je dávka léku ibuprofen"}], next=""
+        messages=[{"role": "user", "content": "jaká je dávka léku ibuprofen"}]
     )
 
     # Act
@@ -40,7 +40,6 @@ def test_route_query_with_multimodal_list_content():
                 "content": [{"type": "text", "text": "jaké jsou studie o hypertenzi"}],
             }
         ],
-        next="",
     )
 
     # Act
@@ -60,7 +59,6 @@ def test_route_query_with_multimodal_simple_list():
     # Arrange
     state = State(
         messages=[{"role": "user", "content": ["lék na diabetes", "další info"]}],
-        next="",
     )
 
     # Act
@@ -78,7 +76,7 @@ def test_route_query_with_empty_list_content():
     Then it defaults to general_agent without crash.
     """
     # Arrange
-    state = State(messages=[{"role": "user", "content": []}], next="")
+    state = State(messages=[{"role": "user", "content": []}])
 
     # Act
     result = route_query(state)
@@ -96,7 +94,7 @@ def test_route_query_with_research_keyword():
     """
     # Arrange
     state = State(
-        messages=[{"role": "user", "content": "jaké jsou studie o metforminu"}], next=""
+        messages=[{"role": "user", "content": "jaké jsou studie o metforminu"}]
     )
 
     # Act
@@ -114,7 +112,7 @@ def test_route_query_with_no_keywords():
     Then it routes to general_agent.
     """
     # Arrange
-    state = State(messages=[{"role": "user", "content": "ahoj jak se máš"}], next="")
+    state = State(messages=[{"role": "user", "content": "ahoj jak se máš"}])
 
     # Act
     result = route_query(state)
@@ -135,7 +133,6 @@ def test_route_query_with_explicit_drug_query():
 
     state = State(
         messages=[{"role": "user", "content": "nějaký dotaz"}],
-        next="",
         drug_query=DrugQuery(query_text="ibuprofen", query_type="search"),
     )
 
@@ -158,7 +155,6 @@ def test_route_query_with_explicit_research_query():
 
     state = State(
         messages=[{"role": "user", "content": "nějaký dotaz"}],
-        next="",
         research_query=ResearchQuery(
             query_text="diabetes studies", query_type="search"
         ),
@@ -188,7 +184,6 @@ def test_route_query_with_guidelines_keyword():
         messages=[
             {"role": "user", "content": "Jaké jsou doporučené postupy pro hypertenzi?"}
         ],
-        next="",
     )
 
     # Act
@@ -208,7 +203,6 @@ def test_route_query_with_guidelines_keyword_english():
     # Arrange - Use query without research keywords like "diabetes", "studie", etc.
     state = State(
         messages=[{"role": "user", "content": "guidelines pro bolest zad"}],
-        next="",
     )
 
     # Act
@@ -228,7 +222,6 @@ def test_route_query_with_cls_jep_keyword():
     # Arrange
     state = State(
         messages=[{"role": "user", "content": "CLS JEP doporučení pro léčbu"}],
-        next="",
     )
 
     # Act
@@ -248,7 +241,6 @@ def test_route_query_with_esc_keyword():
     # Arrange
     state = State(
         messages=[{"role": "user", "content": "ESC guidelines for heart failure"}],
-        next="",
     )
 
     # Act
@@ -268,7 +260,6 @@ def test_route_query_with_standardy_keyword():
     # Arrange
     state = State(
         messages=[{"role": "user", "content": "standardy péče o pacienty"}],
-        next="",
     )
 
     # Act
@@ -290,7 +281,6 @@ def test_route_query_with_explicit_guideline_query():
 
     state = State(
         messages=[{"role": "user", "content": "nějaký dotaz"}],
-        next="",
         guideline_query=GuidelineQuery(
             query_text="léčba hypertenze",
             query_type=GuidelineQueryType.SEARCH,
@@ -314,7 +304,6 @@ def test_route_query_research_priority_over_guidelines():
     # Arrange - "studie" is a research keyword, "guidelines" is a guidelines keyword
     state = State(
         messages=[{"role": "user", "content": "studie o guidelines pro diabetes"}],
-        next="",
     )
 
     # Act
@@ -335,17 +324,13 @@ def test_route_query_guidelines_priority_over_drug():
         messages=[
             {"role": "user", "content": "doporučené postupy pro prášky na bolest"}
         ],
-        next="",
     )
     result = route_query(state)
     assert result == "drug_agent"  # "prášky" is a drug keyword, drug takes priority
 
     # Pure guidelines query (no drug keywords) goes to guidelines
     state2 = State(
-        messages=[
-            {"role": "user", "content": "doporučené postupy pro hypertenzi"}
-        ],
-        next="",
+        messages=[{"role": "user", "content": "doporučené postupy pro hypertenzi"}],
     )
     result2 = route_query(state2)
     assert result2 == "guidelines_agent"
@@ -364,7 +349,6 @@ def test_route_query_drug_priority_over_research():
     """
     state = State(
         messages=[{"role": "user", "content": "studie o léku metformin"}],
-        next="",
     )
     result = route_query(state)
     assert result == "drug_agent"  # "lék" matches before "studie"
@@ -379,7 +363,6 @@ def test_route_query_generic_medical_terms_no_match():
     # These used to be in RESEARCH_KEYWORDS, now removed
     state = State(
         messages=[{"role": "user", "content": "léčba hypertenze"}],
-        next="",
     )
     result = route_query(state)
     # "léčba" is not in any keyword set → falls to general_agent
@@ -394,7 +377,6 @@ def test_route_query_explicit_research_terms_still_work():
     for term in ["studie o hypertenzi", "výzkum účinnosti", "pubmed články"]:
         state = State(
             messages=[{"role": "user", "content": term}],
-            next="",
         )
         result = route_query(state)
         assert result == "pubmed_agent", f"Failed for: {term}"
@@ -404,7 +386,6 @@ def test_route_query_drug_keyword_aspirin():
     """Regression: Common drug queries route correctly."""
     state = State(
         messages=[{"role": "user", "content": "jaké je dávkování aspirinu"}],
-        next="",
     )
     result = route_query(state)
     assert result == "drug_agent"  # "dávkování" is in DRUG_KEYWORDS

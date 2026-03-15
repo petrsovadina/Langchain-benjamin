@@ -11,7 +11,7 @@ import logging
 import time
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -20,6 +20,7 @@ from agent.constants import DEFAULT_MODEL_NAME
 from agent.graph import Context, graph
 from agent.utils.guidelines_storage import get_pool
 from api.cache import get_cached_response, set_cached_response
+from api.config import settings
 from api.dependencies import transform_documents
 from api.schemas import ConsultRequest, ErrorResponse, HealthCheckResponse
 
@@ -69,9 +70,11 @@ async def health_check() -> HealthCheckResponse:
             overall_status = "degraded"
             logger.warning("SÚKL MCP client: unavailable")
     except (ImportError, AttributeError) as e:
-        mcp_status["sukl"] = f"error: {str(e)}"
+        mcp_status["sukl"] = (
+            "error" if settings.environment == "production" else f"error: {str(e)}"
+        )
         overall_status = "degraded"
-        logger.error("SÚKL MCP client check failed: %s", e)
+        logger.error("SÚKL MCP client check failed: %s", e, exc_info=True)
 
     # Check BioMCP client
     try:
@@ -85,9 +88,11 @@ async def health_check() -> HealthCheckResponse:
             overall_status = "degraded"
             logger.warning("BioMCP client: unavailable")
     except (ImportError, AttributeError) as e:
-        mcp_status["biomcp"] = f"error: {str(e)}"
+        mcp_status["biomcp"] = (
+            "error" if settings.environment == "production" else f"error: {str(e)}"
+        )
         overall_status = "degraded"
-        logger.error("BioMCP client check failed: %s", e)
+        logger.error("BioMCP client check failed: %s", e, exc_info=True)
 
     # Database connectivity check
     database_status = "available"
@@ -97,19 +102,23 @@ async def health_check() -> HealthCheckResponse:
             await conn.fetchval("SELECT 1")
         logger.debug("Database: available")
     except (OSError, ConnectionRefusedError, asyncio.TimeoutError) as e:
-        database_status = f"error: {str(e)}"
+        database_status = (
+            "error" if settings.environment == "production" else f"error: {str(e)}"
+        )
         overall_status = "degraded"
-        logger.error("Database check failed: %s", e)
+        logger.error("Database check failed: %s", e, exc_info=True)
     except Exception as e:
-        database_status = f"error: {str(e)}"
+        database_status = (
+            "error" if settings.environment == "production" else f"error: {str(e)}"
+        )
         overall_status = "degraded"
-        logger.error("Unexpected database check error: %s", e)
+        logger.error("Unexpected database check error: %s", e, exc_info=True)
 
     return HealthCheckResponse(
         status=overall_status,
         mcp_servers=mcp_status,
         database=database_status,
-        version="0.1.0",
+        version="0.2.0",
     )
 
 
@@ -235,12 +244,19 @@ async def consult_stream_generator(
                             yield "event: message\n"
                             yield f"data: {json.dumps({'type': 'agent_complete', 'agent': node_name})}\n\n"
 
-                        # Capture final state from synthesizer
+                        # Capture final state from synthesizer or root chain end
                         if node_name == "synthesizer":
                             final_state = event.get("data", {}).get("output", {})
 
+                    # Capture from root on_chain_end as fallback
+                    elif (
+                        event_type == "on_chain_end"
+                        and event.get("name") == "LangGraph"
+                    ):
+                        if final_state is None:
+                            final_state = event.get("data", {}).get("output", {})
+
         except asyncio.TimeoutError:
-            # Timeout error (30s)
             error_response = {
                 "type": "error",
                 "error": "timeout",
@@ -249,25 +265,6 @@ async def consult_stream_generator(
             yield "event: error\n"
             yield f"data: {json.dumps(error_response)}\n\n"
             return
-
-        # If no final state captured, invoke graph normally (fallback) with timeout
-        if final_state is None:
-            try:
-                async with asyncio.timeout(30.0):  # Python 3.11+
-                    final_state = await graph.ainvoke(
-                        {"messages": [{"role": "user", "content": query}]},
-                        config={"configurable": context},
-                    )
-            except asyncio.TimeoutError:
-                # Timeout error in fallback
-                error_response = {
-                    "type": "error",
-                    "error": "timeout",
-                    "detail": "Request timed out after 30 seconds",
-                }
-                yield "event: error\n"
-                yield f"data: {json.dumps(error_response)}\n\n"
-                return
 
         # Extract answer from final state
         messages = final_state.get("messages", [])
@@ -311,12 +308,17 @@ async def consult_stream_generator(
         yield "data: {}\n\n"
 
     except Exception as e:
-        # Internal error
-        logger.error(f"Consult stream error: {e}", exc_info=True)
+        # Internal error — log full details server-side, sanitize client response
+        logger.error("Consult stream error: %s", e, exc_info=True)
+        detail = (
+            "An unexpected error occurred"
+            if settings.environment == "production"
+            else str(e)
+        )
         error_response = {
             "type": "error",
             "error": "internal_error",
-            "detail": str(e),
+            "detail": detail,
         }
         yield "event: error\n"
         yield f"data: {json.dumps(error_response)}\n\n"
@@ -368,7 +370,7 @@ Odešle lékařský dotaz do multi-agent systému a vrátí odpověď s citacemi
                         "final_response": {
                             "summary": "Finální odpověď",
                             "value": (
-                                'event: message\n'
+                                "event: message\n"
                                 'data: {"type": "final", "answer": "Metformin je kontraindikován při eGFR <30 [1].", '
                                 '"retrieved_docs": [{"page_content": "...", "metadata": {"source": "sukl"}}], '
                                 '"confidence": 0.92, "latency_ms": 2340}\n\n'
@@ -468,11 +470,14 @@ async def consult_endpoint(
         >>> # SSE stream with events: agent_start, agent_complete, final, done
     """
     # Log request
-    logger.info("Processing consult request", extra={
-        "request_id": getattr(request.state, "request_id", "unknown"),
-        "query_length": len(consult_request.query),
-        "mode": consult_request.mode,
-    })
+    logger.info(
+        "Processing consult request",
+        extra={
+            "request_id": getattr(request.state, "request_id", "unknown"),
+            "query_length": len(consult_request.query),
+            "mode": consult_request.mode,
+        },
+    )
 
     # Check cache first (only for quick mode)
     if consult_request.mode == "quick":

@@ -19,22 +19,26 @@ async def test_general_agent_node_responds_to_message(mock_runtime):
     When general_agent_node is invoked,
     Then it returns AI message with LLM response.
     """
-    state = State(messages=[{"role": "user", "content": "Hello"}], next="general_agent")
+    state = State(messages=[{"role": "user", "content": "Hello"}])
 
     mock_llm_response = MagicMock()
     mock_llm_response.content = "Test response"
 
-    with patch("langchain_anthropic.ChatAnthropic") as mock_chat_cls:
+    with patch("agent.utils.llm_cache.ChatAnthropic") as mock_chat_cls:
         mock_chat_instance = MagicMock()
         mock_chat_instance.ainvoke = AsyncMock(return_value=mock_llm_response)
         mock_chat_cls.return_value = mock_chat_instance
+
+        # Clear cache so our mock is used
+        from agent.utils.llm_cache import _llm_cache
+
+        _llm_cache.clear()
 
         result = await general_agent_node(state, mock_runtime)
 
     assert "messages" in result
     assert len(result["messages"]) == 1
     assert "Test response" in result["messages"][0]["content"]
-    assert result["next"] == "__end__"
 
 
 @pytest.mark.asyncio
@@ -45,14 +49,13 @@ async def test_general_agent_node_handles_empty_state(mock_runtime):
     When general_agent_node is invoked,
     Then it returns fallback message.
     """
-    state = State(messages=[], next="general_agent")
+    state = State(messages=[])
 
     result = await general_agent_node(state, mock_runtime)
 
     assert "messages" in result
     assert len(result["messages"]) == 1
     assert result["messages"][0]["content"] == "Nebyl zadán žádný dotaz."
-    assert result["next"] == "__end__"
 
 
 @pytest.mark.asyncio
@@ -63,15 +66,19 @@ async def test_general_agent_node_accesses_runtime_config(mock_runtime):
     When general_agent_node is invoked,
     Then it executes successfully with LLM call.
     """
-    state = State(messages=[{"role": "user", "content": "test"}], next="general_agent")
+    state = State(messages=[{"role": "user", "content": "test"}])
 
     mock_llm_response = MagicMock()
     mock_llm_response.content = "Test response"
 
-    with patch("langchain_anthropic.ChatAnthropic") as mock_chat_cls:
+    with patch("agent.utils.llm_cache.ChatAnthropic") as mock_chat_cls:
         mock_chat_instance = MagicMock()
         mock_chat_instance.ainvoke = AsyncMock(return_value=mock_llm_response)
         mock_chat_cls.return_value = mock_chat_instance
+
+        from agent.utils.llm_cache import _llm_cache
+
+        _llm_cache.clear()
 
         result = await general_agent_node(state, mock_runtime)
 

@@ -127,14 +127,34 @@ def extract_drug_name(query_text: str) -> str:
 
     # Fallback: find capitalized words that look like drug names
     common_czech = {
-        "Na", "Co", "Jak", "Jaká", "Jaké", "Jaký", "Je", "Jsou",
-        "Kolik", "Najdi", "Kde", "Pro", "Při", "Má", "Kdo",
-        "Jaké", "Které", "Který", "Jaka", "Jaky", "Jake",
+        "Na",
+        "Co",
+        "Jak",
+        "Jaká",
+        "Jaké",
+        "Jaký",
+        "Je",
+        "Jsou",
+        "Kolik",
+        "Najdi",
+        "Kde",
+        "Pro",
+        "Při",
+        "Má",
+        "Kdo",
+        "Jaké",
+        "Které",
+        "Který",
+        "Jaka",
+        "Jaky",
+        "Jake",
     }
     words = query_text.split()
     candidates = [
-        w.strip("?,!.()") for w in words
-        if w[0:1].isupper() and len(w.strip("?,!.()")) > 2
+        w.strip("?,!.()")
+        for w in words
+        if w[0:1].isupper()
+        and len(w.strip("?,!.()")) > 2
         and w.strip("?,!.()") not in common_czech
     ]
     if candidates:
@@ -679,7 +699,6 @@ async def drug_agent_node(
                 }
             ],
             "retrieved_docs": [],
-            "next": "__end__",
         }
 
     # Extract query
@@ -713,7 +732,6 @@ async def drug_agent_node(
                 }
             ],
             "retrieved_docs": [],
-            "next": "__end__",
         }
 
     # Process query based on type
@@ -858,5 +876,4 @@ async def drug_agent_node(
     return {
         "messages": [{"role": "assistant", "content": response_text}],
         "retrieved_docs": documents,
-        "next": "__end__",
     }

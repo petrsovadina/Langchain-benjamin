@@ -24,9 +24,10 @@ async def test_graph_invocation_returns_state(test_graph):
 
     # Assert
     assert "messages" in result
-    assert len(result["messages"]) == 2  # User + AI message
+    assert (
+        len(result["messages"]) >= 2
+    )  # User + AI message(s) from agents + synthesizer
     assert result["messages"][0].content == "test"
-    assert "Echo: test" in result["messages"][1].content
 
 
 @pytest.mark.asyncio
@@ -65,8 +66,9 @@ async def test_graph_handles_empty_messages(test_graph):
 
     # Assert
     assert "messages" in result
-    assert len(result["messages"]) == 1  # AI message only
-    assert result["messages"][0].content == "No input"
+    assert (
+        len(result["messages"]) >= 1
+    )  # AI message(s) from agent fallback + synthesizer
 
 
 @pytest.mark.asyncio

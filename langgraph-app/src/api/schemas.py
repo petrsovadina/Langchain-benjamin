@@ -36,6 +36,16 @@ class ConsultRequest(BaseModel):
         examples=["user_12345"],
     )
 
+    @field_validator("user_id")
+    @classmethod
+    def validate_user_id(cls, v: str | None) -> str | None:
+        """Validate user_id format: alphanumeric, underscore, hyphen, max 64 chars."""
+        if v is not None and not re.match(r"^[a-zA-Z0-9_-]{1,64}$", v):
+            raise ValueError(
+                "user_id must be 1-64 characters, alphanumeric with _ and - only"
+            )
+        return v
+
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
@@ -64,10 +74,10 @@ class ConsultRequest(BaseModel):
         - Block XSS patterns
         """
         # Remove control characters
-        v = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', v)
+        v = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", v)
 
         # Remove excessive whitespace
-        v = re.sub(r'\s+', ' ', v)
+        v = re.sub(r"\s+", " ", v)
 
         # Strip
         v = v.strip()
@@ -190,7 +200,9 @@ class ConsultResponse(BaseModel):
     answer: str = Field(
         ...,
         description="AI odpověď s inline citacemi [1][2]",
-        examples=["Metformin je kontraindikován při eGFR <30 ml/min [1]. Doporučuje se pravidelné monitorování renálních funkcí [2]."],
+        examples=[
+            "Metformin je kontraindikován při eGFR <30 ml/min [1]. Doporučuje se pravidelné monitorování renálních funkcí [2]."
+        ],
     )
     retrieved_docs: List[RetrievedDocument] = Field(
         default_factory=list,
@@ -218,7 +230,10 @@ class ConsultResponse(BaseModel):
                     "retrieved_docs": [
                         {
                             "page_content": "Metformin Teva 500mg - kontraindikace: těžká renální insuficience",
-                            "metadata": {"source": "sukl", "source_type": "drug_details"},
+                            "metadata": {
+                                "source": "sukl",
+                                "source_type": "drug_details",
+                            },
                         }
                     ],
                     "confidence": 0.92,
@@ -255,9 +270,9 @@ class HealthCheckResponse(BaseModel):
         examples=["available"],
     )
     version: str = Field(
-        default="0.1.0",
+        default="0.2.0",
         description="Verze API",
-        examples=["0.1.0"],
+        examples=["0.2.0"],
     )
 
     model_config = ConfigDict(
@@ -267,13 +282,13 @@ class HealthCheckResponse(BaseModel):
                     "status": "healthy",
                     "mcp_servers": {"sukl": "available", "biomcp": "available"},
                     "database": "available",
-                    "version": "0.1.0",
+                    "version": "0.2.0",
                 },
                 {
                     "status": "degraded",
                     "mcp_servers": {"sukl": "available", "biomcp": "unavailable"},
                     "database": "error: connection refused",
-                    "version": "0.1.0",
+                    "version": "0.2.0",
                 },
             ]
         }
@@ -344,7 +359,7 @@ class RootResponse(BaseModel):
     version: str = Field(
         ...,
         description="Verze API",
-        examples=["0.1.0"],
+        examples=["0.2.0"],
     )
     description: str = Field(
         ...,

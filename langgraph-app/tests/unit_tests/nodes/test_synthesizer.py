@@ -477,7 +477,6 @@ class TestSynthesizerNode:
 
         assert "messages" in result
         assert "Nebyly nalezeny" in result["messages"][0]["content"]
-        assert result["next"] == "__end__"
 
     @pytest.mark.asyncio
     async def test_synthesizer_single_agent_passthrough(
@@ -506,7 +505,6 @@ class TestSynthesizerNode:
         assert "ibuprofen" in content
         assert "[1]" in content
         assert "Czech MedAI" in content
-        assert result["next"] == "__end__"
 
     @pytest.mark.asyncio
     async def test_synthesizer_single_agent_quick_brevity(
@@ -558,7 +556,10 @@ class TestSynthesizerNode:
         mock_response = MagicMock()
         mock_response.content = "Metformin je lék [1] s prokázanou účinností [2]."
 
-        with patch("agent.nodes.synthesizer.ChatAnthropic") as mock_llm_class:
+        with patch("agent.utils.llm_cache.ChatAnthropic") as mock_llm_class:
+            from agent.utils.llm_cache import _llm_cache
+
+            _llm_cache.clear()
             mock_llm = MagicMock()
             mock_llm.ainvoke = AsyncMock(return_value=mock_response)
             mock_llm_class.return_value = mock_llm
@@ -569,7 +570,6 @@ class TestSynthesizerNode:
         assert "## Reference" in content
         assert "[1] SUKL - Metformin" in content
         assert "[2] PMID: 12345678" in content
-        assert result["next"] == "__end__"
 
     @pytest.mark.asyncio
     async def test_synthesizer_llm_fallback_on_error(self, sample_state: State) -> None:
@@ -583,7 +583,10 @@ class TestSynthesizerNode:
         mock_runtime = MagicMock()
         mock_runtime.context = {"model_name": "test-model"}
 
-        with patch("agent.nodes.synthesizer.ChatAnthropic") as mock_llm_class:
+        with patch("agent.utils.llm_cache.ChatAnthropic") as mock_llm_class:
+            from agent.utils.llm_cache import _llm_cache
+
+            _llm_cache.clear()
             mock_llm = MagicMock()
             mock_llm.ainvoke = AsyncMock(side_effect=Exception("API error"))
             mock_llm_class.return_value = mock_llm
@@ -629,7 +632,6 @@ class TestSynthesizerNode:
         result = await synthesizer_node(sample_state, mock_runtime)
 
         assert "messages" in result
-        assert result["next"] == "__end__"
 
     @pytest.mark.asyncio
     async def test_synthesizer_prepends_terminology_warnings(
@@ -686,7 +688,10 @@ class TestSynthesizerNode:
             "PubMed studie prokázala účinnost [2]."
         )
 
-        with patch("agent.nodes.synthesizer.ChatAnthropic") as mock_llm_class:
+        with patch("agent.utils.llm_cache.ChatAnthropic") as mock_llm_class:
+            from agent.utils.llm_cache import _llm_cache
+
+            _llm_cache.clear()
             mock_llm = MagicMock()
             mock_llm.ainvoke = AsyncMock(return_value=mock_response)
             mock_llm_class.return_value = mock_llm

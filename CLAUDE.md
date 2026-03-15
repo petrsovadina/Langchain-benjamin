@@ -49,7 +49,6 @@ Priority: Drug > Research > Guidelines > General (default)
 @dataclass
 class State:
     messages: Annotated[list[AnyMessage], add_messages]
-    next: Annotated[str, _keep_last] = "__end__"
     retrieved_docs: Annotated[list[Document], add_documents] = field(default_factory=list)
     drug_query: DrugQuery | None = None
     research_query: ResearchQuery | None = None
@@ -182,7 +181,7 @@ Defined in `.specify/memory/constitution.md` v1.2.1:
 
 1. **Graph-Centric Architecture** — All features as LangGraph nodes/edges, Send API routing
 2. **Type Safety** — mypy --strict, typed dataclasses/TypedDict, zero errors
-3. **Test-First Development** — Tests before implementation (TDD), 444/449 passing
+3. **Test-First Development** — Tests before implementation (TDD), 472+ unit tests passing
 4. **Observability** — LangSmith tracing, structured logging, specific exception types
 5. **Modular Design** — Single responsibility per node in `nodes/`, IMCPClient interface, config in Context
 
@@ -228,3 +227,21 @@ Dual persistence (per constitution v1.2.1):
 
 - **Graph state** — LangGraph checkpointing (automatic, managed by framework)
 - **Application data** — asyncpg to Supabase PostgreSQL with pgvector (guidelines storage, embeddings). No ORM — raw asyncpg queries in `src/agent/utils/guidelines_storage.py`
+
+## Active Technologies
+- Python >=3.10 (per constitution) (001-audit-remediation)
+- LangGraph checkpointing for graph state; asyncpg to Supabase PostgreSQL for application data (per constitution dual persistence model) (001-audit-remediation)
+
+## Recent Changes
+- 001-audit-remediation: Comprehensive audit fixes (v0.2.0):
+  - `LLM_TIMEOUT = 60` in `agent/constants.py` — all ChatAnthropic calls use this
+  - `get_llm()` in `agent/utils/llm_cache.py` — cached LLM instances by (model, temp, timeout, max_tokens)
+  - Removed `State.next` field and `_keep_last` reducer — nodes no longer return `"next": "__end__"`
+  - Removed `source_filter` param from `search_guidelines()` — always uses "guidelines" internally
+  - `RESEARCH_KEYWORDS` single source of truth in `graph.py` — `pubmed_agent.py` uses lazy import
+  - Error sanitization in production: `settings.environment == "production"` hides exception details
+  - CORS fail-fast: `@model_validator` rejects empty/wildcard origins in production
+  - Cache keys use full SHA-256 (no truncation), invalidation uses `scan_iter` not `keys`
+  - user_id validated: `^[a-zA-Z0-9_-]{1,64}$`
+  - Docker: credentials via env vars, ports bound to localhost, Redis auth
+  - Tests mock `agent.utils.llm_cache.ChatAnthropic` (not `agent.nodes.*.ChatAnthropic`)
